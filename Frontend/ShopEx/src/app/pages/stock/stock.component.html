@@ -1,0 +1,351 @@
+<div class="space-y-6" dir="rtl">
+  <!-- Page Header -->
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div>
+      <div class="flex items-center gap-2">
+        <span class="material-symbols-outlined text-primary text-[28px]">inventory_2</span>
+        <h1 class="text-2xl font-bold text-light-on-surface">إدارة المخازن والأرصدة</h1>
+      </div>
+      <p class="text-sm text-light-on-surface-variant mt-1">متابعة المخزون، الحركات الواردة والصادرة، والتسويات الجردية</p>
+    </div>
+
+    <div class="flex items-center gap-3">
+      <button (click)="openWarehouseModal()"
+              class="inline-flex items-center gap-2 px-4 py-2 border border-outline bg-light-surface text-light-on-surface hover:bg-light-surface-variant rounded-lg text-sm font-medium transition-colors">
+        <span class="material-symbols-outlined text-[18px]">add_business</span>
+        <span>مخزن جديد</span>
+      </button>
+
+      <button (click)="openAdjustModal()"
+              class="inline-flex items-center gap-2 px-4 py-2 bg-primary text-on-primary hover:bg-primary/90 rounded-lg text-sm font-medium shadow-sm transition-all">
+        <span class="material-symbols-outlined text-[18px]">tune</span>
+        <span>تسوية مخزنية</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Messages -->
+  <div *ngIf="successMessage" class="p-4 bg-green-50 border border-green-200 text-green-800 rounded-lg text-sm flex items-center justify-between">
+    <div class="flex items-center gap-2">
+      <span class="material-symbols-outlined text-green-600">check_circle</span>
+      <span>{{ successMessage }}</span>
+    </div>
+    <button (click)="successMessage = ''" class="text-green-600 hover:text-green-800">
+      <span class="material-symbols-outlined text-[18px]">close</span>
+    </button>
+  </div>
+
+  <div *ngIf="errorMessage" class="p-4 bg-red-50 border border-red-200 text-red-800 rounded-lg text-sm flex items-center justify-between">
+    <div class="flex items-center gap-2">
+      <span class="material-symbols-outlined text-red-600">error</span>
+      <span>{{ errorMessage }}</span>
+    </div>
+    <button (click)="errorMessage = ''" class="text-red-600 hover:text-red-800">
+      <span class="material-symbols-outlined text-[18px]">close</span>
+    </button>
+  </div>
+
+  <!-- Warehouse Tabs / Selector -->
+  <div class="bg-light-surface p-4 rounded-xl border border-outline flex flex-wrap items-center justify-between gap-4">
+    <div class="flex items-center gap-3">
+      <span class="text-sm font-semibold text-light-on-surface">اختر المخزن:</span>
+      <div class="flex flex-wrap gap-2">
+        <button *ngFor="let wh of warehouses"
+                (click)="onSelectWarehouse(wh.id)"
+                [class.bg-primary]="selectedWarehouseId === wh.id"
+                [class.text-on-primary]="selectedWarehouseId === wh.id"
+                [class.bg-light-surface-variant]="selectedWarehouseId !== wh.id"
+                [class.text-light-on-surface]="selectedWarehouseId !== wh.id"
+                class="px-3.5 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5">
+          <span class="material-symbols-outlined text-[16px]">warehouse</span>
+          <span>{{ wh.name }}</span>
+          <span *ngIf="wh.isDefault" class="text-[10px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-800 border border-blue-200">افتراضي</span>
+        </button>
+      </div>
+    </div>
+
+    <div *ngIf="selectedWarehouse" class="text-xs text-light-on-surface-variant">
+      الموقع: <span class="font-medium text-light-on-surface">{{ selectedWarehouse.location || 'غير محدد' }}</span>
+    </div>
+  </div>
+
+  <!-- Summary Cards -->
+  <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+    <div class="bg-light-surface p-4 rounded-xl border border-outline shadow-sm flex items-center justify-between">
+      <div>
+        <div class="text-xs font-medium text-light-on-surface-variant">إجمالي الأصناف بالمخزن</div>
+        <div class="text-2xl font-bold text-light-on-surface mt-1">{{ totalItemsCount }}</div>
+      </div>
+      <div class="w-12 h-12 rounded-xl bg-blue-50 text-primary flex items-center justify-center">
+        <span class="material-symbols-outlined text-[24px]">category</span>
+      </div>
+    </div>
+
+    <div class="bg-light-surface p-4 rounded-xl border border-outline shadow-sm flex items-center justify-between">
+      <div>
+        <div class="text-xs font-medium text-light-on-surface-variant">إجمالي القيمة التقديرية</div>
+        <div class="text-2xl font-bold text-emerald-600 mt-1">{{ totalStockValue | number:'1.2-2' }} <span class="text-sm font-normal text-gray-500">ج.م</span></div>
+      </div>
+      <div class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+        <span class="material-symbols-outlined text-[24px]">payments</span>
+      </div>
+    </div>
+
+    <div (click)="onToggleLowStock()"
+         class="bg-light-surface p-4 rounded-xl border border-outline shadow-sm flex items-center justify-between cursor-pointer hover:border-amber-400 transition-colors">
+      <div>
+        <div class="text-xs font-medium text-amber-700">أصناف تحت حد الطلب (نواقص)</div>
+        <div class="text-2xl font-bold text-amber-700 mt-1">{{ lowStockCount }}</div>
+      </div>
+      <div class="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+        <span class="material-symbols-outlined text-[24px]">warning</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Tabs: Balances vs Movements -->
+  <div class="bg-light-surface rounded-xl border border-outline overflow-hidden shadow-sm">
+    <!-- Header Controls -->
+    <div class="p-4 border-b border-outline flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <!-- Tabs Navigation -->
+      <div class="flex items-center gap-2 border-b md:border-b-0 pb-2 md:pb-0">
+        <button (click)="switchTab('balances')"
+                [class.border-primary]="activeTab === 'balances'"
+                [class.text-primary]="activeTab === 'balances'"
+                [class.border-transparent]="activeTab !== 'balances'"
+                [class.text-light-on-surface-variant]="activeTab !== 'balances'"
+                class="px-4 py-2 border-b-2 font-semibold text-sm transition-colors flex items-center gap-1.5">
+          <span class="material-symbols-outlined text-[18px]">inventory</span>
+          <span>الأرصدة الحالية</span>
+        </button>
+
+        <button (click)="switchTab('movements')"
+                [class.border-primary]="activeTab === 'movements'"
+                [class.text-primary]="activeTab === 'movements'"
+                [class.border-transparent]="activeTab !== 'movements'"
+                [class.text-light-on-surface-variant]="activeTab !== 'movements'"
+                class="px-4 py-2 border-b-2 font-semibold text-sm transition-colors flex items-center gap-1.5">
+          <span class="material-symbols-outlined text-[18px]">history</span>
+          <span>سجل الحركات المخزنية</span>
+        </button>
+      </div>
+
+      <!-- Filters (Search & Low Stock) -->
+      <div *ngIf="activeTab === 'balances'" class="flex items-center gap-3">
+        <div class="relative">
+          <span class="material-symbols-outlined absolute right-3 top-2.5 text-gray-400 text-[18px]">search</span>
+          <input type="text"
+                 [(ngModel)]="searchQuery"
+                 (ngModelChange)="onSearch()"
+                 placeholder="بحث برقم الصنف..."
+                 class="pr-9 pl-3 py-1.5 border border-outline rounded-lg text-sm bg-light-surface focus:outline-none focus:border-primary w-48 sm:w-64" />
+        </div>
+
+        <button (click)="onToggleLowStock()"
+                [class.bg-amber-100]="lowStockOnly"
+                [class.text-amber-800]="lowStockOnly"
+                [class.border-amber-300]="lowStockOnly"
+                class="px-3 py-1.5 border border-outline rounded-lg text-xs font-medium hover:bg-light-surface-variant transition-colors flex items-center gap-1">
+          <span class="material-symbols-outlined text-[16px]">filter_alt</span>
+          <span>النواقص فقط</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Tab 1: Balances Table -->
+    <div *ngIf="activeTab === 'balances'" class="overflow-x-auto">
+      <table class="w-full text-right text-sm">
+        <thead class="bg-light-surface-variant/50 text-light-on-surface-variant text-xs uppercase font-medium border-b border-outline">
+          <tr>
+            <th class="py-3 px-4">كود الصنف (RMS ID)</th>
+            <th class="py-3 px-4">الرصيد المتاح</th>
+            <th class="py-3 px-4">متوسط التكلفة</th>
+            <th class="py-3 px-4">إجمالي القيمة</th>
+            <th class="py-3 px-4">حد إعادة الطلب</th>
+            <th class="py-3 px-4">الحالة</th>
+            <th class="py-3 px-4">آخر تحديث</th>
+            <th class="py-3 px-4 text-center">إجراءات</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-outline">
+          <tr *ngFor="let b of filteredBalances" class="hover:bg-light-surface-variant/30 transition-colors">
+            <td class="py-3 px-4 font-mono font-semibold text-light-on-surface">#{{ b.rmsItemID }}</td>
+            <td class="py-3 px-4 font-bold text-base" [class.text-amber-600]="b.isLowStock" [class.text-light-on-surface]="!b.isLowStock">
+              {{ b.quantityOnHand | number:'1.2-3' }}
+            </td>
+            <td class="py-3 px-4">{{ b.averageCost | number:'1.2-2' }} ج.م</td>
+            <td class="py-3 px-4 font-medium text-emerald-700">{{ b.totalValue | number:'1.2-2' }} ج.م</td>
+            <td class="py-3 px-4 text-light-on-surface-variant">{{ b.reorderLevel ? (b.reorderLevel | number:'1.0-2') : '-' }}</td>
+            <td class="py-3 px-4">
+              <span *ngIf="b.isLowStock" class="px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 border border-amber-200">
+                منخفض
+              </span>
+              <span *ngIf="!b.isLowStock" class="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">
+                متوفر
+              </span>
+            </td>
+            <td class="py-3 px-4 text-xs text-light-on-surface-variant">{{ b.lastUpdatedAt | date:'yyyy-MM-dd HH:mm' }}</td>
+            <td class="py-3 px-4 text-center">
+              <button (click)="openAdjustModal(b)" class="text-xs px-2.5 py-1 rounded bg-blue-50 text-primary border border-blue-200 hover:bg-blue-100 font-medium transition-colors">
+                تسوية
+              </button>
+            </td>
+          </tr>
+          <tr *ngIf="filteredBalances.length === 0">
+            <td colspan="8" class="py-8 text-center text-light-on-surface-variant">
+              <span class="material-symbols-outlined text-[36px] text-gray-300 block mb-1">inventory</span>
+              لا توجد أصناف مسجلة في هذا المخزن حالياً.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Tab 2: Movements Table -->
+    <div *ngIf="activeTab === 'movements'" class="overflow-x-auto">
+      <table class="w-full text-right text-sm">
+        <thead class="bg-light-surface-variant/50 text-light-on-surface-variant text-xs uppercase font-medium border-b border-outline">
+          <tr>
+            <th class="py-3 px-4">رقم الحركة</th>
+            <th class="py-3 px-4">التاريخ</th>
+            <th class="py-3 px-4">نوع الحركة</th>
+            <th class="py-3 px-4">كود الصنف</th>
+            <th class="py-3 px-4">الكمية</th>
+            <th class="py-3 px-4">تكلفة الوحدة</th>
+            <th class="py-3 px-4">إجمالي التكلفة</th>
+            <th class="py-3 px-4">المرجع</th>
+            <th class="py-3 px-4">ملاحظات</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-outline">
+          <tr *ngFor="let m of movements" class="hover:bg-light-surface-variant/30 transition-colors">
+            <td class="py-3 px-4 font-mono text-xs text-light-on-surface-variant">#{{ m.id }}</td>
+            <td class="py-3 px-4 text-xs">{{ m.movementDate | date:'yyyy-MM-dd HH:mm' }}</td>
+            <td class="py-3 px-4">
+              <span [ngClass]="{
+                'bg-green-100 text-green-800 border-green-200': m.movementType === 2 || m.movementType === 6 || m.movementType === 5 || m.movementType === 8,
+                'bg-red-100 text-red-800 border-red-200': m.movementType === 3 || m.movementType === 4 || m.movementType === 7 || m.movementType === 9
+              }" class="px-2 py-0.5 rounded-full text-xs font-medium border">
+                {{ m.movementTypeName }}
+              </span>
+            </td>
+            <td class="py-3 px-4 font-mono font-semibold">#{{ m.rmsItemID }}</td>
+            <td class="py-3 px-4 font-bold" [class.text-green-700]="m.movementType === 2 || m.movementType === 6" [class.text-red-700]="m.movementType === 3 || m.movementType === 7 || m.movementType === 9">
+              {{ (m.movementType === 3 || m.movementType === 4 || m.movementType === 7 || m.movementType === 9) ? '-' : '+' }}{{ m.quantity | number:'1.2-3' }}
+            </td>
+            <td class="py-3 px-4">{{ m.unitCost | number:'1.2-2' }} ج.م</td>
+            <td class="py-3 px-4 font-medium">{{ m.totalCost | number:'1.2-2' }} ج.م</td>
+            <td class="py-3 px-4 text-xs text-light-on-surface-variant">
+              <span *ngIf="m.referenceType" class="px-1.5 py-0.5 rounded bg-gray-100 text-gray-700 font-mono">
+                {{ m.referenceType }} #{{ m.referenceID }}
+              </span>
+              <span *ngIf="!m.referenceType">-</span>
+            </td>
+            <td class="py-3 px-4 text-xs text-light-on-surface-variant max-w-xs truncate">{{ m.notes || '-' }}</td>
+          </tr>
+          <tr *ngIf="movements.length === 0">
+            <td colspan="9" class="py-8 text-center text-light-on-surface-variant">
+              لا توجد حركات مخزنية مسجلة لهذا المخزن حتى الآن.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Modal 1: Stock Adjustment -->
+  <div *ngIf="showAdjustModal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+    <div class="bg-light-surface rounded-2xl max-w-lg w-full p-6 shadow-xl border border-outline space-y-4">
+      <div class="flex items-center justify-between border-b border-outline pb-3">
+        <h3 class="font-bold text-lg text-light-on-surface flex items-center gap-2">
+          <span class="material-symbols-outlined text-primary">tune</span>
+          تسوية مخزنية جردية
+        </h3>
+        <button (click)="closeAdjustModal()" class="text-gray-400 hover:text-gray-600">
+          <span class="material-symbols-outlined text-[20px]">close</span>
+        </button>
+      </div>
+
+      <div class="space-y-3 text-sm">
+        <div>
+          <label class="block text-xs font-semibold text-light-on-surface mb-1">المخزن</label>
+          <select [(ngModel)]="adjustRequest.warehouseID" class="w-full p-2.5 border border-outline rounded-lg bg-light-surface text-light-on-surface">
+            <option *ngFor="let wh of warehouses" [value]="wh.id">{{ wh.name }}</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-light-on-surface mb-1">كود الصنف (RMS Item ID) *</label>
+          <input type="number" [(ngModel)]="adjustRequest.rmsItemID" class="w-full p-2.5 border border-outline rounded-lg bg-light-surface text-light-on-surface" placeholder="مثال: 105" />
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-light-on-surface mb-1">كمية التسوية (+ للإضافة، - للخصم) *</label>
+            <input type="number" step="0.01" [(ngModel)]="adjustRequest.quantity" class="w-full p-2.5 border border-outline rounded-lg bg-light-surface text-light-on-surface font-mono" placeholder="مثال: 5 أو -2" />
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-light-on-surface mb-1">سعر التكلفة (ج.م)</label>
+            <input type="number" step="0.01" [(ngModel)]="adjustRequest.unitCost" class="w-full p-2.5 border border-outline rounded-lg bg-light-surface text-light-on-surface font-mono" placeholder="0.00" />
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-light-on-surface mb-1">سبب التسوية</label>
+          <input type="text" [(ngModel)]="adjustRequest.reason" class="w-full p-2.5 border border-outline rounded-lg bg-light-surface text-light-on-surface" placeholder="مثال: جرد دوري، عجز جرد، تلف..." />
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end gap-3 pt-3 border-t border-outline">
+        <button (click)="closeAdjustModal()" class="px-4 py-2 border border-outline rounded-lg text-sm text-light-on-surface hover:bg-light-surface-variant font-medium">
+          إلغاء
+        </button>
+        <button (click)="submitAdjustment()" [disabled]="adjusting" class="px-5 py-2 bg-primary text-on-primary rounded-lg text-sm font-semibold hover:bg-primary/90 disabled:opacity-50">
+          {{ adjusting ? 'جاري الحفظ...' : 'تأكيد التسوية' }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 2: Create Warehouse -->
+  <div *ngIf="showWarehouseModal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+    <div class="bg-light-surface rounded-2xl max-w-md w-full p-6 shadow-xl border border-outline space-y-4">
+      <div class="flex items-center justify-between border-b border-outline pb-3">
+        <h3 class="font-bold text-lg text-light-on-surface flex items-center gap-2">
+          <span class="material-symbols-outlined text-primary">add_business</span>
+          إضافة مخزن جديد
+        </h3>
+        <button (click)="closeWarehouseModal()" class="text-gray-400 hover:text-gray-600">
+          <span class="material-symbols-outlined text-[20px]">close</span>
+        </button>
+      </div>
+
+      <div class="space-y-3 text-sm">
+        <div>
+          <label class="block text-xs font-semibold text-light-on-surface mb-1">اسم المخزن *</label>
+          <input type="text" [(ngModel)]="newWarehouse.name" class="w-full p-2.5 border border-outline rounded-lg bg-light-surface text-light-on-surface" placeholder="مثال: مخزن فرع المعادي" />
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-light-on-surface mb-1">الموقع / العنوان</label>
+          <input type="text" [(ngModel)]="newWarehouse.location" class="w-full p-2.5 border border-outline rounded-lg bg-light-surface text-light-on-surface" placeholder="مثال: الدور الأرضي - عمارة 12" />
+        </div>
+
+        <div class="flex items-center gap-2 pt-2">
+          <input type="checkbox" id="isDefault" [(ngModel)]="newWarehouse.isDefault" class="w-4 h-4 rounded text-primary focus:ring-primary" />
+          <label for="isDefault" class="text-xs font-medium text-light-on-surface cursor-pointer">تعيين كمخزن افتراضي للعمليات الواردة والصادرة</label>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end gap-3 pt-3 border-t border-outline">
+        <button (click)="closeWarehouseModal()" class="px-4 py-2 border border-outline rounded-lg text-sm text-light-on-surface hover:bg-light-surface-variant font-medium">
+          إلغاء
+        </button>
+        <button (click)="submitWarehouse()" [disabled]="creatingWarehouse" class="px-5 py-2 bg-primary text-on-primary rounded-lg text-sm font-semibold hover:bg-primary/90 disabled:opacity-50">
+          {{ creatingWarehouse ? 'جاري الإضافة...' : 'حفظ المخزن' }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

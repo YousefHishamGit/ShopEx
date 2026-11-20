@@ -1,0 +1,602 @@
+<div class="space-y-6 max-w-6xl mx-auto" dir="rtl">
+  <!-- Loading & Error -->
+  <div *ngIf="loading" class="p-8 text-center bg-light-surface rounded-xl border border-outline">
+    <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-primary border-t-transparent"></div>
+    <p class="text-sm text-light-on-surface-variant mt-2">جاري تحميل بيانات إذن الأمانة...</p>
+  </div>
+
+  <div *ngIf="errorMessage" class="p-4 bg-red-50 text-red-700 border border-red-200 rounded-xl text-sm">
+    {{ errorMessage }}
+  </div>
+
+  <div *ngIf="!loading && consignment" class="space-y-6">
+    <!-- Top Action Header -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-outline">
+      <div class="flex items-center gap-3">
+        <a
+          routerLink="/consignments"
+          class="p-2 rounded-lg border border-outline hover:bg-light-surface text-light-on-surface-variant transition-colors"
+        >
+          <span class="material-symbols-outlined text-[20px]">arrow_forward</span>
+        </a>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-xl font-bold text-light-on-surface font-mono">{{ consignment.consignmentNumber }}</h1>
+
+            <!-- Status Badge -->
+            <span
+              *ngIf="isOpen(consignment.status)"
+              class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200"
+            >
+              قيد البيع عند البنزينة
+            </span>
+            <span
+              *ngIf="isClosed(consignment.status)"
+              class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200"
+            >
+              مسواة ومغلقة بالكامل
+            </span>
+            <span
+              *ngIf="isCancelled(consignment.status)"
+              class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 border border-gray-200"
+            >
+              ملغي
+            </span>
+
+            <!-- Overdue Badge -->
+            <span
+              *ngIf="consignment.isOverdue"
+              class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700 border border-red-300 flex items-center gap-1"
+            >
+              <span class="material-symbols-outlined text-[13px]">warning</span>
+              متأخر عن التسوية
+            </span>
+          </div>
+
+          <p class="text-xs text-light-on-surface-variant mt-0.5">
+            صرف بضاعة أمانة للبنزينة: <strong class="text-light-on-surface">{{ consignment.dealerName }}</strong>
+          </p>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="flex flex-wrap items-center gap-2">
+        <!-- Print Button -->
+        <button
+          (click)="printConsignment()"
+          class="px-3.5 py-2 border border-outline hover:bg-light-surface rounded-lg text-xs font-medium text-light-on-surface flex items-center gap-1.5 shadow-sm"
+        >
+          <span class="material-symbols-outlined text-[18px]">print</span>
+          <span>طباعة</span>
+        </button>
+
+        <!-- Settlement Button (Active when can settle) -->
+        <button
+          *ngIf="canSettle()"
+          (click)="openSettlementModal()"
+          class="px-5 py-2.5 bg-primary text-on-primary font-bold rounded-lg hover:bg-primary/90 shadow-md hover:shadow-lg transition-all text-xs flex items-center gap-2 ring-2 ring-primary/20"
+        >
+          <span class="material-symbols-outlined text-[20px]">handshake</span>
+          <span>تسجيل تسوية (بيع / مرتجع)</span>
+        </button>
+
+        <!-- Payment Button (Active when can pay) -->
+        <button
+          *ngIf="canPay()"
+          (click)="openPaymentModal()"
+          class="px-4 py-2 bg-emerald-600 text-white font-medium rounded-lg hover:bg-emerald-700 shadow-sm transition-all text-xs flex items-center gap-1.5"
+        >
+          <span class="material-symbols-outlined text-[18px]">payments</span>
+          <span>تحصيل دفعة نقدية</span>
+        </button>
+
+        <!-- Cancel Consignment Button -->
+        <button
+          *ngIf="isOpen(consignment.status) && (!consignment.settlements || consignment.settlements.length === 0) && (!consignment.payments || consignment.payments.length === 0)"
+          (click)="cancelConsignment()"
+          [disabled]="cancelling"
+          class="px-3 py-2 border border-red-200 text-red-600 hover:bg-red-50 rounded-lg text-xs font-medium transition-all flex items-center gap-1"
+        >
+          <span class="material-symbols-outlined text-[16px]">cancel</span>
+          <span>إلغاء الإذن</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Dealer & Info Card -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 bg-light-surface p-4 rounded-xl border border-outline shadow-sm text-xs">
+      <div>
+        <span class="text-gray-500 block mb-0.5">البنزينة / المحل:</span>
+        <span class="font-bold text-sm text-light-on-surface">{{ consignment.dealerName }}</span>
+        <span class="text-gray-500 block mt-0.5">{{ consignment.dealerPhone }}</span>
+      </div>
+
+      <div>
+        <span class="text-gray-500 block mb-0.5">تاريخ الصرف:</span>
+        <span class="font-semibold text-light-on-surface">{{ consignment.issueDate | date : 'yyyy/MM/dd HH:mm' }}</span>
+        <span class="text-gray-500 block mt-0.5">المدة: {{ consignment.agreedDays || 15 }} يوم</span>
+      </div>
+
+      <div>
+        <span class="text-gray-500 block mb-0.5">تاريخ الاستحقاق المتفق عليه:</span>
+        <span class="font-semibold text-light-on-surface">{{ consignment.dueDate | date : 'yyyy/MM/dd' }}</span>
+        <span *ngIf="consignment.isOverdue" class="text-red-600 font-bold block mt-0.5">تجاوزت موعد التسوية!</span>
+        <span *ngIf="!consignment.isOverdue && consignment.status === 'Open'" class="text-blue-600 block mt-0.5">في المهلة</span>
+      </div>
+
+      <div>
+        <span class="text-gray-500 block mb-0.5">ملاحظات الإذن:</span>
+        <span class="text-light-on-surface">{{ consignment.notes || 'لا توجد ملاحظات مسجلة.' }}</span>
+      </div>
+    </div>
+
+    <!-- Key Performance Indicators (Cards) -->
+    <div class="grid grid-cols-2 md:grid-cols-6 gap-3">
+      <!-- Total Issued Value -->
+      <div class="bg-light-surface p-3.5 rounded-xl border border-outline shadow-sm">
+        <span class="text-[11px] text-gray-500 block">إجمالي المنصرف</span>
+        <div class="text-lg font-bold text-light-on-surface mt-1">
+          {{ consignment.totalIssuedValue | number : '1.0-0' }} <span class="text-[10px] text-gray-500 font-normal">ج.م</span>
+        </div>
+      </div>
+
+      <!-- Sold Value -->
+      <div class="bg-light-surface p-3.5 rounded-xl border border-outline shadow-sm">
+        <span class="text-[11px] text-blue-700 block">قيمة ما تم بيعه</span>
+        <div class="text-lg font-bold text-blue-700 mt-1">
+          {{ consignment.totalSoldValue | number : '1.0-0' }} <span class="text-[10px] text-gray-500 font-normal">ج.م</span>
+        </div>
+      </div>
+
+      <!-- Outstanding Goods Value -->
+      <div class="bg-light-surface p-3.5 rounded-xl border border-outline shadow-sm">
+        <span class="text-[11px] text-amber-700 block">متبقي عند البنزينة</span>
+        <div class="text-lg font-bold text-amber-700 mt-1">
+          {{ consignment.outstandingValue | number : '1.0-0' }} <span class="text-[10px] text-gray-500 font-normal">ج.م</span>
+        </div>
+        <div class="text-[10px] text-gray-500 mt-0.5">{{ consignment.outstandingQuantity }} قطعة متبقية</div>
+      </div>
+
+      <!-- Paid Amount -->
+      <div class="bg-light-surface p-3.5 rounded-xl border border-outline shadow-sm">
+        <span class="text-[11px] text-emerald-700 block">المحصل نقداً</span>
+        <div class="text-lg font-bold text-emerald-700 mt-1">
+          {{ consignment.paidAmount | number : '1.0-0' }} <span class="text-[10px] text-gray-500 font-normal">ج.م</span>
+        </div>
+      </div>
+
+      <!-- Remaining to Pay -->
+      <div class="bg-light-surface p-3.5 rounded-xl border border-outline shadow-sm">
+        <span class="text-[11px] text-red-700 block">متبقي للدفع</span>
+        <div class="text-lg font-bold text-red-700 mt-1">
+          {{ consignment.remainingAmount | number : '1.0-0' }} <span class="text-[10px] text-gray-500 font-normal">ج.م</span>
+        </div>
+        <div class="text-[10px] text-gray-500 mt-0.5" *ngIf="consignment.remainingAmount === 0">مسدد بالكامل ✓</div>
+      </div>
+
+      <!-- Profit -->
+      <div class="bg-emerald-50/60 p-3.5 rounded-xl border border-emerald-200 shadow-sm">
+        <span class="text-[11px] text-emerald-800 block">الأرباح المحققة</span>
+        <div class="text-lg font-bold text-emerald-800 mt-1">
+          {{ getAchievedProfit() | number : '1.0-0' }} <span class="text-[10px] text-gray-500 font-normal">ج.م</span>
+        </div>
+        <div class="text-[10px] text-emerald-700/80 mt-0.5">من الكميات المباعة</div>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="flex items-center gap-2 border-b border-outline text-xs font-semibold">
+      <button
+        (click)="activeTab = 'items'"
+        [class.border-b-2]="activeTab === 'items'"
+        [class.border-primary]="activeTab === 'items'"
+        [class.text-primary]="activeTab === 'items'"
+        class="pb-3 px-3 transition-all text-light-on-surface-variant flex items-center gap-1.5"
+      >
+        <span class="material-symbols-outlined text-[18px]">inventory_2</span>
+        <span>أصناف الأمانة وموقفها ({{ consignment.items.length }})</span>
+      </button>
+
+      <button
+        (click)="activeTab = 'settlements'"
+        [class.border-b-2]="activeTab === 'settlements'"
+        [class.border-primary]="activeTab === 'settlements'"
+        [class.text-primary]="activeTab === 'settlements'"
+        class="pb-3 px-3 transition-all text-light-on-surface-variant flex items-center gap-1.5"
+      >
+        <span class="material-symbols-outlined text-[18px]">handshake</span>
+        <span>سجل التسويات ({{ consignment.settlements.length }})</span>
+      </button>
+
+      <button
+        (click)="activeTab = 'payments'"
+        [class.border-b-2]="activeTab === 'payments'"
+        [class.border-primary]="activeTab === 'payments'"
+        [class.text-primary]="activeTab === 'payments'"
+        class="pb-3 px-3 transition-all text-light-on-surface-variant flex items-center gap-1.5"
+      >
+        <span class="material-symbols-outlined text-[18px]">payments</span>
+        <span>سجل التحصيلات النقدية ({{ consignment.payments.length }})</span>
+      </button>
+    </div>
+
+    <!-- ==================================================== -->
+    <!-- Tab 1: الأصناف وموقفها الحالي -->
+    <!-- ==================================================== -->
+    <div *ngIf="activeTab === 'items'" class="bg-light-surface rounded-xl border border-outline shadow-sm overflow-hidden">
+      <table class="w-full text-xs text-right border-collapse">
+        <thead class="bg-light-surface-variant text-light-on-surface-variant">
+          <tr>
+            <th class="p-3">#</th>
+            <th class="p-3">كود الصنف (RMS)</th>
+            <th class="p-3 text-center">الكمية الصادرة</th>
+            <th class="p-3 text-center text-blue-700">المباع</th>
+            <th class="p-3 text-center text-gray-600">المرتجع للمخزن</th>
+            <th class="p-3 text-center text-amber-700">المتبقي بالأمانة</th>
+            <th class="p-3 text-left">سعر البيع</th>
+            <th class="p-3 text-left">سعر التكلفة</th>
+            <th class="p-3 text-left font-bold">قيمة المباع</th>
+            <th class="p-3 text-left text-emerald-700 font-bold">الأرباح</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-outline">
+          <tr *ngFor="let item of consignment.items; let idx = index" class="hover:bg-light-surface-variant/40">
+            <td class="p-3 text-gray-400 font-bold">{{ idx + 1 }}</td>
+            <td class="p-3 font-mono font-bold text-light-on-surface">{{ item.rmsItemID }}</td>
+            <td class="p-3 text-center font-semibold text-light-on-surface">{{ item.quantityIssued }}</td>
+            <td class="p-3 text-center font-bold text-blue-700">{{ item.quantitySold }}</td>
+            <td class="p-3 text-center font-medium text-gray-600">{{ item.quantityReturned }}</td>
+            <td class="p-3 text-center font-bold">
+              <span
+                class="px-2 py-0.5 rounded-full"
+                [class.bg-amber-100]="item.quantityOutstanding > 0"
+                [class.text-amber-800]="item.quantityOutstanding > 0"
+                [class.bg-gray-100]="item.quantityOutstanding === 0"
+                [class.text-gray-500]="item.quantityOutstanding === 0"
+              >
+                {{ item.quantityOutstanding }}
+              </span>
+            </td>
+            <td class="p-3 text-left text-light-on-surface">{{ item.unitPrice | number : '1.2-2' }}</td>
+            <td class="p-3 text-left text-gray-500">{{ item.unitCost | number : '1.2-2' }}</td>
+            <td class="p-3 text-left font-bold text-blue-700">{{ item.soldValue | number : '1.2-2' }}</td>
+            <td class="p-3 text-left font-bold text-emerald-700">{{ item.profit | number : '1.2-2' }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ==================================================== -->
+    <!-- Tab 2: سجل جلسات التسوية -->
+    <!-- ==================================================== -->
+    <div *ngIf="activeTab === 'settlements'" class="space-y-4">
+      <div *ngFor="let s of consignment.settlements; let sIdx = index" class="bg-light-surface rounded-xl border border-outline shadow-sm p-4 space-y-3">
+        <div class="flex items-center justify-between pb-2 border-b border-outline">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-primary text-[20px]">handshake</span>
+            <span class="font-bold text-xs text-light-on-surface">جلسة تسوية رقم #{{ sIdx + 1 }}</span>
+            <span class="text-gray-400 text-xs">({{ s.settlementDate | date : 'yyyy/MM/dd HH:mm' }})</span>
+          </div>
+
+          <div class="text-xs">
+            <span class="text-gray-500">إجمالي قيمة المباع بالجلسة: </span>
+            <strong class="text-blue-700">{{ s.amountDue | number : '1.2-2' }} ج.م</strong>
+          </div>
+        </div>
+
+        <div *ngIf="s.notes || s.createdBy" class="text-xs text-light-on-surface-variant flex gap-4">
+          <span *ngIf="s.createdBy">المسئول: <strong>{{ s.createdBy }}</strong></span>
+          <span *ngIf="s.notes">ملاحظات: {{ s.notes }}</span>
+        </div>
+
+        <table class="w-full text-xs text-right border-collapse">
+          <thead class="bg-light-surface-variant/70 text-light-on-surface-variant">
+            <tr>
+              <th class="p-2">كود الصنف</th>
+              <th class="p-2 text-center text-blue-700">الكمية المباعة</th>
+              <th class="p-2 text-center text-gray-700">الكمية المرتجعة للمخزن</th>
+              <th class="p-2 text-left">قيمة المباع</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-outline">
+            <tr *ngFor="let si of s.items">
+              <td class="p-2 font-mono font-semibold">{{ si.rmsItemID }}</td>
+              <td class="p-2 text-center font-bold text-blue-700">{{ si.quantitySold }}</td>
+              <td class="p-2 text-center font-semibold text-gray-600">{{ si.quantityReturned }}</td>
+              <td class="p-2 text-left font-bold">{{ si.soldValue | number : '1.2-2' }} ج.م</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div *ngIf="!consignment.settlements || consignment.settlements.length === 0" class="p-8 text-center bg-light-surface rounded-xl border border-outline text-gray-500 text-xs">
+        <span class="material-symbols-outlined text-[36px] text-gray-400 block mb-1">hourglass_empty</span>
+        لم تتم أي تسوية حتى الآن. البضاعة ما زالت كاملة في حوزة البنزينة.
+      </div>
+    </div>
+
+    <!-- ==================================================== -->
+    <!-- Tab 3: سجل التحصيلات النقدية -->
+    <!-- ==================================================== -->
+    <div *ngIf="activeTab === 'payments'" class="bg-light-surface rounded-xl border border-outline shadow-sm overflow-hidden">
+      <table class="w-full text-xs text-right border-collapse">
+        <thead class="bg-light-surface-variant text-light-on-surface-variant">
+          <tr>
+            <th class="p-3">#</th>
+            <th class="p-3">تاريخ الدفعة</th>
+            <th class="p-3">طريقة الدفع</th>
+            <th class="p-3 text-left font-bold text-emerald-700">المبلغ</th>
+            <th class="p-3">ملاحظات</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-outline">
+          <tr *ngFor="let p of consignment.payments; let pIdx = index">
+            <td class="p-3 text-gray-400 font-bold">{{ pIdx + 1 }}</td>
+            <td class="p-3">{{ p.paymentDate | date : 'yyyy/MM/dd HH:mm' }}</td>
+            <td class="p-3">{{ p.paymentMethod || 'نقدي' }}</td>
+            <td class="p-3 text-left font-bold text-emerald-700 text-sm">{{ p.amount | number : '1.2-2' }} ج.م</td>
+            <td class="p-3 text-gray-600">{{ p.notes || '-' }}</td>
+          </tr>
+          <tr *ngIf="!consignment.payments || consignment.payments.length === 0">
+            <td colspan="5" class="p-8 text-center text-gray-500 text-xs">
+              لا توجد دفعات مسددة حتى الآن.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ==================================================== -->
+<!-- Modal: تسجيل تسوية (بيع / مرتجع) -->
+<!-- ==================================================== -->
+<div *ngIf="showSettlementModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" dir="rtl">
+  <div class="bg-light-surface rounded-2xl border border-outline shadow-xl max-w-3xl w-full max-h-[90vh] flex flex-col overflow-hidden">
+    <!-- Header -->
+    <div class="p-5 border-b border-outline flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <span class="material-symbols-outlined text-primary text-[24px]">handshake</span>
+        <div>
+          <h2 class="text-base font-bold text-light-on-surface">تسجيل تسوية بضاعة الأمانة</h2>
+          <p class="text-xs text-light-on-surface-variant">
+            تحديد الكميات المباعة (لحساب الفلوس) والكميات المرتجعة (للرجوع لمخزن الـ HQ)
+          </p>
+        </div>
+      </div>
+      <button (click)="closeSettlementModal()" class="text-gray-400 hover:text-gray-600 p-1">
+        <span class="material-symbols-outlined text-[20px]">close</span>
+      </button>
+    </div>
+
+    <!-- Body -->
+    <div class="p-5 overflow-y-auto space-y-4 flex-1">
+      <div *ngIf="settlementError" class="p-3 bg-red-50 text-red-700 text-xs rounded-lg border border-red-200">
+        {{ settlementError }}
+      </div>
+
+      <!-- Items to Settle Table -->
+      <div class="border border-outline rounded-xl overflow-hidden">
+        <table class="w-full text-xs text-right border-collapse">
+          <thead class="bg-light-surface-variant text-light-on-surface-variant">
+            <tr>
+              <th class="p-2.5">كود الصنف</th>
+              <th class="p-2.5 text-center">المتبقي حالياً</th>
+              <th class="p-2.5 text-center text-blue-700">كمية المباع *</th>
+              <th class="p-2.5 text-center text-gray-700">المرتجع للـ HQ *</th>
+              <th class="p-2.5 text-left">سعر البيع</th>
+              <th class="p-2.5 text-left font-bold">قيمة المباع</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-outline">
+            <tr *ngFor="let item of settlementItems" class="hover:bg-light-surface-variant/40">
+              <td class="p-2.5 font-mono font-bold">{{ item.rmsItemID }}</td>
+              <td class="p-2.5 text-center font-bold text-amber-700">{{ item.quantityOutstanding }}</td>
+
+              <!-- Quantity Sold -->
+              <td class="p-2.5 text-center w-28">
+                <input
+                  type="number"
+                  [(ngModel)]="item.quantitySold"
+                  (change)="onSettlementSoldChange()"
+                  min="0"
+                  [max]="item.quantityOutstanding"
+                  class="w-full px-2 py-1 text-center border border-outline rounded bg-light-surface focus:outline-none focus:border-blue-500 font-bold text-blue-700 text-xs"
+                />
+              </td>
+
+              <!-- Quantity Returned -->
+              <td class="p-2.5 text-center w-28">
+                <input
+                  type="number"
+                  [(ngModel)]="item.quantityReturned"
+                  min="0"
+                  [max]="item.quantityOutstanding"
+                  class="w-full px-2 py-1 text-center border border-outline rounded bg-light-surface focus:outline-none focus:border-gray-500 font-semibold text-xs text-gray-700"
+                />
+              </td>
+
+              <td class="p-2.5 text-left text-gray-600">{{ item.unitPrice | number : '1.2-2' }}</td>
+              <td class="p-2.5 text-left font-bold text-blue-700">
+                {{ (item.quantitySold * item.unitPrice) | number : '1.2-2' }} ج.م
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Settlement Total Sold Preview -->
+      <div class="p-3 bg-blue-50 rounded-xl border border-blue-200 flex items-center justify-between text-xs">
+        <span class="text-blue-900 font-semibold">إجمالي قيمة مبيعات هذه التسوية:</span>
+        <span class="text-base font-bold text-blue-700">{{ totalSettlementSoldValue | number : '1.2-2' }} ج.م</span>
+      </div>
+
+      <!-- Payment Integration Checkbox -->
+      <div class="p-3 bg-light-surface-variant rounded-xl border border-outline space-y-3">
+        <label class="flex items-center gap-2 cursor-pointer text-xs font-bold text-light-on-surface">
+          <input
+            type="checkbox"
+            [(ngModel)]="collectPaymentNow"
+            (change)="toggleCollectPayment()"
+            class="rounded border-outline text-primary focus:ring-primary h-4 w-4"
+          />
+          <span>استلام وتحصيل نقدية فورية الآن (كاش / تحويل)</span>
+        </label>
+
+        <div *ngIf="collectPaymentNow" class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-outline">
+          <div>
+            <label class="block text-xs font-medium text-light-on-surface-variant mb-1">المبلغ المحصل (ج.م)</label>
+            <input
+              type="number"
+              [(ngModel)]="immediatePaymentAmount"
+              min="0.01"
+              step="0.01"
+              class="w-full px-3 py-1.5 text-xs font-bold text-emerald-700 border border-outline rounded-lg bg-light-surface focus:outline-none focus:border-primary"
+            />
+          </div>
+
+          <div>
+            <label class="block text-xs font-medium text-light-on-surface-variant mb-1">طريقة الدفع</label>
+            <select
+              [(ngModel)]="immediatePaymentMethod"
+              class="w-full px-3 py-1.5 text-xs border border-outline rounded-lg bg-light-surface focus:outline-none focus:border-primary"
+            >
+              <option value="نقدي">نقدي (كاش)</option>
+              <option value="تحويل بنكي / فودافون كاش">تحويل بنكي / إنستاباي</option>
+              <option value="شيك">شيك</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Extra Info -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs font-medium text-light-on-surface-variant mb-1">المسئول / مستلم التسوية</label>
+          <input
+            type="text"
+            [(ngModel)]="settlementCreatedBy"
+            placeholder="مثال: أ/ محمد مندوب التوزيع"
+            class="w-full px-3 py-1.5 text-xs border border-outline rounded-lg bg-light-surface focus:outline-none focus:border-primary"
+          />
+        </div>
+
+        <div>
+          <label class="block text-xs font-medium text-light-on-surface-variant mb-1">ملاحظات التسوية</label>
+          <input
+            type="text"
+            [(ngModel)]="settlementNotes"
+            placeholder="أي تفاصيل أو ملاحظات على حالة المرتجع"
+            class="w-full px-3 py-1.5 text-xs border border-outline rounded-lg bg-light-surface focus:outline-none focus:border-primary"
+          />
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="p-4 border-t border-outline flex justify-end gap-2">
+      <button
+        (click)="closeSettlementModal()"
+        class="px-4 py-2 border border-outline rounded-lg text-xs font-medium hover:bg-light-surface-variant"
+      >
+        إلغاء
+      </button>
+      <button
+        (click)="submitSettlement()"
+        [disabled]="savingSettlement"
+        class="px-5 py-2 bg-primary text-on-primary font-medium rounded-lg hover:bg-primary/90 text-xs transition-all flex items-center gap-1.5"
+      >
+        <span *ngIf="savingSettlement" class="animate-spin rounded-full h-3.5 w-3.5 border-2 border-white border-t-transparent"></span>
+        <span>تأكيد التسوية وحفظ الحسابات</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================================================== -->
+<!-- Modal: تحصيل دفعة نقدية (Payment Modal) -->
+<!-- ==================================================== -->
+<div *ngIf="showPaymentModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" dir="rtl">
+  <div class="bg-light-surface rounded-2xl border border-outline shadow-xl max-w-md w-full p-5 space-y-4">
+    <div class="flex items-center justify-between pb-3 border-b border-outline">
+      <div class="flex items-center gap-2">
+        <span class="material-symbols-outlined text-emerald-600 text-[24px]">payments</span>
+        <h2 class="text-base font-bold text-light-on-surface">تحصيل دفعة نقدية</h2>
+      </div>
+      <button (click)="closePaymentModal()" class="text-gray-400 hover:text-gray-600">
+        <span class="material-symbols-outlined text-[20px]">close</span>
+      </button>
+    </div>
+
+    <div *ngIf="consignment" class="p-3 bg-light-surface-variant rounded-lg text-xs space-y-1">
+      <div class="flex justify-between">
+        <span class="text-gray-500">إجمالي قيمة ما تم بيعه:</span>
+        <span class="font-bold text-blue-700">{{ consignment.totalSoldValue | number : '1.2-2' }} ج.م</span>
+      </div>
+      <div class="flex justify-between">
+        <span class="text-gray-500">المحصل حتى الآن:</span>
+        <span class="font-semibold text-emerald-700">{{ consignment.paidAmount | number : '1.2-2' }} ج.م</span>
+      </div>
+      <div class="flex justify-between border-t border-outline pt-1 mt-1">
+        <span class="text-gray-500">المتبقي غير المسدد:</span>
+        <span class="font-bold text-red-600">{{ consignment.remainingAmount | number : '1.2-2' }} ج.م</span>
+      </div>
+    </div>
+
+    <div *ngIf="paymentError" class="p-3 bg-red-50 text-red-700 text-xs rounded-lg border border-red-200">
+      {{ paymentError }}
+    </div>
+
+    <div class="space-y-3">
+      <div>
+        <label class="block text-xs font-medium text-light-on-surface-variant mb-1">المبلغ المحصل (ج.م) *</label>
+        <input
+          type="number"
+          [(ngModel)]="paymentRequest.amount"
+          min="0.01"
+          step="0.01"
+          class="w-full px-3 py-2 text-sm border border-outline rounded-lg bg-light-surface focus:outline-none focus:border-primary font-bold text-emerald-700"
+        />
+      </div>
+
+      <div>
+        <label class="block text-xs font-medium text-light-on-surface-variant mb-1">طريقة الدفع</label>
+        <select
+          [(ngModel)]="paymentRequest.paymentMethod"
+          class="w-full px-3 py-2 text-xs border border-outline rounded-lg bg-light-surface focus:outline-none focus:border-primary"
+        >
+          <option value="نقدي">نقدي (كاش)</option>
+          <option value="تحويل بنكي / فودافون كاش">تحويل بنكي / إنستاباي</option>
+          <option value="شيك">شيك</option>
+        </select>
+      </div>
+
+      <div>
+        <label class="block text-xs font-medium text-light-on-surface-variant mb-1">ملاحظات الدفعة</label>
+        <input
+          type="text"
+          [(ngModel)]="paymentRequest.notes"
+          placeholder="مثال: سداد نقدية من حساب التسوية"
+          class="w-full px-3 py-2 text-xs border border-outline rounded-lg bg-light-surface focus:outline-none focus:border-primary"
+        />
+      </div>
+    </div>
+
+    <div class="pt-3 border-t border-outline flex justify-end gap-2">
+      <button
+        (click)="closePaymentModal()"
+        class="px-4 py-2 border border-outline rounded-lg text-xs font-medium hover:bg-light-surface-variant"
+      >
+        إلغاء
+      </button>
+      <button
+        (click)="submitPayment()"
+        [disabled]="savingPayment"
+        class="px-4 py-2 bg-emerald-600 text-white rounded-lg text-xs font-medium hover:bg-emerald-700 transition-all flex items-center gap-1.5"
+      >
+        <span *ngIf="savingPayment" class="animate-spin rounded-full h-3.5 w-3.5 border-2 border-white border-t-transparent"></span>
+        <span>تأكيد التحصيل</span>
+      </button>
+    </div>
+  </div>
+</div>

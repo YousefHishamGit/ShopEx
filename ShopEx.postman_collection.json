@@ -1,0 +1,303 @@
+{
+  "info": {
+    "_postman_id": "7b8e1f54-2f3b-4c28-98e3-0d3f3f59e9a1",
+    "name": "ShopEx API",
+    "description": "Postman Collection for testing ShopEx APIs:\n- RMS Suppliers & Items\n- ShopEx Supplier Invoices & Payments\n- RMS Worksheets (PO Planner Process with Opening, Adding Purchases, and Approval)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5009",
+      "type": "string"
+    },
+    {
+      "key": "supplierId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "invoiceId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "worksheetId",
+      "value": "1",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. RMS Suppliers",
+      "item": [
+        {
+          "name": "Get All Suppliers",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/RMSSuppliers",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "RMSSuppliers"]
+            },
+            "description": "Retrieves the list of all suppliers from RMS."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Items By Supplier ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/RMSSuppliers/{{supplierId}}/items",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "RMSSuppliers", "{{supplierId}}", "items"]
+            },
+            "description": "Retrieves all items belonging to a specific RMS supplier."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "2. Supplier Invoices (ShopEx)",
+      "item": [
+        {
+          "name": "Create Supplier Invoice",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rmsSupplierID\": 1,\n  \"invoiceNumber\": \"INV-2026-001\",\n  \"invoiceDate\": \"2026-11-13T00:00:00Z\",\n  \"notes\": \"Initial order invoice\",\n  \"paymentType\": 2,\n  \"creditDays\": 30,\n  \"items\": [\n    {\n      \"rmsItemID\": 101,\n      \"quantity\": 10,\n      \"unitPrice\": 50.00\n    },\n    {\n      \"rmsItemID\": 102,\n      \"quantity\": 5,\n      \"unitPrice\": 120.00\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/SupplierInvoices",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "SupplierInvoices"]
+            },
+            "description": "Creates a new supplier invoice with items and calculates the total amount."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Supplier Invoice By ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/SupplierInvoices/{{invoiceId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "SupplierInvoices", "{{invoiceId}}"]
+            },
+            "description": "Retrieves invoice details, items, payments, paid amount, and remaining balance."
+          },
+          "response": []
+        },
+        {
+          "name": "Add Payment to Supplier Invoice",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 500.00,\n  \"paymentDate\": \"2026-11-13T00:00:00Z\",\n  \"paymentMethod\": \"Cash\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/SupplierInvoices/{{invoiceId}}/payments",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "SupplierInvoices", "{{invoiceId}}", "payments"]
+            },
+            "description": "Records a payment for the invoice and automatically updates invoice payment status."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "3. RMS Worksheets (PO Planner)",
+      "item": [
+        {
+          "name": "1. Open Worksheet (Status 1)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"PO Planner Weekly Batch\",\n  \"notes\": \"Worksheet for Cairo Store\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/RMSWorksheets",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "RMSWorksheets"]
+            },
+            "description": "Opens a new worksheet in RMS with Status = 1 (PendingApproval)."
+          },
+          "response": []
+        },
+        {
+          "name": "2. Add Purchases to Worksheet",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "[\n  {\n    \"itemId\": 101,\n    \"description\": \"Item 101 Description\",\n    \"qty\": 50,\n    \"price\": 25.50,\n    \"storeId\": 1,\n    \"taxRate\": 0.14\n  },\n  {\n    \"itemId\": 102,\n    \"description\": \"Item 102 Description\",\n    \"qty\": 20,\n    \"price\": 80.00,\n    \"storeId\": 1,\n    \"taxRate\": 0.14\n  }\n]",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/RMSWorksheets/{{worksheetId}}/purchases",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "RMSWorksheets", "{{worksheetId}}", "purchases"]
+            },
+            "description": "Adds purchase order items to the opened worksheet (linked by WorksheetID) while Status remains 1."
+          },
+          "response": []
+        },
+        {
+          "name": "3. Open Worksheet with Purchases (Combined)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"PO Planner Combined\",\n  \"notes\": \"Worksheet opened directly with purchase items\",\n  \"items\": [\n    {\n      \"itemId\": 101,\n      \"description\": \"Item 101 Description\",\n      \"qty\": 100,\n      \"price\": 15.00,\n      \"storeId\": 1,\n      \"taxRate\": 0.14\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/RMSWorksheets/with-purchases",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "RMSWorksheets", "with-purchases"]
+            },
+            "description": "Opens a worksheet and links purchase order items in a single request with Status = 1."
+          },
+          "response": []
+        },
+        {
+          "name": "4. Get Worksheet By ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/RMSWorksheets/{{worksheetId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "RMSWorksheets", "{{worksheetId}}"]
+            },
+            "description": "Retrieves the worksheet details along with its linked purchase orders and current status."
+          },
+          "response": []
+        },
+        {
+          "name": "5. Approve Worksheet (Status 1 -> 2)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/RMSWorksheets/{{worksheetId}}/approve",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "RMSWorksheets", "{{worksheetId}}", "approve"]
+            },
+            "description": "Approves the pending worksheet, converting its status from 1 (PendingApproval) to 2 (Approved)."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
+

@@ -1,0 +1,228 @@
+<div class="max-w-7xl mx-auto space-y-6">
+  <!-- Page Header & Action Bar -->
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div>
+      <div class="flex items-center gap-2">
+        <span class="material-symbols-outlined text-primary text-[28px]">storefront</span>
+        <h1 class="font-headline text-headline-lg text-light-on-surface tracking-tight font-bold text-2xl">الموردين</h1>
+      </div>
+      <p class="text-body-md text-light-on-surface-variant text-sm mt-1">
+        قائمة الموردين من RMS مع دعم التصفح السريع (Pagination عبر السيرفر) للوصول لكشف الحساب والفواتير.
+      </p>
+    </div>
+    <div class="flex items-center gap-3">
+      <button (click)="fetchSuppliers(currentPage)"
+        class="px-3.5 py-2 text-light-on-surface-variant bg-light-surface border border-outline rounded hover:bg-light-surface-variant text-body-sm font-medium flex items-center gap-1.5 shadow-sm transition-colors">
+        <span class="material-symbols-outlined text-[18px]">sync</span>
+        <span>تحديث</span>
+      </button>
+      <!-- <a routerLink="/worksheets" class="px-4 py-2 bg-primary text-on-primary rounded text-body-sm font-semibold flex items-center gap-2 shadow hover:bg-blue-700 transition-colors">
+        <span class="material-symbols-outlined text-[18px]">post_add</span>
+        <span>إنشاء Worksheet</span>
+      </a> -->
+    </div>
+  </div>
+
+  <!-- Error notification -->
+  <div *ngIf="errorMessage"
+    class="p-4 rounded bg-error-container text-on-error-container border border-error/20 flex items-center gap-2 text-sm">
+    <span class="material-symbols-outlined text-error">error</span>
+    <span>{{ errorMessage }}</span>
+  </div>
+
+  <!-- Data Card / Table Container -->
+  <div class="bg-light-surface rounded-lg border border-outline shadow-sm overflow-hidden">
+    <!-- Filter & Search Toolbar -->
+    <div
+      class="p-4 border-b border-outline bg-light-surface flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div class="relative flex-1 max-w-md">
+        <span
+          class="material-symbols-outlined absolute left-3 top-2.5 text-light-on-surface-variant text-[20px]">search</span>
+        <input [(ngModel)]="searchTerm" (ngModelChange)="onSearchChange()" type="search"
+          placeholder="بحث بالاسم، الكود، أو رقم الحساب..."
+          class="w-full pl-10 pr-4 py-2 bg-light-surface-variant border border-outline rounded text-body-sm text-light-on-surface placeholder:text-light-on-surface-variant/60 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all">
+      </div>
+
+      <div class="flex items-center gap-4 text-body-sm text-light-on-surface-variant text-sm">
+        <div class="flex items-center gap-2">
+
+          <div class="relative inline-flex items-center">
+            <select [(ngModel)]="pageSize" (change)="onPageSizeChange()"
+              class="appearance-none !bg-none bg-light-surface border border-outline rounded-md py-1 pr-3 pl-8 text-sm text-light-on-surface focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer">
+              <option [ngValue]="5">5</option>
+              <option [ngValue]="10">10</option>
+              <option [ngValue]="15">15</option>
+              <option [ngValue]="20">20</option>
+            </select>
+            <!-- سهم مخصص يمنع التداخل نهائياً -->
+            <div class="absolute left-2.5 pointer-events-none text-light-on-surface/60">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+              </svg>
+            </div>
+          </div>
+          <span class="text-sm text-light-on-surface"> : عرض في الصفحة</span>
+        </div>
+        <div class="border-r border-outline h-4"></div>
+        <div class="flex items-center gap-1.5 text-xs text-primary bg-primary/5 px-2.5 py-1 rounded-full font-medium">
+          <span class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
+          <span>إجمالي: {{ totalCount }} مورد</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Loading Skeleton -->
+    <div *ngIf="loading" class="p-6 space-y-4">
+      <div class="flex items-center gap-3">
+        <span class="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin"></span>
+        <span class="text-sm text-light-on-surface-variant">جاري إرسال الطلب وتحميل الصفحة {{ currentPage }}...</span>
+      </div>
+      <div class="h-10 bg-slate-100 rounded animate-pulse"></div>
+      <div class="h-10 bg-slate-100 rounded animate-pulse"></div>
+      <div class="h-10 bg-slate-100 rounded animate-pulse"></div>
+    </div>
+
+    <!-- Empty State -->
+    <div *ngIf="!loading && suppliers.length === 0" class="py-16 px-4 text-center">
+      <div
+        class="w-16 h-16 mx-auto mb-3 rounded-full bg-light-surface-variant flex items-center justify-center text-light-on-surface-variant">
+        <span class="material-symbols-outlined text-[36px]">store_mall_directory</span>
+      </div>
+      <h3 class="font-title text-title-lg text-light-on-surface font-semibold mb-1">لا توجد نتائج للموردين</h3>
+      <p class="text-body-md text-light-on-surface-variant max-w-md mx-auto mb-4 text-sm">
+        لم نتمكن من إيجاد موردين يطابقون بحثك. جرب مسح كلمة البحث أو إعادة المزامنة مع RMS.
+      </p>
+      <button (click)="clearSearch()"
+        class="px-4 py-1.5 text-primary border border-primary/40 rounded text-label-md font-medium hover:bg-primary/5 transition-colors">
+        مسح البحث
+      </button>
+    </div>
+
+    <!-- Data Table -->
+    <div *ngIf="!loading && suppliers.length > 0" class="overflow-x-auto">
+      <table class="w-full text-left border-collapse">
+        <thead class="bg-light-surface-variant border-b border-outline">
+          <tr>
+            <th scope="col" class="px-6 py-3.5 font-title text-title-md text-light-on-surface font-semibold w-24">ID
+            </th>
+            <th scope="col" class="px-6 py-3.5 font-title text-title-md text-light-on-surface font-semibold">المورد</th>
+            <th scope="col" class="px-6 py-3.5 font-title text-title-md text-light-on-surface font-semibold">كود المورد
+            </th>
+            <th scope="col" class="px-6 py-3.5 font-title text-title-md text-light-on-surface font-semibold">رقم الحساب
+            </th>
+            <th scope="col" class="px-6 py-3.5 font-title text-title-md text-light-on-surface font-semibold">جهة الاتصال
+              / الهاتف</th>
+            <th scope="col" class="px-6 py-3.5 text-right font-title text-title-md text-light-on-surface font-semibold">
+              الإجراءات</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-outline-variant text-body-md text-light-on-surface">
+          <tr *ngFor="let s of suppliers" (click)="viewSupplierStatement(s.id)"
+            class="hover:bg-primary/5 transition-colors cursor-pointer group">
+            <td class="px-6 py-3.5 font-mono text-sm text-light-on-surface-variant font-medium">#{{ s.id }}</td>
+            <td class="px-6 py-3.5 font-medium text-light-on-surface">
+              <div class="flex items-center gap-3">
+                <span
+                  class="w-8 h-8 rounded-lg bg-blue-100 text-primary flex items-center justify-center font-bold text-sm shadow-sm group-hover:bg-primary group-hover:text-white transition-colors">
+                  {{ s.supplierName ? s.supplierName.charAt(0) : 'S' }}
+                </span>
+                <div>
+                  <div
+                    class="font-bold text-light-on-surface group-hover:text-primary transition-colors flex items-center gap-1.5">
+                    <span>{{ s.supplierName }}</span>
+                    <span
+                      class="material-symbols-outlined text-[16px] opacity-0 group-hover:opacity-100 transition-opacity">arrow_forward</span>
+                  </div>
+                  <div class="text-xs text-light-on-surface-variant font-normal">RMS Supplier #{{ s.id }}</div>
+                </div>
+              </div>
+            </td>
+            <td class="px-6 py-3.5 font-mono text-sm">
+              <span
+                class="px-2 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-700 text-xs font-semibold">
+                {{ s.code || '—' }}
+              </span>
+            </td>
+            <td class="px-6 py-3.5 font-mono text-sm text-light-on-surface-variant">{{ s.accountNumber || '—' }}</td>
+            <td class="px-6 py-3.5 text-sm text-light-on-surface-variant">
+              <div>{{ s.contactName || '—' }}</div>
+              <div class="text-xs text-slate-500">{{ s.phoneNumber || s.emailAddress || '' }}</div>
+            </td>
+            <td class="px-6 py-3.5 text-right" (click)="$event.stopPropagation()">
+              <div class="flex items-center justify-end gap-2">
+                <a [routerLink]="['/suppliers', s.id]"
+                  class="px-3 py-1.5 bg-primary text-white hover:bg-blue-700 rounded text-xs font-semibold inline-flex items-center gap-1 shadow-sm transition-all"
+                  title="كشف حساب المورد وفواتيره">
+                  <span class="material-symbols-outlined text-[15px]">account_balance_wallet</span>
+                  <span>كشف الحساب</span>
+                </a>
+
+                <a [routerLink]="['/supplier-returns/new']" [queryParams]="{ supplierId: s.id }"
+                  class="px-2.5 py-1.5 bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-300 rounded text-xs font-semibold inline-flex items-center gap-1 transition-all"
+                  title="إنشاء مرتجع لهذا المورد">
+                  <span class="material-symbols-outlined text-[15px]">assignment_return</span>
+                  <span>مرتجع</span>
+                </a>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Server-Side Pagination Controls -->
+    <div *ngIf="!loading && totalCount > 0"
+      class="p-4 border-t border-outline bg-light-surface flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div class="text-body-sm text-light-on-surface-variant text-sm">
+        عرض
+        <span class="font-semibold text-light-on-surface">{{ (currentPage - 1) * pageSize + 1 }}</span>
+        إلى
+        <span class="font-semibold text-light-on-surface">{{ (currentPage * pageSize) > totalCount ? totalCount :
+          (currentPage * pageSize) }}</span>
+        من أصل
+        <span class="font-semibold text-light-on-surface">{{ totalCount }}</span>
+        مورد (الصفحة {{ currentPage }} من {{ totalPages }})
+      </div>
+
+      <div class="flex items-center gap-1">
+        <!-- First Page -->
+        <button (click)="changePage(1)" [disabled]="currentPage === 1"
+          class="p-1.5 rounded text-light-on-surface-variant hover:bg-light-surface-variant disabled:opacity-30 disabled:pointer-events-none transition-colors"
+          title="الصفحة الأولى">
+          <span class="material-symbols-outlined text-[20px]">first_page</span>
+        </button>
+
+        <!-- Previous Page -->
+        <button (click)="changePage(currentPage - 1)" [disabled]="currentPage === 1"
+          class="px-3 py-1.5 rounded text-light-on-surface-variant hover:bg-light-surface-variant disabled:opacity-30 disabled:pointer-events-none text-body-sm font-medium flex items-center gap-1 transition-colors">
+          <span class="material-symbols-outlined text-[18px]">chevron_left</span>
+          <span>السابق</span>
+        </button>
+
+        <!-- Page Numbers -->
+        <div class="flex items-center gap-1 mx-1">
+          <button *ngFor="let p of getPageNumbers()" (click)="changePage(p)" [class.bg-primary]="p === currentPage"
+            [class.text-white]="p === currentPage" [class.font-bold]="p === currentPage"
+            [class.hover:bg-light-surface-variant]="p !== currentPage"
+            class="w-8 h-8 rounded text-sm transition-colors flex items-center justify-center font-medium">
+            {{ p }}
+          </button>
+        </div>
+
+        <!-- Next Page -->
+        <button (click)="changePage(currentPage + 1)" [disabled]="currentPage === totalPages"
+          class="px-3 py-1.5 rounded text-light-on-surface-variant hover:bg-light-surface-variant disabled:opacity-30 disabled:pointer-events-none text-body-sm font-medium flex items-center gap-1 transition-colors">
+          <span>التالي</span>
+          <span class="material-symbols-outlined text-[18px]">chevron_right</span>
+        </button>
+
+        <!-- Last Page -->
+        <button (click)="changePage(totalPages)" [disabled]="currentPage === totalPages"
+          class="p-1.5 rounded text-light-on-surface-variant hover:bg-light-surface-variant disabled:opacity-30 disabled:pointer-events-none transition-colors"
+          title="الصفحة الأخيرة">
+          <span class="material-symbols-outlined text-[20px]">last_page</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

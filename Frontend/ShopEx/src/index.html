@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>ShopEx — Supplier & PO Planner</title>
+  <base href="/">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" type="image/x-icon" href="favicon.ico">
+
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <script id="tailwind-config">
+    globalThis.tailwind = globalThis.tailwind || {};
+    globalThis.tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            'primary': '#1976D2',
+            'on-primary': '#FFFFFF',
+            'accent': '#3F51B5',
+            'on-accent': '#FFFFFF',
+            'success': '#2E7D32',
+            'on-success': '#FFFFFF',
+            'success-container': '#E8F5E9',
+            'on-success-container': '#1B5E20',
+            'warning': '#ED6C02',
+            'on-warning': '#2B2B2B',
+            'warning-container': '#FFF3E0',
+            'on-warning-container': '#C54600',
+            'error': '#D32F2F',
+            'on-error': '#FFFFFF',
+            'error-container': '#FFEBEE',
+            'on-error-container': '#C62828',
+            'amber': '#F57C00',
+            'amber-container': '#FFF8E1',
+            'on-amber-container': '#976A02',
+            'outline': '#E0E0E0',
+            'outline-variant': '#EEEEEE',
+            'light-surface': '#FFFFFF',
+            'light-on-surface': '#212121',
+            'light-surface-variant': '#F5F7FA',
+            'light-on-surface-variant': '#616161',
+            'light-surface-container-low': '#FAFAFA',
+            'light-surface-container': '#F0F4F8',
+            'light-surface-container-high': '#E2E8F0',
+            'dark-surface': '#121212',
+            'dark-on-surface': '#E0E0E0',
+            'dark-surface-variant': '#1E1E1E',
+            'dark-on-surface-variant': '#9E9E9E',
+            'dark-surface-container-low': '#181818',
+            'dark-surface-container': '#242424',
+            'dark-surface-container-high': '#2E2E2E',
+          },
+          borderRadius: {
+            'sm': '4px',
+            'DEFAULT': '8px',
+            'md': '8px',
+            'lg': '12px',
+            'xl': '16px',
+            'full': '9999px',
+          },
+          fontFamily: {
+            'headline': ['"Roboto"', 'sans-serif'],
+            'title': ['"Roboto"', 'sans-serif'],
+            'body': ['"Roboto"', 'sans-serif'],
+            'label': ['"Roboto"', 'sans-serif'],
+          }
+        }
+      }
+    };
+  </script>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=block" rel="stylesheet">
+  <style>
+    .material-symbols-outlined {
+      display: inline-block;
+      width: 1em;
+      height: 1em;
+      line-height: 1 !important;
+      box-sizing: content-box;
+      overflow: hidden;
+      white-space: nowrap;
+      direction: ltr;
+      vertical-align: middle;
+    }
+  </style>
+</head>
+<body class="min-h-screen bg-light-surface-variant text-light-on-surface font-body antialiased flex flex-col">
+  <app-root></app-root>
+</body>
+</html>

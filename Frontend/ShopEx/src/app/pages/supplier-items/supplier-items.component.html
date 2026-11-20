@@ -1,0 +1,105 @@
+<div class="max-w-7xl mx-auto space-y-6">
+  <!-- Back Link & Header -->
+  <div class="space-y-2">
+    <a routerLink="/suppliers" class="inline-flex items-center gap-1.5 text-primary hover:text-blue-800 text-sm font-semibold transition-colors">
+      <span class="material-symbols-outlined text-[18px]">arrow_back</span>
+      <span>← Suppliers</span>
+    </a>
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div>
+        <h1 class="font-headline text-headline-lg text-light-on-surface tracking-tight font-bold text-2xl">
+          Supplier Items
+        </h1>
+        <p class="text-body-md text-light-on-surface-variant text-sm">
+          Supplier ID: <span class="font-mono text-primary font-semibold">#{{ supplierId }}</span> · Product catalog and inventory specifications.
+        </p>
+      </div>
+      <div class="flex items-center gap-3">
+        <button [disabled]="selectedItems.size === 0" (click)="createInvoiceWithSelected()"
+                class="px-4 py-2 bg-primary text-on-primary rounded text-sm font-semibold flex items-center gap-2 shadow hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+          <span class="material-symbols-outlined text-[18px]">post_add</span>
+          <span>Create Invoice with Selected ({{ selectedItems.size }})</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Error notification -->
+  <div *ngIf="errorMessage" class="p-4 rounded bg-error-container text-on-error-container border border-error/20 flex items-center gap-2 text-sm">
+    <span class="material-symbols-outlined text-error">error</span>
+    <span>{{ errorMessage }}</span>
+  </div>
+
+  <!-- Catalog Table Card -->
+  <div class="bg-light-surface rounded-lg border border-outline shadow-sm overflow-hidden">
+    <!-- Filter / Search Bar Above Table -->
+    <div class="p-4 border-b border-outline bg-light-surface flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div class="relative flex-1 max-w-md">
+        <span class="material-symbols-outlined absolute left-3 top-2.5 text-light-on-surface-variant text-[20px]">search</span>
+        <input [(ngModel)]="searchTerm" (ngModelChange)="applyFilter()" type="search" placeholder="Search items by description, code, or ID..."
+               class="w-full pl-10 pr-4 py-2 bg-light-surface-variant border border-outline rounded text-body-sm text-light-on-surface placeholder:text-light-on-surface-variant/60 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all">
+      </div>
+      <div class="flex items-center gap-3 text-body-sm text-light-on-surface-variant text-sm">
+        <button (click)="fetchItems()" class="p-2 rounded hover:bg-light-surface-variant text-light-on-surface-variant hover:text-primary transition-colors" title="Reload from API">
+          <span class="material-symbols-outlined text-[20px]">refresh</span>
+        </button>
+        <span>Total Items:</span>
+        <span class="font-medium text-light-on-surface">{{ filteredItems.length }}</span>
+      </div>
+    </div>
+
+    <!-- Loading Skeleton -->
+    <div *ngIf="loading" class="p-6 space-y-3">
+      <div class="h-6 bg-slate-200 rounded animate-pulse w-1/2"></div>
+      <div class="h-10 bg-slate-100 rounded animate-pulse"></div>
+      <div class="h-10 bg-slate-100 rounded animate-pulse"></div>
+    </div>
+
+    <!-- Empty State -->
+    <div *ngIf="!loading && filteredItems.length === 0" class="py-16 px-4 text-center">
+      <div class="w-16 h-16 mx-auto mb-3 rounded-full bg-light-surface-variant flex items-center justify-center text-light-on-surface-variant">
+        <span class="material-symbols-outlined text-[36px]">inventory</span>
+      </div>
+      <h3 class="font-title text-title-lg text-light-on-surface font-semibold mb-1">No Items Found</h3>
+      <p class="text-body-md text-light-on-surface-variant max-w-md mx-auto mb-4 text-sm">No catalog items match your search filter for this supplier.</p>
+    </div>
+
+    <!-- Data Table with Select Checkboxes -->
+    <div *ngIf="!loading && filteredItems.length > 0" class="overflow-x-auto">
+      <table class="w-full text-left border-collapse">
+        <thead class="bg-light-surface-variant border-b border-outline">
+          <tr>
+            <th scope="col" class="w-12 px-4 py-3.5 text-center">
+              <input type="checkbox" [checked]="isAllSelected" (change)="toggleSelectAll(!isAllSelected)"
+                     class="rounded border-outline text-primary focus:ring-primary h-4 w-4 cursor-pointer">
+            </th>
+            <th scope="col" class="px-4 py-3.5 font-title text-title-md text-light-on-surface font-semibold w-28">Item ID</th>
+            <th scope="col" class="px-6 py-3.5 font-title text-title-md text-light-on-surface font-semibold">Description</th>
+            <th scope="col" class="px-4 py-3.5 font-title text-title-md text-light-on-surface font-semibold">Lookup Code</th>
+            <th scope="col" class="px-4 py-3.5 font-title text-title-md text-light-on-surface font-semibold text-right">Cost</th>
+            <th scope="col" class="px-4 py-3.5 font-title text-title-md text-light-on-surface font-semibold text-right">Price</th>
+            <th scope="col" class="px-4 py-3.5 font-title text-title-md text-light-on-surface font-semibold text-right">Stock Qty</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-outline-variant text-body-md text-light-on-surface">
+          <tr *ngFor="let item of filteredItems"
+              [ngClass]="{'bg-primary/5': selectedItems.has(item.id)}"
+              class="hover:bg-light-surface-variant/50 transition-colors cursor-pointer"
+              (click)="toggleSelect(item.id)">
+            <td class="w-12 px-4 py-3.5 text-center" (click)="$event.stopPropagation()">
+              <input type="checkbox" [checked]="selectedItems.has(item.id)" (change)="toggleSelect(item.id)"
+                     class="rounded border-outline text-primary focus:ring-primary h-4 w-4 cursor-pointer">
+            </td>
+            <td class="px-4 py-3.5 font-mono text-sm text-light-on-surface-variant">{{ item.id }}</td>
+            <td class="px-6 py-3.5 font-semibold text-light-on-surface">{{ item.description }}</td>
+            <td class="px-4 py-3.5 font-mono text-xs text-light-on-surface-variant">{{ item.itemLookupCode || '—' }}</td>
+            <td class="px-4 py-3.5 font-mono text-sm text-right text-light-on-surface-variant">{{ item.cost ? (item.cost | number:'1.2-2') : '—' }}</td>
+            <td class="px-4 py-3.5 font-mono text-sm font-semibold text-right text-primary">{{ item.price ? (item.price | number:'1.2-2') : '0.00' }}</td>
+            <td class="px-4 py-3.5 font-mono text-sm text-right">{{ item.quantity ?? '—' }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+

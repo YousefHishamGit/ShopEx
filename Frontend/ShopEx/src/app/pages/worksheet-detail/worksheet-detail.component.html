@@ -1,0 +1,169 @@
+<div class="max-w-5xl mx-auto space-y-6">
+  <!-- Back Link & Header -->
+  <div class="space-y-1">
+    <a routerLink="/worksheets" class="inline-flex items-center gap-1 text-primary hover:text-blue-800 text-sm font-semibold transition-colors">
+      <span class="material-symbols-outlined text-[18px]">arrow_back</span>
+      <span>← Worksheets</span>
+    </a>
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div>
+        <h1 class="font-headline text-headline-lg text-light-on-surface tracking-tight font-bold text-2xl flex items-center gap-2">
+          <span>Worksheet #{{ worksheetId }}</span>
+          <!-- Status Badge -->
+          <span *ngIf="worksheet?.status === 2 || worksheet?.statusName === 'Approved'"
+                class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-success-container text-on-success-container border border-success/20">
+            <span class="w-2 h-2 rounded-full bg-success"></span> Approved (Status: 2)
+          </span>
+          <span *ngIf="worksheet?.status === 1 || worksheet?.statusName === 'PendingApproval'"
+                class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-warning-container text-on-warning-container border border-warning/20">
+            <span class="w-2 h-2 rounded-full bg-warning"></span> Pending Approval (Status: 1)
+          </span>
+        </h1>
+        <p class="text-body-md text-light-on-surface-variant text-sm">
+          Style: <span class="font-mono font-semibold">{{ worksheet?.style || 340 }} (PO Planner)</span>
+        </p>
+      </div>
+
+      <!-- Actions (Add Purchases & Approve) -->
+      <div class="flex items-center gap-2" *ngIf="worksheet && worksheet.status === 1">
+        <a [routerLink]="['/worksheets', worksheetId, 'purchases']"
+           class="px-3.5 py-2 bg-light-surface border border-outline hover:bg-light-surface-variant text-light-on-surface rounded text-sm font-semibold inline-flex items-center gap-1.5 shadow-sm transition-colors">
+          <span class="material-symbols-outlined text-[18px]">add_shopping_cart</span>
+          <span>+ Add Purchases</span>
+        </a>
+        <button (click)="openApproveModal()"
+                class="px-4 py-2 bg-success text-on-success rounded text-sm font-semibold inline-flex items-center gap-1.5 shadow hover:bg-green-700 transition-colors">
+          <span class="material-symbols-outlined text-[18px]">check_circle</span>
+          <span>✓ Approve Worksheet</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Messages -->
+  <div *ngIf="errorMessage" class="p-4 rounded bg-error-container text-on-error-container border border-error/20 flex items-center gap-2 text-sm">
+    <span class="material-symbols-outlined text-error">error</span>
+    <span>{{ errorMessage }}</span>
+  </div>
+  <div *ngIf="successMessage" class="p-4 rounded bg-success-container text-on-success-container border border-success/20 flex items-center gap-2 text-sm">
+    <span class="material-symbols-outlined text-success">check_circle</span>
+    <span>{{ successMessage }}</span>
+  </div>
+
+  <!-- Loading Skeleton -->
+  <div *ngIf="loading" class="bg-light-surface p-6 rounded-lg border border-outline space-y-4">
+    <div class="h-6 bg-slate-200 rounded animate-pulse w-1/3"></div>
+    <div class="h-16 bg-slate-100 rounded animate-pulse"></div>
+  </div>
+
+  <div *ngIf="!loading && worksheet" class="space-y-6">
+    <!-- Metadata Card -->
+    <div class="bg-light-surface p-6 rounded-lg border border-outline shadow-sm">
+      <h2 class="text-sm font-semibold uppercase text-light-on-surface-variant tracking-wider border-b border-outline pb-2 mb-4">
+        Worksheet Information
+      </h2>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+        <div class="col-span-2">
+          <span class="text-xs text-light-on-surface-variant block">Title</span>
+          <span class="font-bold text-light-on-surface text-base">{{ worksheet.title || 'Untitled' }}</span>
+        </div>
+        <div>
+          <span class="text-xs text-light-on-surface-variant block">Effective Date</span>
+          <span class="font-semibold text-light-on-surface">{{ worksheet.effectiveDate | date:'dd/MM/yyyy' }}</span>
+        </div>
+        <div>
+          <span class="text-xs text-light-on-surface-variant block">From Date</span>
+          <span class="font-semibold text-light-on-surface">{{ worksheet.fromDate | date:'dd/MM/yyyy' }}</span>
+        </div>
+        <div class="col-span-2 md:col-span-4" *ngIf="worksheet.notes">
+          <span class="text-xs text-light-on-surface-variant block">Notes</span>
+          <span class="text-light-on-surface italic">{{ worksheet.notes }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Purchase Lines Table Card -->
+    <div class="bg-light-surface rounded-lg border border-outline shadow-sm overflow-hidden">
+      <div class="px-6 py-4 border-b border-outline bg-light-surface flex items-center justify-between">
+        <h3 class="font-semibold text-light-on-surface">Purchase Order Lines ({{ worksheet.purchaseOrders.length }})</h3>
+        <a *ngIf="worksheet.status === 1" [routerLink]="['/worksheets', worksheetId, 'purchases']"
+           class="px-3 py-1 bg-primary text-on-primary rounded text-xs font-semibold flex items-center gap-1 shadow hover:bg-blue-700 transition-colors">
+          <span class="material-symbols-outlined text-[14px]">add</span>
+          <span>Add More Lines</span>
+        </a>
+      </div>
+
+      <div *ngIf="!worksheet.purchaseOrders || worksheet.purchaseOrders.length === 0" class="py-12 px-4 text-center">
+        <div class="w-12 h-12 mx-auto mb-2 rounded-full bg-light-surface-variant flex items-center justify-center text-light-on-surface-variant">
+          <span class="material-symbols-outlined text-[28px]">playlist_add</span>
+        </div>
+        <h4 class="font-semibold text-light-on-surface mb-1">No Purchase Lines Yet</h4>
+        <p class="text-xs text-light-on-surface-variant mb-3">Add items and quantities before approving this worksheet.</p>
+        <a *ngIf="worksheet.status === 1" [routerLink]="['/worksheets', worksheetId, 'purchases']"
+           class="px-3.5 py-1.5 bg-primary text-on-primary rounded text-xs font-semibold inline-flex items-center gap-1">
+          <span class="material-symbols-outlined text-[16px]">add</span>
+          <span>Add Lines Now</span>
+        </a>
+      </div>
+
+      <div *ngIf="worksheet.purchaseOrders && worksheet.purchaseOrders.length > 0" class="overflow-x-auto">
+        <table class="w-full text-left border-collapse text-sm">
+          <thead class="bg-light-surface-variant border-b border-outline text-xs uppercase text-light-on-surface-variant">
+            <tr>
+              <th class="px-6 py-3 w-28">Item ID</th>
+              <th class="px-6 py-3">Description</th>
+              <th class="px-4 py-3 text-right">Quantity Ordered</th>
+              <th class="px-4 py-3 text-right">Price</th>
+              <th class="px-4 py-3 text-right">Store ID</th>
+              <th class="px-4 py-3 text-right">Tax Rate %</th>
+              <th class="px-6 py-3 text-right font-semibold">Total</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-outline-variant">
+            <tr *ngFor="let po of worksheet.purchaseOrders" class="hover:bg-light-surface-variant/40">
+              <td class="px-6 py-3 font-mono text-light-on-surface-variant">{{ po.itemID }}</td>
+              <td class="px-6 py-3 font-medium text-light-on-surface">{{ po.itemDescription || '—' }}</td>
+              <td class="px-4 py-3 text-right font-mono">{{ po.quantityOrdered }}</td>
+              <td class="px-4 py-3 text-right font-mono">{{ po.price | number:'1.2-2' }}</td>
+              <td class="px-4 py-3 text-right font-mono">{{ po.storeID }}</td>
+              <td class="px-4 py-3 text-right font-mono">{{ po.taxRate }}%</td>
+              <td class="px-6 py-3 text-right font-mono font-bold text-light-on-surface">
+                {{ ((po.quantityOrdered || 0) * (po.price || 0)) | number:'1.2-2' }}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Approve Confirmation Modal Dialog -->
+  <div *ngIf="showApproveModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+    <div class="bg-light-surface rounded-lg border border-outline shadow-xl max-w-md w-full p-6 space-y-4">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-full bg-success/10 text-success flex items-center justify-center shrink-0">
+          <span class="material-symbols-outlined text-[24px]">verified</span>
+        </div>
+        <div>
+          <h3 class="font-headline text-lg font-bold text-light-on-surface">Approve Worksheet?</h3>
+          <p class="text-xs text-light-on-surface-variant">Confirm status transition to 2 (Approved)</p>
+        </div>
+      </div>
+
+      <p class="text-sm text-light-on-surface">
+        Are you sure you want to approve Worksheet #{{ worksheetId }}? This action converts the status from 1 (PendingApproval) to 2 (Approved) in RMS and locks the purchase lines.
+      </p>
+
+      <div class="flex items-center justify-end gap-2 border-t border-outline pt-3">
+        <button (click)="closeApproveModal()" class="px-4 py-2 border border-outline rounded text-sm font-medium hover:bg-light-surface-variant">
+          Cancel
+        </button>
+        <button [disabled]="approving" (click)="confirmApprove()" class="px-4 py-2 bg-success text-on-success rounded text-sm font-semibold hover:bg-green-700 disabled:opacity-50 flex items-center gap-1.5 shadow">
+          <span *ngIf="approving" class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+          <span>{{ approving ? 'Approving...' : 'Yes, Approve' }}</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+

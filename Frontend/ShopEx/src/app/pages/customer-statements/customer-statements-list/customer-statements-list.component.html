@@ -1,0 +1,691 @@
+<div class="space-y-6" dir="rtl">
+  <!-- Header -->
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div>
+      <div class="flex items-center gap-2">
+        <span class="material-symbols-outlined text-primary text-[28px]">account_balance_wallet</span>
+        <h1 class="text-2xl font-bold text-light-on-surface">كشف حساب العملاء والفواتير المفتوحة</h1>
+        <span class="text-xs px-2.5 py-0.5 rounded-full bg-blue-50 text-primary border border-blue-200 font-semibold">
+          RMS Database
+        </span>
+      </div>
+      <p class="text-sm text-light-on-surface-variant mt-1">
+        استعراض الفواتير المفتوحة للعملاء في كافة الفروع، مع تتبع أعمار الفواتير والكميات والأسعار
+      </p>
+    </div>
+  </div>
+
+  <!-- Filters & Overdue Days Section -->
+  <div class="bg-light-surface p-5 rounded-xl border border-outline shadow-sm space-y-4">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <!-- Search Input -->
+      <div class="md:col-span-2">
+        <label class="block text-xs font-semibold text-light-on-surface-variant mb-1">
+          البحث (اسم العميل، رقم الحساب، الهاتف، أو رقم الفاتورة)
+        </label>
+        <div class="relative">
+          <span class="material-symbols-outlined absolute right-3 top-2.5 text-gray-400 text-[18px]">search</span>
+          <input
+            type="text"
+            [(ngModel)]="searchQuery"
+            (ngModelChange)="onSearchChange()"
+            placeholder="ابحث باسم العميل أو رقم حسابه أو تليفونه..."
+            class="w-full pr-9 pl-4 py-2 text-sm border border-outline rounded-lg bg-light-surface text-light-on-surface focus:outline-none focus:border-primary"
+          />
+        </div>
+      </div>
+
+      <!-- Min Days Old Filter (Input) -->
+      <div>
+        <label class="block text-xs font-semibold text-light-on-surface-variant mb-1">
+          فواتير مر عليها على الأقل (أيام)
+        </label>
+        <div class="relative">
+          <input
+            type="number"
+            [(ngModel)]="minDaysOld"
+            (change)="onDaysFilterChange()"
+            min="0"
+            placeholder="مثال: 15"
+            class="w-full px-3 py-2 text-sm border border-outline rounded-lg bg-light-surface text-light-on-surface font-bold text-red-600 focus:outline-none focus:border-primary"
+          />
+          <span class="absolute left-3 top-2 text-xs text-gray-400">يوم</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Days Filter Pills -->
+    <div class="flex flex-wrap items-center gap-2 pt-1 border-t border-outline/50">
+      <span class="text-xs font-medium text-light-on-surface-variant ml-2">فلترة سريعة بالأيام:</span>
+
+      <button
+        type="button"
+        (click)="setQuickDays(null)"
+        [class.bg-primary]="minDaysOld === null"
+        [class.text-white]="minDaysOld === null"
+        [class.bg-light-surface-variant]="minDaysOld !== null"
+        [class.text-light-on-surface-variant]="minDaysOld !== null"
+        class="px-3 py-1 rounded-full text-xs font-medium transition-all"
+      >
+        كافة الفواتير المفتوحة
+      </button>
+
+      <button
+        type="button"
+        (click)="setQuickDays(7)"
+        [class.bg-primary]="minDaysOld === 7"
+        [class.text-white]="minDaysOld === 7"
+        [class.bg-light-surface-variant]="minDaysOld !== 7"
+        [class.text-light-on-surface-variant]="minDaysOld !== 7"
+        class="px-3 py-1 rounded-full text-xs font-medium transition-all"
+      >
+        مر عليها 7 أيام أو أكثر
+      </button>
+
+      <button
+        type="button"
+        (click)="setQuickDays(15)"
+        [class.bg-primary]="minDaysOld === 15"
+        [class.text-white]="minDaysOld === 15"
+        [class.bg-light-surface-variant]="minDaysOld !== 15"
+        [class.text-light-on-surface-variant]="minDaysOld !== 15"
+        class="px-3 py-1 rounded-full text-xs font-medium transition-all flex items-center gap-1"
+      >
+        <span class="w-1.5 h-1.5 rounded-full bg-red-400"></span>
+        <span>مر عليها 15 يوم أو أكثر (شائع)</span>
+      </button>
+
+      <button
+        type="button"
+        (click)="setQuickDays(30)"
+        [class.bg-primary]="minDaysOld === 30"
+        [class.text-white]="minDaysOld === 30"
+        [class.bg-light-surface-variant]="minDaysOld !== 30"
+        [class.text-light-on-surface-variant]="minDaysOld !== 30"
+        class="px-3 py-1 rounded-full text-xs font-medium transition-all"
+      >
+        مر عليها شهر (30 يوم)
+      </button>
+
+      <button
+        type="button"
+        (click)="setQuickDays(60)"
+        [class.bg-primary]="minDaysOld === 60"
+        [class.text-white]="minDaysOld === 60"
+        [class.bg-light-surface-variant]="minDaysOld !== 60"
+        [class.text-light-on-surface-variant]="minDaysOld !== 60"
+        class="px-3 py-1 rounded-full text-xs font-medium transition-all"
+      >
+        مر عليها شهرين (60 يوم)
+      </button>
+    </div>
+  </div>
+
+  <!-- Navigation Tabs -->
+  <div class="flex items-center gap-2 border-b border-outline">
+    <button
+      (click)="setTab('invoices')"
+      [class.border-b-2]="activeTab === 'invoices'"
+      [class.border-primary]="activeTab === 'invoices'"
+      [class.text-primary]="activeTab === 'invoices'"
+      class="pb-3 px-4 font-bold text-sm flex items-center gap-2 transition-all text-light-on-surface-variant"
+    >
+      <span class="material-symbols-outlined text-[20px]">receipt_long</span>
+      <span>الفواتير المفتوحة</span>
+      <span
+        *ngIf="invoicesTotalCount > 0"
+        class="px-2 py-0.5 rounded-full text-xs bg-primary/10 text-primary font-semibold"
+      >
+        {{ invoicesTotalCount }}
+      </span>
+    </button>
+
+    <button
+      (click)="setTab('customers')"
+      [class.border-b-2]="activeTab === 'customers'"
+      [class.border-primary]="activeTab === 'customers'"
+      [class.text-primary]="activeTab === 'customers'"
+      class="pb-3 px-4 font-bold text-sm flex items-center gap-2 transition-all text-light-on-surface-variant"
+    >
+      <span class="material-symbols-outlined text-[20px]">group</span>
+      <span>العملاء وكشوف الحساب</span>
+      <span
+        *ngIf="customersTotalCount > 0"
+        class="px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-700 font-semibold"
+      >
+        {{ customersTotalCount }}
+      </span>
+    </button>
+  </div>
+
+  <!-- ==================================================== -->
+  <!-- Tab 1: قائمة الفواتير المفتوحة (Invoices View) -->
+  <!-- ==================================================== -->
+  <div *ngIf="activeTab === 'invoices'" class="space-y-4">
+    <!-- Loading -->
+    <div *ngIf="loadingInvoices" class="p-8 text-center bg-light-surface rounded-xl border border-outline">
+      <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-primary border-t-transparent"></div>
+      <p class="text-sm text-light-on-surface-variant mt-2">جاري جلب الفواتير المفتوحة من قاعدة بيانات الـ RMS...</p>
+    </div>
+
+    <!-- Table -->
+    <div
+      *ngIf="!loadingInvoices"
+      class="bg-light-surface rounded-xl border border-outline shadow-sm overflow-hidden"
+    >
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm text-right border-collapse">
+          <thead class="bg-light-surface-variant text-light-on-surface-variant text-xs border-b border-outline">
+            <tr>
+              <th class="p-3.5 font-semibold">رقم الفاتورة</th>
+              <th class="p-3.5 font-semibold">العميل</th>
+              <th class="p-3.5 font-semibold">رقم الحساب</th>
+              <th class="p-3.5 font-semibold">الهاتف</th>
+              <th class="p-3.5 font-semibold">الفرع التابع له</th>
+              <th class="p-3.5 font-semibold">تاريخ الفاتورة</th>
+              <th class="p-3.5 font-semibold text-center">عمر الفاتورة</th>
+              <th class="p-3.5 font-semibold text-left">إجمالي الفاتورة</th>
+              <th class="p-3.5 font-semibold text-left">المسدد (عربون)</th>
+              <th class="p-3.5 font-semibold text-left">المتبقي المطلوب</th>
+              <th class="p-3.5 font-semibold text-center">الإجراءات</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-outline">
+            <tr
+              *ngFor="let inv of invoices"
+              (click)="openInvoiceModal(inv.invoiceID)"
+              class="hover:bg-light-surface-variant/50 transition-colors cursor-pointer"
+            >
+              <!-- Invoice Number / ID -->
+              <td class="p-3.5 font-bold text-primary font-mono">
+                #{{ inv.invoiceID }}
+                <div *ngIf="inv.referenceNumber" class="text-[11px] text-gray-400 font-normal">
+                  {{ inv.referenceNumber }}
+                </div>
+              </td>
+
+              <!-- Customer Name -->
+              <td class="p-3.5 font-semibold text-light-on-surface">
+                {{ inv.customerName }}
+              </td>
+
+              <!-- Account Number -->
+              <td class="p-3.5 font-mono text-xs text-light-on-surface-variant">
+                {{ inv.accountNumber || '-' }}
+              </td>
+
+              <!-- Phone -->
+              <td class="p-3.5 text-xs text-light-on-surface-variant">
+                {{ inv.phoneNumber || '-' }}
+              </td>
+
+              <!-- Store Name (Branch) -->
+              <td class="p-3.5">
+                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold bg-gray-100 text-gray-800">
+                  <span class="material-symbols-outlined text-[14px]">store</span>
+                  <span>{{ inv.storeName }}</span>
+                </span>
+              </td>
+
+              <!-- Date -->
+              <td class="p-3.5 text-xs text-light-on-surface-variant">
+                {{ inv.invoiceDate | date : 'yyyy/MM/dd' }}
+              </td>
+
+              <!-- Days Old Badge -->
+              <td class="p-3.5 text-center">
+                <span
+                  class="px-2 py-0.5 rounded-full text-xs font-bold"
+                  [class.bg-red-100]="inv.daysOld >= 15"
+                  [class.text-red-700]="inv.daysOld >= 15"
+                  [class.bg-amber-100]="inv.daysOld >= 7 && inv.daysOld < 15"
+                  [class.text-amber-800]="inv.daysOld >= 7 && inv.daysOld < 15"
+                  [class.bg-blue-50]="inv.daysOld < 7"
+                  [class.text-blue-700]="inv.daysOld < 7"
+                >
+                  {{ inv.daysOld }} يوم
+                </span>
+              </td>
+
+              <!-- Total Amount -->
+              <td class="p-3.5 text-left font-semibold text-light-on-surface">
+                {{ inv.totalAmount | number : '1.2-2' }}
+              </td>
+
+              <!-- Deposit -->
+              <td class="p-3.5 text-left text-emerald-700 font-medium">
+                {{ inv.deposit | number : '1.2-2' }}
+              </td>
+
+              <!-- Remaining Amount -->
+              <td class="p-3.5 text-left font-bold text-red-600">
+                {{ inv.remainingAmount | number : '1.2-2' }}
+              </td>
+
+              <!-- Actions -->
+              <td class="p-3.5 text-center" (click)="$event.stopPropagation()">
+                <div class="flex items-center justify-center gap-1.5">
+                  <!-- View Invoice Detail Button -->
+                  <button
+                    type="button"
+                    (click)="openInvoiceModal(inv.invoiceID, $event)"
+                    title="عرض محتويات ومنتجات الفاتورة"
+                    class="inline-flex items-center gap-1 px-2.5 py-1 bg-primary text-on-primary rounded text-xs font-medium hover:bg-primary/90 transition-all shadow-sm"
+                  >
+                    <span class="material-symbols-outlined text-[16px]">visibility</span>
+                    <span>تفاصيل الفاتورة</span>
+                  </button>
+
+                  <!-- View Customer Statement Link -->
+                  <a
+                    *ngIf="inv.customerID > 0"
+                    [routerLink]="['/customer-statements', inv.customerID]"
+                    title="كشف حساب العميل بالكامل"
+                    class="p-1 text-gray-500 hover:text-primary hover:bg-light-surface-variant rounded transition-colors"
+                  >
+                    <span class="material-symbols-outlined text-[18px]">account_box</span>
+                  </a>
+                </div>
+              </td>
+            </tr>
+
+            <!-- Empty State -->
+            <tr *ngIf="invoices.length === 0">
+              <td colspan="11" class="p-8 text-center text-light-on-surface-variant">
+                <span class="material-symbols-outlined text-gray-400 text-[40px] block mb-2">inbox</span>
+                <p class="font-medium">لا توجد فواتير مفتوحة مطابقة لمعايير البحث أو فلتر الأيام.</p>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Invoices Pagination Footer -->
+      <div
+        *ngIf="invoicesTotalCount > 0"
+        class="p-4 border-t border-outline flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs"
+      >
+        <div class="text-light-on-surface-variant">
+          عرض الصفوف من
+          <strong>{{ (invoicesPageNumber - 1) * invoicesPageSize + 1 }}</strong>
+          إلى
+          <strong>{{ (invoicesPageNumber * invoicesPageSize > invoicesTotalCount ? invoicesTotalCount : invoicesPageNumber * invoicesPageSize) }}</strong>
+          من إجمالي <strong>{{ invoicesTotalCount }}</strong> فاتورة مفتوحة
+        </div>
+
+        <div class="flex items-center gap-2">
+          <!-- Page Size Selector -->
+          <span class="text-gray-500">حجم الصفحة:</span>
+          <select
+            [(ngModel)]="invoicesPageSize"
+            (change)="onPageSizeChange()"
+            class="px-2 py-1 border border-outline rounded bg-light-surface text-light-on-surface text-xs focus:outline-none"
+          >
+            <option [ngValue]="10">10</option>
+            <option [ngValue]="20">20</option>
+            <option [ngValue]="50">50</option>
+            <option [ngValue]="100">100</option>
+          </select>
+
+          <!-- Prev Page -->
+          <button
+            type="button"
+            (click)="goToInvoicesPage(invoicesPageNumber - 1)"
+            [disabled]="invoicesPageNumber <= 1"
+            class="px-3 py-1 border border-outline rounded hover:bg-light-surface-variant disabled:opacity-40 disabled:cursor-not-allowed text-xs font-medium"
+          >
+            السابق
+          </button>
+
+          <!-- Current Page Info -->
+          <span class="font-bold text-light-on-surface">
+            صفحة {{ invoicesPageNumber }} من {{ invoicesTotalPages }}
+          </span>
+
+          <!-- Next Page -->
+          <button
+            type="button"
+            (click)="goToInvoicesPage(invoicesPageNumber + 1)"
+            [disabled]="invoicesPageNumber >= invoicesTotalPages"
+            class="px-3 py-1 border border-outline rounded hover:bg-light-surface-variant disabled:opacity-40 disabled:cursor-not-allowed text-xs font-medium"
+          >
+            التالي
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================================================== -->
+  <!-- Tab 2: قائمة العملاء (Customers View) -->
+  <!-- ==================================================== -->
+  <div *ngIf="activeTab === 'customers'" class="space-y-4">
+    <!-- Loading -->
+    <div *ngIf="loadingCustomers" class="p-8 text-center bg-light-surface rounded-xl border border-outline">
+      <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-primary border-t-transparent"></div>
+      <p class="text-sm text-light-on-surface-variant mt-2">جاري جلب بيانات العملاء من قاعدة بيانات الـ RMS...</p>
+    </div>
+
+    <!-- Table -->
+    <div
+      *ngIf="!loadingCustomers"
+      class="bg-light-surface rounded-xl border border-outline shadow-sm overflow-hidden"
+    >
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm text-right border-collapse">
+          <thead class="bg-light-surface-variant text-light-on-surface-variant text-xs border-b border-outline">
+            <tr>
+              <th class="p-3.5 font-semibold">رقم الحساب</th>
+              <th class="p-3.5 font-semibold">اسم العميل</th>
+              <th class="p-3.5 font-semibold">الهاتف</th>
+              <th class="p-3.5 font-semibold">العنوان</th>
+              <th class="p-3.5 font-semibold text-center">الفواتير المفتوحة</th>
+              <th class="p-3.5 font-semibold text-center">أقدم فاتورة</th>
+              <th class="p-3.5 font-semibold text-left">إجمالي الفواتير المفتوحة</th>
+              <th class="p-3.5 font-semibold text-left">رصيد الحساب بالـ RMS</th>
+              <th class="p-3.5 font-semibold text-center">الإجراءات</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-outline">
+            <tr
+              *ngFor="let c of customers"
+              [routerLink]="['/customer-statements', c.id]"
+              class="hover:bg-light-surface-variant/50 transition-colors cursor-pointer"
+            >
+              <!-- Account Number -->
+              <td class="p-3.5 font-mono font-bold text-primary">
+                {{ c.accountNumber || '-' }}
+              </td>
+
+              <!-- Name -->
+              <td class="p-3.5 font-semibold text-light-on-surface">
+                {{ c.customerName }}
+              </td>
+
+              <!-- Phone -->
+              <td class="p-3.5 text-xs text-light-on-surface-variant">
+                {{ c.phoneNumber || '-' }}
+              </td>
+
+              <!-- Address -->
+              <td class="p-3.5 text-xs text-light-on-surface-variant">
+                {{ c.address || '-' }}
+              </td>
+
+              <!-- Open Invoices Count -->
+              <td class="p-3.5 text-center">
+                <span
+                  class="px-2 py-0.5 rounded-full text-xs font-bold"
+                  [class.bg-blue-50]="c.openInvoicesCount > 0"
+                  [class.text-blue-700]="c.openInvoicesCount > 0"
+                  [class.bg-gray-100]="c.openInvoicesCount === 0"
+                  [class.text-gray-400]="c.openInvoicesCount === 0"
+                >
+                  {{ c.openInvoicesCount }}
+                </span>
+              </td>
+
+              <!-- Oldest Invoice Days -->
+              <td class="p-3.5 text-center">
+                <span
+                  *ngIf="c.oldestOpenInvoiceDays !== null && c.oldestOpenInvoiceDays !== undefined"
+                  class="px-2 py-0.5 rounded-full text-xs font-bold"
+                  [class.bg-red-100]="c.oldestOpenInvoiceDays >= 15"
+                  [class.text-red-700]="c.oldestOpenInvoiceDays >= 15"
+                  [class.bg-gray-100]="c.oldestOpenInvoiceDays < 15"
+                  [class.text-gray-700]="c.oldestOpenInvoiceDays < 15"
+                >
+                  {{ c.oldestOpenInvoiceDays }} يوم
+                </span>
+                <span *ngIf="c.oldestOpenInvoiceDays === null || c.oldestOpenInvoiceDays === undefined" class="text-gray-300">-</span>
+              </td>
+
+              <!-- Total Open Invoices Amount -->
+              <td class="p-3.5 text-left font-bold text-red-600">
+                {{ c.totalOpenInvoicesAmount | number : '1.2-2' }}
+              </td>
+
+              <!-- Account Balance -->
+              <td class="p-3.5 text-left font-semibold text-light-on-surface">
+                {{ c.accountBalance | number : '1.2-2' }}
+              </td>
+
+              <!-- Actions -->
+              <td class="p-3.5 text-center" (click)="$event.stopPropagation()">
+                <a
+                  [routerLink]="['/customer-statements', c.id]"
+                  class="inline-flex items-center gap-1 px-3 py-1 bg-primary text-on-primary rounded-lg text-xs font-medium hover:bg-primary/90 transition-all shadow-sm"
+                >
+                  <span class="material-symbols-outlined text-[16px]">visibility</span>
+                  <span>كشف الحساب</span>
+                </a>
+              </td>
+            </tr>
+
+            <!-- Empty State -->
+            <tr *ngIf="customers.length === 0">
+              <td colspan="9" class="p-8 text-center text-light-on-surface-variant">
+                <span class="material-symbols-outlined text-gray-400 text-[40px] block mb-2">inbox</span>
+                <p class="font-medium">لا يوجد عملاء مطابقون لمعايير البحث أو فلتر الأيام.</p>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Customers Pagination Footer -->
+      <div
+        *ngIf="customersTotalCount > 0"
+        class="p-4 border-t border-outline flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs"
+      >
+        <div class="text-light-on-surface-variant">
+          عرض العملاء من
+          <strong>{{ (customersPageNumber - 1) * customersPageSize + 1 }}</strong>
+          إلى
+          <strong>{{ (customersPageNumber * customersPageSize > customersTotalCount ? customersTotalCount : customersPageNumber * customersPageSize) }}</strong>
+          من إجمالي <strong>{{ customersTotalCount }}</strong> عميل
+        </div>
+
+        <div class="flex items-center gap-2">
+          <!-- Page Size Selector -->
+          <span class="text-gray-500">حجم الصفحة:</span>
+          <select
+            [(ngModel)]="customersPageSize"
+            (change)="onPageSizeChange()"
+            class="px-2 py-1 border border-outline rounded bg-light-surface text-light-on-surface text-xs focus:outline-none"
+          >
+            <option [ngValue]="10">10</option>
+            <option [ngValue]="20">20</option>
+            <option [ngValue]="50">50</option>
+            <option [ngValue]="100">100</option>
+          </select>
+
+          <!-- Prev Page -->
+          <button
+            type="button"
+            (click)="goToCustomersPage(customersPageNumber - 1)"
+            [disabled]="customersPageNumber <= 1"
+            class="px-3 py-1 border border-outline rounded hover:bg-light-surface-variant disabled:opacity-40 disabled:cursor-not-allowed text-xs font-medium"
+          >
+            السابق
+          </button>
+
+          <!-- Current Page Info -->
+          <span class="font-bold text-light-on-surface">
+            صفحة {{ customersPageNumber }} من {{ customersTotalPages }}
+          </span>
+
+          <!-- Next Page -->
+          <button
+            type="button"
+            (click)="goToCustomersPage(customersPageNumber + 1)"
+            [disabled]="customersPageNumber >= customersTotalPages"
+            class="px-3 py-1 border border-outline rounded hover:bg-light-surface-variant disabled:opacity-40 disabled:cursor-not-allowed text-xs font-medium"
+          >
+            التالي
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================================================== -->
+<!-- Modal: تفاصيل الفاتورة عند الدخول عليها (Invoice Modal) -->
+<!-- ==================================================== -->
+<div *ngIf="showInvoiceModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" dir="rtl">
+  <div class="bg-light-surface rounded-2xl border border-outline shadow-xl max-w-4xl w-full max-h-[92vh] flex flex-col overflow-hidden">
+    <!-- Modal Header -->
+    <div class="p-5 border-b border-outline flex items-center justify-between bg-light-surface-variant/40">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-bold">
+          <span class="material-symbols-outlined text-[24px]">receipt</span>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h2 class="text-base font-bold text-light-on-surface font-mono">
+              فاتورة رقم #{{ selectedInvoiceDetail?.invoiceID }}
+            </h2>
+            <span
+              *ngIf="selectedInvoiceDetail"
+              class="px-2 py-0.5 rounded-full text-xs font-bold"
+              [class.bg-red-100]="selectedInvoiceDetail.daysOld >= 15"
+              [class.text-red-700]="selectedInvoiceDetail.daysOld >= 15"
+              [class.bg-blue-50]="selectedInvoiceDetail.daysOld < 15"
+              [class.text-blue-700]="selectedInvoiceDetail.daysOld < 15"
+            >
+              مر عليها {{ selectedInvoiceDetail.daysOld }} يوم (مفتوحة)
+            </span>
+          </div>
+          <p class="text-xs text-light-on-surface-variant mt-0.5" *ngIf="selectedInvoiceDetail">
+            الفرع التابع له: <strong class="text-light-on-surface">{{ selectedInvoiceDetail.storeName }}</strong>
+            | تاريخ الفاتورة: {{ selectedInvoiceDetail.invoiceDate | date : 'yyyy/MM/dd HH:mm' }}
+          </p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <button
+          type="button"
+          (click)="printInvoiceModal()"
+          class="p-2 border border-outline rounded-lg text-xs font-medium hover:bg-light-surface-variant text-light-on-surface flex items-center gap-1"
+        >
+          <span class="material-symbols-outlined text-[18px]">print</span>
+          <span>طباعة</span>
+        </button>
+        <button (click)="closeInvoiceModal()" class="text-gray-400 hover:text-gray-600 p-1">
+          <span class="material-symbols-outlined text-[22px]">close</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Modal Body -->
+    <div class="p-5 overflow-y-auto space-y-5 flex-1">
+      <!-- Loading State -->
+      <div *ngIf="loadingInvoiceDetail" class="p-8 text-center">
+        <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-primary border-t-transparent"></div>
+        <p class="text-xs text-light-on-surface-variant mt-2">جاري استرجاع تفاصيل ومنتجات الفاتورة من الـ RMS...</p>
+      </div>
+
+      <!-- Error State -->
+      <div *ngIf="invoiceModalError" class="p-4 bg-red-50 text-red-700 rounded-lg text-xs border border-red-200">
+        {{ invoiceModalError }}
+      </div>
+
+      <!-- Details Content -->
+      <div *ngIf="!loadingInvoiceDetail && selectedInvoiceDetail" class="space-y-5">
+        <!-- Customer & Branch Banner -->
+        <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 bg-light-surface-variant/50 p-4 rounded-xl border border-outline text-xs">
+          <div>
+            <span class="text-gray-500 block mb-0.5">اسم العميل:</span>
+            <span class="font-bold text-sm text-light-on-surface">{{ selectedInvoiceDetail.customerName }}</span>
+          </div>
+          <div>
+            <span class="text-gray-500 block mb-0.5">رقم الحساب (Account No):</span>
+            <span class="font-mono font-bold text-primary">{{ selectedInvoiceDetail.accountNumber || '-' }}</span>
+          </div>
+          <div>
+            <span class="text-gray-500 block mb-0.5">رقم الهاتف:</span>
+            <span class="font-medium text-light-on-surface">{{ selectedInvoiceDetail.phoneNumber || '-' }}</span>
+          </div>
+          <div>
+            <span class="text-gray-500 block mb-0.5">اسم الفرع:</span>
+            <span class="font-semibold text-gray-800 bg-white px-2 py-0.5 rounded border border-outline/50 inline-block">
+              {{ selectedInvoiceDetail.storeName }}
+            </span>
+          </div>
+        </div>
+
+        <!-- Products Table (اسم المنتج - الكمية - السعر) -->
+        <div>
+          <h3 class="text-xs font-bold text-light-on-surface mb-2 flex items-center gap-1.5">
+            <span class="material-symbols-outlined text-primary text-[18px]">inventory_2</span>
+            <span>منتجات وبنود الفاتورة ({{ selectedInvoiceDetail.items.length }})</span>
+          </h3>
+
+          <div class="border border-outline rounded-xl overflow-hidden shadow-sm">
+            <table class="w-full text-xs text-right border-collapse">
+              <thead class="bg-light-surface-variant text-light-on-surface-variant border-b border-outline">
+                <tr>
+                  <th class="p-2.5 w-10 text-center">#</th>
+                  <th class="p-2.5 w-32 font-semibold">كود الصنف (Lookup Code)</th>
+                  <th class="p-2.5 font-semibold">اسم المنتج</th>
+                  <th class="p-2.5 text-center font-semibold w-24">الكمية</th>
+                  <th class="p-2.5 text-left font-semibold w-28">سعر الوحدة</th>
+                  <th class="p-2.5 text-left font-semibold w-32">إجمالي السعر</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-outline">
+                <tr *ngFor="let item of selectedInvoiceDetail.items; let idx = index" class="hover:bg-light-surface-variant/30">
+                  <td class="p-2.5 text-center text-gray-400 font-bold">{{ idx + 1 }}</td>
+                  <td class="p-2.5 font-mono text-gray-600">{{ item.itemLookupCode || item.itemID || '-' }}</td>
+                  <td class="p-2.5 font-semibold text-light-on-surface">{{ item.productName }}</td>
+                  <td class="p-2.5 text-center font-bold text-primary">{{ item.quantity }}</td>
+                  <td class="p-2.5 text-left text-gray-700">{{ item.unitPrice | number : '1.2-2' }} ج.م</td>
+                  <td class="p-2.5 text-left font-bold text-light-on-surface">{{ item.totalPrice | number : '1.2-2' }} ج.م</td>
+                </tr>
+                <tr *ngIf="selectedInvoiceDetail.items.length === 0">
+                  <td colspan="6" class="p-6 text-center text-gray-400">لا توجد بنود مسجلة في هذه الفاتورة.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Financial Summary Banner -->
+        <div class="grid grid-cols-3 gap-3 bg-light-surface p-4 rounded-xl border border-outline shadow-sm text-center">
+          <div>
+            <span class="text-xs text-gray-500 block mb-1">إجمالي الفاتورة</span>
+            <span class="text-base font-bold text-light-on-surface">
+              {{ selectedInvoiceDetail.totalAmount | number : '1.2-2' }} ج.م
+            </span>
+          </div>
+
+          <div>
+            <span class="text-xs text-emerald-700 block mb-1">المسدد كعربون</span>
+            <span class="text-base font-bold text-emerald-700">
+              {{ selectedInvoiceDetail.deposit | number : '1.2-2' }} ج.م
+            </span>
+          </div>
+
+          <div>
+            <span class="text-xs text-red-600 block mb-1">المتبقي المطلوب دفعه</span>
+            <span class="text-lg font-bold text-red-600">
+              {{ selectedInvoiceDetail.remainingAmount | number : '1.2-2' }} ج.م
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Footer -->
+    <div class="p-4 border-t border-outline flex justify-end">
+      <button
+        (click)="closeInvoiceModal()"
+        class="px-5 py-2 border border-outline rounded-lg text-xs font-medium text-light-on-surface hover:bg-light-surface-variant"
+      >
+        إغلاق
+      </button>
+    </div>
+  </div>
+</div>

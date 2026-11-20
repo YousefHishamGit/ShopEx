@@ -1,0 +1,189 @@
+<div class="space-y-6" dir="rtl">
+  <!-- Header -->
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div>
+      <div class="flex items-center gap-2">
+        <span class="material-symbols-outlined text-primary text-[28px]">assignment_return</span>
+        <h1 class="text-2xl font-bold text-light-on-surface">مرتجع الموردين</h1>
+      </div>
+      <p class="text-sm text-light-on-surface-variant mt-1">إدارة مرتجعات البضائع للموردين مع خصم المخزون وتسوية الحسابات والاسترداد النقدي</p>
+    </div>
+
+    <a routerLink="/supplier-returns/new"
+       class="inline-flex items-center gap-2 px-5 py-2.5 bg-primary text-on-primary font-medium rounded-lg hover:bg-primary/90 shadow-sm transition-all text-sm shrink-0">
+      <span class="material-symbols-outlined text-[20px]">add_circle</span>
+      <span>مرتجع جديد للمورد</span>
+    </a>
+  </div>
+
+  <!-- Summary Statistics Cards -->
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+    <div (click)="onFilterStatus('ALL')"
+         [class.border-primary]="selectedStatus === 'ALL'"
+         class="bg-light-surface p-4 rounded-xl border border-outline hover:border-primary cursor-pointer transition-all shadow-sm">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-medium text-light-on-surface-variant">إجمالي المرتجعات</span>
+        <span class="material-symbols-outlined text-gray-500 text-[20px]">receipt_long</span>
+      </div>
+      <div class="text-2xl font-bold text-light-on-surface mt-2">{{ countTotal }}</div>
+      <div class="text-[11px] text-light-on-surface-variant mt-1">كافة الحالات</div>
+    </div>
+
+    <div (click)="onFilterStatus('1')"
+         [class.border-amber-500]="selectedStatus === '1'"
+         class="bg-light-surface p-4 rounded-xl border border-outline hover:border-amber-500 cursor-pointer transition-all shadow-sm">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-medium text-amber-700">مسودات (Draft)</span>
+        <span class="material-symbols-outlined text-amber-600 text-[20px]">edit_note</span>
+      </div>
+      <div class="text-2xl font-bold text-amber-700 mt-2">{{ countDraft }}</div>
+      <div class="text-[11px] text-amber-600/80 mt-1">بانتظار التأكيد وخصم المخزن</div>
+    </div>
+
+    <div (click)="onFilterStatus('2')"
+         [class.border-green-500]="selectedStatus === '2'"
+         class="bg-light-surface p-4 rounded-xl border border-outline hover:border-green-500 cursor-pointer transition-all shadow-sm">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-medium text-green-700">مؤكدة (Confirmed)</span>
+        <span class="material-symbols-outlined text-green-600 text-[20px]">check_circle</span>
+      </div>
+      <div class="text-2xl font-bold text-green-700 mt-2">{{ countConfirmed }}</div>
+      <div class="text-[11px] text-green-600/80 mt-1">تم خصمها من المخزن</div>
+    </div>
+
+    <div class="bg-light-surface p-4 rounded-xl border border-outline shadow-sm">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-medium text-blue-700">مستحقات استرداد نقدي معلقة</span>
+        <span class="material-symbols-outlined text-blue-600 text-[20px]">pending_actions</span>
+      </div>
+      <div class="text-2xl font-bold text-blue-700 mt-2">{{ totalPendingRefund | number:'1.2-2' }} <span class="text-xs font-normal text-gray-500">ج.م</span></div>
+      <div class="text-[11px] text-blue-600/80 mt-1">مبالغ مستحقة من الموردين</div>
+    </div>
+  </div>
+
+  <!-- Filters & Search Bar -->
+  <div class="bg-light-surface p-4 rounded-xl border border-outline flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+    <div class="flex flex-wrap items-center gap-3">
+      <div class="relative">
+        <span class="material-symbols-outlined absolute right-3 top-2.5 text-gray-400 text-[18px]">search</span>
+        <input type="text"
+               [(ngModel)]="searchQuery"
+               placeholder="بحث برقم المرتجع أو كود المورد..."
+               class="pr-9 pl-3 py-1.5 border border-outline rounded-lg text-sm bg-light-surface focus:outline-none focus:border-primary w-64" />
+      </div>
+
+      <div>
+        <select [(ngModel)]="selectedWarehouseId"
+                (change)="onFilterWarehouse()"
+                class="px-3 py-1.5 border border-outline rounded-lg text-sm bg-light-surface text-light-on-surface">
+          <option [ngValue]="null">كافة المخازن</option>
+          <option *ngFor="let wh of warehouses" [ngValue]="wh.id">{{ wh.name }}</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Status Tabs -->
+    <div class="flex items-center gap-1.5 overflow-x-auto">
+      <button (click)="onFilterStatus('ALL')"
+              [class.bg-primary]="selectedStatus === 'ALL'"
+              [class.text-on-primary]="selectedStatus === 'ALL'"
+              [class.bg-light-surface-variant]="selectedStatus !== 'ALL'"
+              class="px-3 py-1 rounded-lg text-xs font-medium transition-colors">
+        الكل
+      </button>
+      <button (click)="onFilterStatus('1')"
+              [class.bg-primary]="selectedStatus === '1'"
+              [class.text-on-primary]="selectedStatus === '1'"
+              [class.bg-light-surface-variant]="selectedStatus !== '1'"
+              class="px-3 py-1 rounded-lg text-xs font-medium transition-colors">
+        مسودة
+      </button>
+      <button (click)="onFilterStatus('2')"
+              [class.bg-primary]="selectedStatus === '2'"
+              [class.text-on-primary]="selectedStatus === '2'"
+              [class.bg-light-surface-variant]="selectedStatus !== '2'"
+              class="px-3 py-1 rounded-lg text-xs font-medium transition-colors">
+        مؤكد
+      </button>
+      <button (click)="onFilterStatus('3')"
+              [class.bg-primary]="selectedStatus === '3'"
+              [class.text-on-primary]="selectedStatus === '3'"
+              [class.bg-light-surface-variant]="selectedStatus !== '3'"
+              class="px-3 py-1 rounded-lg text-xs font-medium transition-colors">
+        ملغي
+      </button>
+    </div>
+  </div>
+
+  <!-- Error Message -->
+  <div *ngIf="errorMessage" class="p-4 bg-red-50 border border-red-200 text-red-800 rounded-lg text-sm">
+    {{ errorMessage }}
+  </div>
+
+  <!-- Returns Table -->
+  <div class="bg-light-surface rounded-xl border border-outline overflow-hidden shadow-sm">
+    <div class="overflow-x-auto">
+      <table class="w-full text-right text-sm">
+        <thead class="bg-light-surface-variant/50 text-light-on-surface-variant text-xs uppercase font-medium border-b border-outline">
+          <tr>
+            <th class="py-3.5 px-4">رقم المرتجع</th>
+            <th class="py-3.5 px-4">التاريخ</th>
+            <th class="py-3.5 px-4">كود المورد</th>
+            <th class="py-3.5 px-4">المخزن</th>
+            <th class="py-3.5 px-4">عدد الأصناف</th>
+            <th class="py-3.5 px-4">نوع التسوية</th>
+            <th class="py-3.5 px-4">إجمالي المبلغ</th>
+            <th class="py-3.5 px-4">المتبقي للاسترداد</th>
+            <th class="py-3.5 px-4">الحالة</th>
+            <th class="py-3.5 px-4 text-center">إجراءات</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-outline">
+          <tr *ngFor="let r of filteredReturns" class="hover:bg-light-surface-variant/30 transition-colors">
+            <td class="py-3.5 px-4 font-mono font-bold text-primary">
+              <a [routerLink]="['/supplier-returns', r.id]" class="hover:underline">{{ r.returnNumber }}</a>
+            </td>
+            <td class="py-3.5 px-4 text-xs text-light-on-surface-variant">{{ r.returnDate | date:'yyyy-MM-dd' }}</td>
+            <td class="py-3.5 px-4 font-mono">#{{ r.rmsSupplierID }}</td>
+            <td class="py-3.5 px-4">{{ r.warehouseName }}</td>
+            <td class="py-3.5 px-4 font-semibold">{{ r.itemsCount }}</td>
+            <td class="py-3.5 px-4 text-xs">
+              <span class="px-2 py-0.5 rounded bg-gray-100 text-gray-800">
+                {{ r.settlementTypeName }}
+              </span>
+            </td>
+            <td class="py-3.5 px-4 font-bold text-light-on-surface">{{ r.totalAmount | number:'1.2-2' }} ج.م</td>
+            <td class="py-3.5 px-4">
+              <span *ngIf="r.pendingRefund > 0" class="font-bold text-amber-700">{{ r.pendingRefund | number:'1.2-2' }} ج.م</span>
+              <span *ngIf="r.pendingRefund <= 0" class="text-xs text-gray-400">-</span>
+            </td>
+            <td class="py-3.5 px-4">
+              <span *ngIf="r.status === 1" class="px-2.5 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800 border border-amber-200">
+                مسودة (Draft)
+              </span>
+              <span *ngIf="r.status === 2" class="px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">
+                مؤكد (Confirmed)
+              </span>
+              <span *ngIf="r.status === 3" class="px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700 border border-gray-300">
+                ملغي
+              </span>
+            </td>
+            <td class="py-3.5 px-4 text-center">
+              <a [routerLink]="['/supplier-returns', r.id]"
+                 class="px-3 py-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 text-xs font-semibold transition-colors inline-flex items-center gap-1">
+                <span>عرض التفاصيل</span>
+                <span class="material-symbols-outlined text-[16px]">chevron_left</span>
+              </a>
+            </td>
+          </tr>
+          <tr *ngIf="filteredReturns.length === 0 && !loading">
+            <td colspan="10" class="py-10 text-center text-light-on-surface-variant">
+              <span class="material-symbols-outlined text-[40px] text-gray-300 block mb-2">assignment_return</span>
+              لا توجد مرتجعات موردين مطابقة للبحث أو الفلتر.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

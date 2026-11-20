@@ -1,0 +1,114 @@
+@ShopEx_HostAddress = http://localhost:5009
+
+### RMS Suppliers
+GET {{ShopEx_HostAddress}}/api/RMSSuppliers
+Accept: application/json
+
+### RMS Supplier Items
+GET {{ShopEx_HostAddress}}/api/RMSSuppliers/1/items
+Accept: application/json
+
+### ============================================================
+### ShopEx Supplier Invoices
+### ============================================================
+
+### Get Supplier Invoice By ID
+GET {{ShopEx_HostAddress}}/api/SupplierInvoices/1
+Accept: application/json
+
+### Create Supplier Invoice
+POST {{ShopEx_HostAddress}}/api/SupplierInvoices
+Content-Type: application/json
+
+{
+  "rmsSupplierID": 1,
+  "invoiceNumber": "INV-2026-001",
+  "invoiceDate": "2026-11-13T00:00:00Z",
+  "notes": "First invoice purchase",
+  "paymentType": 2,
+  "creditDays": 30,
+  "items": [
+    {
+      "rmsItemID": 101,
+      "quantity": 10,
+      "unitPrice": 50.00
+    },
+    {
+      "rmsItemID": 102,
+      "quantity": 5,
+      "unitPrice": 120.00
+    }
+  ]
+}
+
+### Add Payment to Supplier Invoice
+POST {{ShopEx_HostAddress}}/api/SupplierInvoices/1/payments
+Content-Type: application/json
+
+{
+  "amount": 500.00,
+  "paymentMethod": "Cash"
+}
+
+### ============================================================
+### RMS Worksheets (PO Planner Process)
+### ============================================================
+
+### 1. Open Worksheet (Status = 1 PendingApproval)
+POST {{ShopEx_HostAddress}}/api/RMSWorksheets
+Content-Type: application/json
+
+{
+  "title": "PO Planner Weekly Batch",
+  "notes": "Worksheet for Cairo Store"
+}
+
+### 2. Add Purchase Orders to Opened Worksheet (Linked by WorksheetID, Status = 1)
+POST {{ShopEx_HostAddress}}/api/RMSWorksheets/1/purchases
+Content-Type: application/json
+
+[
+  {
+    "itemId": 101,
+    "description": "Item Description Sample",
+    "qty": 50,
+    "price": 25.50,
+    "storeId": 1,
+    "taxRate": 0.14
+  },
+  {
+    "itemId": 102,
+    "description": "Another Item Sample",
+    "qty": 20,
+    "price": 80.00,
+    "storeId": 1,
+    "taxRate": 0.14
+  }
+]
+
+### 3. Open Worksheet with Purchases directly (Combined)
+POST {{ShopEx_HostAddress}}/api/RMSWorksheets/with-purchases
+Content-Type: application/json
+
+{
+  "title": "PO Planner All In One",
+  "notes": "Worksheet created directly with purchase lines",
+  "items": [
+    {
+      "itemId": 101,
+      "description": "Item 101",
+      "qty": 100,
+      "price": 15.00,
+      "storeId": 1,
+      "taxRate": 0.14
+    }
+  ]
+}
+
+### 4. Get Worksheet By ID (Shows status and linked purchase orders)
+GET {{ShopEx_HostAddress}}/api/RMSWorksheets/1
+Accept: application/json
+
+### 5. Approve Worksheet (Status converted from 1 to 2 Approved)
+POST {{ShopEx_HostAddress}}/api/RMSWorksheets/1/approve
+Accept: application/json

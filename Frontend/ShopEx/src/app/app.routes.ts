@@ -1,0 +1,50 @@
+import { Routes } from '@angular/router';
+import { SuppliersListComponent } from './pages/suppliers-list/suppliers-list.component';
+import { SupplierStatementComponent } from './pages/supplier-statement/supplier-statement.component';
+import { SupplierItemsComponent } from './pages/supplier-items/supplier-items.component';
+import { OpenWorksheetComponent } from './pages/open-worksheet/open-worksheet.component';
+import { InvoicesListComponent } from './pages/invoices-list/invoices-list.component';
+import { CreateInvoiceComponent } from './pages/create-invoice/create-invoice.component';
+import { InvoiceDetailComponent } from './pages/invoice-detail/invoice-detail.component';
+import { MaintenanceListComponent } from './pages/maintenance/maintenance-list/maintenance-list.component';
+import { MaintenanceCreateComponent } from './pages/maintenance/maintenance-create/maintenance-create.component';
+import { MaintenanceDetailComponent } from './pages/maintenance/maintenance-detail/maintenance-detail.component';
+import { StockComponent } from './pages/stock/stock.component';
+import { ReturnsListComponent } from './pages/supplier-returns/returns-list/returns-list.component';
+import { CreateReturnComponent } from './pages/supplier-returns/create-return/create-return.component';
+import { ReturnDetailComponent } from './pages/supplier-returns/return-detail/return-detail.component';
+import { ConsignmentsListComponent } from './pages/consignments/consignments-list/consignments-list.component';
+import { CreateConsignmentComponent } from './pages/consignments/create-consignment/create-consignment.component';
+import { ConsignmentDetailComponent } from './pages/consignments/consignment-detail/consignment-detail.component';
+import { CustomerStatementsListComponent } from './pages/customer-statements/customer-statements-list/customer-statements-list.component';
+import { CustomerStatementDetailComponent } from './pages/customer-statements/customer-statement-detail/customer-statement-detail.component';
+import { BalancesComponent } from './pages/balances/balances.component';
+import { ExpensesComponent } from './pages/expenses/expenses.component';
+
+export const routes: Routes = [
+  { path: '', redirectTo: 'suppliers', pathMatch: 'full' },
+  { path: 'suppliers', component: SuppliersListComponent },
+  { path: 'suppliers/:id', component: SupplierStatementComponent },
+  { path: 'suppliers/:id/statement', component: SupplierStatementComponent },
+  { path: 'suppliers/:id/items', component: SupplierItemsComponent },
+  { path: 'worksheets', component: OpenWorksheetComponent },
+  { path: 'worksheets/new', component: OpenWorksheetComponent },
+  { path: 'invoices', component: InvoicesListComponent },
+  { path: 'invoices/new', component: CreateInvoiceComponent },
+  { path: 'invoices/:id', component: InvoiceDetailComponent },
+  { path: 'maintenance', component: MaintenanceListComponent },
+  { path: 'maintenance/new', component: MaintenanceCreateComponent },
+  { path: 'maintenance/:id', component: MaintenanceDetailComponent },
+  { path: 'stock', component: StockComponent },
+  { path: 'supplier-returns', component: ReturnsListComponent },
+  { path: 'supplier-returns/new', component: CreateReturnComponent },
+  { path: 'supplier-returns/:id', component: ReturnDetailComponent },
+  { path: 'consignments', component: ConsignmentsListComponent },
+  { path: 'consignments/new', component: CreateConsignmentComponent },
+  { path: 'consignments/:id', component: ConsignmentDetailComponent },
+  { path: 'customer-statements', component: CustomerStatementsListComponent },
+  { path: 'customer-statements/:id', component: CustomerStatementDetailComponent },
+  { path: 'balances', component: BalancesComponent },
+  { path: 'expenses', component: ExpensesComponent },
+  { path: '**', redirectTo: 'suppliers' }
+];

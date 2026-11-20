@@ -1,0 +1,663 @@
+<div class="space-y-6" dir="rtl">
+  <!-- Top Header & Primary Actions -->
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div>
+      <div class="flex items-center gap-2">
+        <span class="material-symbols-outlined text-primary text-[28px]">payments</span>
+        <h1 class="text-2xl font-bold text-light-on-surface">أرصدة الفروع والتقفيل اليومي</h1>
+        <span class="text-xs px-2.5 py-0.5 rounded-full bg-blue-50 text-primary border border-blue-200 font-semibold">
+          ShopEx Hub
+        </span>
+      </div>
+      <p class="text-sm text-light-on-surface-variant mt-1">
+        إدارة شحن وسائل الدفع الإلكتروني (فودافون كاش، انستاباي، ...) بمجموع مجمع لكل فرع مع كشف حركة التحويلات والتقفيل
+      </p>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="flex items-center gap-2">
+      <button
+        type="button"
+        (click)="openChargeModal()"
+        class="inline-flex items-center gap-2 px-4 py-2.5 bg-primary text-white text-sm font-semibold rounded-lg shadow-sm hover:bg-primary/90 transition-colors"
+      >
+        <span class="material-symbols-outlined text-[20px]">add_card</span>
+        <span>شحن رصيد جديد</span>
+      </button>
+
+      <button
+        type="button"
+        (click)="loadData()"
+        class="p-2.5 border border-outline rounded-lg bg-light-surface hover:bg-light-surface-variant text-light-on-surface transition-colors"
+        title="تحديث البيانات"
+      >
+        <span class="material-symbols-outlined text-[20px]">refresh</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- KPI Summary Cards -->
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <!-- Card 1: Total Charged -->
+    <div class="bg-light-surface p-4 rounded-xl border border-outline shadow-sm flex items-center justify-between">
+      <div>
+        <span class="text-xs text-light-on-surface-variant font-medium block mb-1">إجمالي الأرصدة المشحونة</span>
+        <div class="text-xl font-bold text-light-on-surface">
+          {{ totalChargedAmount | number:'1.2-2' }} <span class="text-xs font-normal text-gray-500">ج.م</span>
+        </div>
+      </div>
+      <div class="w-11 h-11 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+        <span class="material-symbols-outlined text-[24px]">account_balance_wallet</span>
+      </div>
+    </div>
+
+    <!-- Card 2: Total Used -->
+    <div class="bg-light-surface p-4 rounded-xl border border-outline shadow-sm flex items-center justify-between">
+      <div>
+        <span class="text-xs text-light-on-surface-variant font-medium block mb-1">المستهلك والمقفل فعلياً</span>
+        <div class="text-xl font-bold text-emerald-700">
+          {{ totalUsedAmount | number:'1.2-2' }} <span class="text-xs font-normal text-gray-500">ج.م</span>
+        </div>
+      </div>
+      <div class="w-11 h-11 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center">
+        <span class="material-symbols-outlined text-[24px]">point_of_sale</span>
+      </div>
+    </div>
+
+    <!-- Card 3: Total Remaining -->
+    <div class="bg-light-surface p-4 rounded-xl border border-outline shadow-sm flex items-center justify-between">
+      <div>
+        <span class="text-xs text-light-on-surface-variant font-medium block mb-1">الرصيد المتبقي بالفروع حالياً</span>
+        <div class="text-xl font-bold text-amber-600">
+          {{ totalRemainingAmount | number:'1.2-2' }} <span class="text-xs font-normal text-gray-500">ج.م</span>
+        </div>
+      </div>
+      <div class="w-11 h-11 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center">
+        <span class="material-symbols-outlined text-[24px]">savings</span>
+      </div>
+    </div>
+
+    <!-- Card 4: Active Open Wallets -->
+    <div class="bg-light-surface p-4 rounded-xl border border-outline shadow-sm flex items-center justify-between">
+      <div>
+        <span class="text-xs text-light-on-surface-variant font-medium block mb-1">محافظ بها رصيد متاح</span>
+        <div class="text-xl font-bold text-primary">
+          {{ activeWalletsCount }} <span class="text-xs font-normal text-gray-500">محفظة</span>
+        </div>
+      </div>
+      <div class="w-11 h-11 rounded-lg bg-blue-50 text-primary flex items-center justify-center">
+        <span class="material-symbols-outlined text-[24px]">devices</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Navigation Tabs (الشاشة المجمعة والشاشة التفصيلية) -->
+  <div class="flex items-center border-b border-outline gap-3">
+    <button
+      type="button"
+      (click)="setTab('summary')"
+      [class.border-primary]="activeTab === 'summary'"
+      [class.text-primary]="activeTab === 'summary'"
+      [class.font-bold]="activeTab === 'summary'"
+      [class.border-transparent]="activeTab !== 'summary'"
+      [class.text-light-on-surface-variant]="activeTab !== 'summary'"
+      class="pb-3 px-3 text-sm border-b-2 flex items-center gap-2 transition-colors cursor-pointer"
+    >
+      <span class="material-symbols-outlined text-[20px]">table_chart</span>
+      <span>أرصدة الفروع المجمعة (سطر واحد لكل وسيلة)</span>
+      <span class="px-2 py-0.5 rounded-full text-xs bg-light-surface-variant font-bold">
+        {{ groupedBalances.length }}
+      </span>
+    </button>
+
+    <button
+      type="button"
+      (click)="setTab('ledger')"
+      [class.border-primary]="activeTab === 'ledger'"
+      [class.text-primary]="activeTab === 'ledger'"
+      [class.font-bold]="activeTab === 'ledger'"
+      [class.border-transparent]="activeTab !== 'ledger'"
+      [class.text-light-on-surface-variant]="activeTab !== 'ledger'"
+      class="pb-3 px-3 text-sm border-b-2 flex items-center gap-2 transition-colors cursor-pointer"
+    >
+      <span class="material-symbols-outlined text-[20px]">receipt_long</span>
+      <span>سجل التحويلات والحركات التفصيلي</span>
+    </button>
+  </div>
+
+  <!-- Filters Section -->
+  <div class="bg-light-surface p-4 rounded-xl border border-outline shadow-sm space-y-3">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      <!-- Store Filter -->
+      <div>
+        <label class="block text-xs font-semibold text-light-on-surface-variant mb-1">الفرع</label>
+        <select
+          [(ngModel)]="selectedStoreId"
+          (ngModelChange)="loadData()"
+          class="w-full px-3 py-2 text-xs border border-outline rounded-lg bg-light-surface text-light-on-surface focus:outline-none focus:border-primary"
+        >
+          <option [ngValue]="null">جميع الفروع</option>
+          <option *ngFor="let s of stores" [ngValue]="s.id">{{ s.name }}</option>
+        </select>
+      </div>
+
+      <!-- Balance Type Filter -->
+      <div>
+        <label class="block text-xs font-semibold text-light-on-surface-variant mb-1">وسيلة الدفع</label>
+        <select
+          [(ngModel)]="selectedBalanceType"
+          (ngModelChange)="loadData()"
+          class="w-full px-3 py-2 text-xs border border-outline rounded-lg bg-light-surface text-light-on-surface focus:outline-none focus:border-primary"
+        >
+          <option [ngValue]="null">جميع وسائل الدفع</option>
+          <option *ngFor="let t of balanceTypes" [ngValue]="t.id">{{ t.name }}</option>
+        </select>
+      </div>
+
+      <!-- Ledger Type Filter (Only in Ledger Tab) -->
+      <div *ngIf="activeTab === 'ledger'">
+        <label class="block text-xs font-semibold text-light-on-surface-variant mb-1">نوع الحركة</label>
+        <select
+          [(ngModel)]="ledgerTypeFilter"
+          class="w-full px-3 py-2 text-xs border border-outline rounded-lg bg-light-surface text-light-on-surface focus:outline-none focus:border-primary"
+        >
+          <option value="all">جميع الحركات (شحن وتقفيل)</option>
+          <option value="charge">شحن رصيد (+) فقط</option>
+          <option value="closure">تقفيل يومي (-) فقط</option>
+        </select>
+      </div>
+
+      <!-- Search Input -->
+      <div [class.lg:col-span-2]="activeTab === 'summary'">
+        <label class="block text-xs font-semibold text-light-on-surface-variant mb-1">بحث</label>
+        <div class="relative">
+          <span class="material-symbols-outlined absolute right-3 top-2 text-gray-400 text-[18px]">search</span>
+          <input
+            type="text"
+            [(ngModel)]="searchQuery"
+            placeholder="ابحث بالفرع، وسيلة الدفع، الملاحظات..."
+            class="w-full pr-9 pl-3 py-2 text-xs border border-outline rounded-lg bg-light-surface text-light-on-surface focus:outline-none focus:border-primary"
+          />
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="loading" class="p-12 text-center bg-light-surface rounded-xl border border-outline">
+    <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-primary border-t-transparent"></div>
+    <p class="text-sm text-light-on-surface-variant mt-2">جاري استرجاع البيانات...</p>
+  </div>
+
+  <!-- Error State -->
+  <div *ngIf="!loading && errorMessage" class="p-4 bg-error/10 border border-error/20 text-error rounded-xl flex items-center gap-3">
+    <span class="material-symbols-outlined text-[24px]">error</span>
+    <span class="text-sm font-medium">{{ errorMessage }}</span>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- TAB 1: الأرصدة المجمعة لكل فرع (Grouped Balances View) -->
+  <!-- ======================================================== -->
+  <div *ngIf="!loading && !errorMessage && activeTab === 'summary'" class="bg-light-surface rounded-xl border border-outline shadow-sm overflow-hidden">
+    <div class="p-4 border-b border-outline flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <span class="material-symbols-outlined text-primary text-[22px]">account_balance</span>
+        <h2 class="font-bold text-sm text-light-on-surface">أرصدة الفروع الحالية المجمعة</h2>
+        <span class="text-xs text-gray-500 font-normal">
+          (يتم تجميع كافة شحنات الفرع لنفس الوسيلة في سطر واحد تلقائياً)
+        </span>
+      </div>
+    </div>
+
+    <div class="overflow-x-auto">
+      <table class="w-full text-right text-xs">
+        <thead class="bg-light-surface-variant text-light-on-surface-variant border-b border-outline font-semibold">
+          <tr>
+            <th class="py-3 px-4">الفرع</th>
+            <th class="py-3 px-4">وسيلة الدفع</th>
+            <th class="py-3 px-4 text-left">إجمالي المشحون للفرع</th>
+            <th class="py-3 px-4 text-left">المستهلك والمقفل</th>
+            <th class="py-3 px-4 text-left">الرصيد الحالي المتبقي</th>
+            <th class="py-3 px-4 text-center">عدد العمليات</th>
+            <th class="py-3 px-4">آخر شحن</th>
+            <th class="py-3 px-4 text-center">الإجراءات</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-outline">
+          <tr *ngFor="let g of filteredGroupedBalances" class="hover:bg-light-surface-variant/40 transition-colors">
+            <!-- Store -->
+            <td class="py-3.5 px-4 font-bold text-light-on-surface text-sm">
+              <div class="flex items-center gap-2">
+                <span class="material-symbols-outlined text-[18px] text-gray-500">store</span>
+                <span>{{ getStoreName(g.storeId) }}</span>
+              </div>
+            </td>
+
+            <!-- Balance Type Badge -->
+            <td class="py-3.5 px-4">
+              <span
+                class="px-2.5 py-1 rounded-full text-xs font-semibold border inline-flex items-center gap-1"
+                [ngClass]="getBalanceTypeBadge(g.balanceType).color"
+              >
+                <span>{{ getBalanceTypeBadge(g.balanceType).name }}</span>
+              </span>
+            </td>
+
+            <!-- Total Charged -->
+            <td class="py-3.5 px-4 text-left font-bold text-light-on-surface text-sm">
+              {{ g.totalCharged | number:'1.2-2' }} <span class="text-[10px] text-gray-500 font-normal">ج.م</span>
+            </td>
+
+            <!-- Total Used -->
+            <td class="py-3.5 px-4 text-left">
+              <div class="font-semibold text-emerald-700">
+                {{ g.totalUsed | number:'1.2-2' }} <span class="text-[10px] text-gray-500 font-normal">ج.م</span>
+              </div>
+              <div class="w-24 bg-gray-200 rounded-full h-1.5 mt-1 overflow-hidden">
+                <div
+                  class="bg-emerald-600 h-1.5 rounded-full"
+                  [style.width.%]="g.totalCharged > 0 ? (g.totalUsed / g.totalCharged) * 100 : 0"
+                ></div>
+              </div>
+            </td>
+
+            <!-- Current Remaining Balance -->
+            <td class="py-3.5 px-4 text-left">
+              <span
+                class="font-extrabold text-base"
+                [class.text-amber-600]="g.currentBalance > 0"
+                [class.text-gray-400]="g.currentBalance <= 0"
+              >
+                {{ g.currentBalance | number:'1.2-2' }}
+              </span>
+              <span class="text-[10px] text-gray-500 font-normal"> ج.م</span>
+            </td>
+
+            <!-- Counts -->
+            <td class="py-3.5 px-4 text-center">
+              <div class="text-[11px] font-medium text-light-on-surface">
+                <span class="text-primary font-bold">{{ g.chargesCount }}</span> شحن |
+                <span class="text-emerald-700 font-bold">{{ g.closuresCount }}</span> تقفيل
+              </div>
+            </td>
+
+            <!-- Last Charged At -->
+            <td class="py-3.5 px-4 text-light-on-surface-variant">
+              <div>{{ g.lastChargedAt | date:'yyyy/MM/dd' }}</div>
+              <div class="text-[10px] text-gray-400">{{ g.lastChargedAt | date:'shortTime' }}</div>
+            </td>
+
+            <!-- Actions -->
+            <td class="py-3.5 px-4 text-center">
+              <div class="flex items-center justify-center gap-1.5">
+                <!-- Charge More Button -->
+                <button
+                  type="button"
+                  (click)="openChargeModal(g)"
+                  class="px-2.5 py-1 rounded text-xs font-semibold bg-primary/10 text-primary hover:bg-primary hover:text-white transition-colors inline-flex items-center gap-1"
+                  title="شحن رصيد إضافي لنفس الفرع والوسيلة"
+                >
+                  <span class="material-symbols-outlined text-[15px]">add</span>
+                  <span>شحن إضافي</span>
+                </button>
+
+                <!-- Daily Close Button -->
+                <button
+                  *ngIf="g.currentBalance > 0"
+                  type="button"
+                  (click)="openCloseModal(g, $event)"
+                  class="px-2.5 py-1 rounded text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-700 transition-colors inline-flex items-center gap-1 shadow-xs"
+                  title="تسجيل تقفيل يومي واستقطاع من الرصيد"
+                >
+                  <span class="material-symbols-outlined text-[15px]">done_all</span>
+                  <span>تقفيل يومي</span>
+                </button>
+
+                <!-- View Ledger Button -->
+                <button
+                  type="button"
+                  (click)="viewGroupLedger(g)"
+                  class="p-1 rounded text-light-on-surface-variant hover:text-primary hover:bg-light-surface-variant transition-colors"
+                  title="عرض كشف التحويلات والحركات لهذا الفرع"
+                >
+                  <span class="material-symbols-outlined text-[18px]">list_alt</span>
+                </button>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Empty State -->
+          <tr *ngIf="filteredGroupedBalances.length === 0">
+            <td colspan="8" class="py-12 text-center text-light-on-surface-variant">
+              <span class="material-symbols-outlined text-[44px] text-gray-400 mb-2">account_balance_wallet</span>
+              <p class="font-bold text-sm">لا توجد أرصدة فروع مسجلة حتى الآن</p>
+              <p class="text-xs text-gray-500 mt-1">اضغط على زر "شحن رصيد جديد" بالأعلى لشحن رصيد لأي فرع</p>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- TAB 2: كشف التحويلات والحركات التفصيلي (Transactions Ledger) -->
+  <!-- ======================================================== -->
+  <div *ngIf="!loading && !errorMessage && activeTab === 'ledger'" class="bg-light-surface rounded-xl border border-outline shadow-sm overflow-hidden">
+    <div class="p-4 border-b border-outline flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <span class="material-symbols-outlined text-primary text-[22px]">history</span>
+        <h2 class="font-bold text-sm text-light-on-surface">سجل التحويلات والحركات التفصيلي</h2>
+        <span class="px-2 py-0.5 rounded-full text-xs font-bold bg-blue-50 text-primary border border-blue-200">
+          {{ filteredLedgerItems.length }} حركة
+        </span>
+      </div>
+    </div>
+
+    <div class="overflow-x-auto">
+      <table class="w-full text-right text-xs">
+        <thead class="bg-light-surface-variant text-light-on-surface-variant border-b border-outline font-semibold">
+          <tr>
+            <th class="py-3 px-4">نوع الحركة</th>
+            <th class="py-3 px-4">التاريخ والوقت</th>
+            <th class="py-3 px-4">الفرع</th>
+            <th class="py-3 px-4">وسيلة الدفع</th>
+            <th class="py-3 px-4 text-left">المبلغ</th>
+            <th class="py-3 px-4">ملاحظات العملية</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-outline">
+          <tr *ngFor="let t of filteredLedgerItems" class="hover:bg-light-surface-variant/40 transition-colors">
+            <!-- Transaction Type -->
+            <td class="py-3 px-4 font-bold">
+              <span
+                *ngIf="t.transactionType.includes('شحن')"
+                class="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200 inline-flex items-center gap-1"
+              >
+                <span class="material-symbols-outlined text-[14px]">arrow_downward</span>
+                <span>شحن رصيد (+)</span>
+              </span>
+
+              <span
+                *ngIf="t.transactionType.includes('تقفيل')"
+                class="px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-800 border border-blue-200 inline-flex items-center gap-1"
+              >
+                <span class="material-symbols-outlined text-[14px]">arrow_upward</span>
+                <span>تقفيل يومي (-)</span>
+              </span>
+            </td>
+
+            <!-- Date -->
+            <td class="py-3 px-4 text-light-on-surface">
+              <div>{{ t.transactionDate | date:'yyyy/MM/dd' }}</div>
+              <div class="text-[10px] text-gray-400">{{ t.transactionDate | date:'shortTime' }}</div>
+            </td>
+
+            <!-- Store -->
+            <td class="py-3 px-4 font-semibold text-light-on-surface">
+              <div class="flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-[16px] text-gray-500">store</span>
+                <span>{{ getStoreName(t.storeId) }}</span>
+              </div>
+            </td>
+
+            <!-- Balance Type -->
+            <td class="py-3 px-4">
+              <span
+                class="px-2 py-0.5 rounded-full text-xs font-semibold border inline-flex items-center gap-1"
+                [ngClass]="getBalanceTypeBadge(t.balanceType).color"
+              >
+                <span>{{ getBalanceTypeBadge(t.balanceType).name }}</span>
+              </span>
+            </td>
+
+            <!-- Amount -->
+            <td class="py-3 px-4 text-left font-bold text-sm">
+              <span
+                [class.text-emerald-700]="t.transactionType.includes('شحن')"
+                [class.text-blue-700]="t.transactionType.includes('تقفيل')"
+              >
+                {{ t.transactionType.includes('شحن') ? '+' : '-' }}{{ t.amount | number:'1.2-2' }}
+              </span>
+              <span class="text-[10px] text-gray-500 font-normal"> ج.م</span>
+            </td>
+
+            <!-- Notes -->
+            <td class="py-3 px-4 text-gray-600">
+              {{ t.notes || '-' }}
+            </td>
+          </tr>
+
+          <!-- Empty State -->
+          <tr *ngIf="filteredLedgerItems.length === 0">
+            <td colspan="6" class="py-12 text-center text-light-on-surface-variant">
+              <span class="material-symbols-outlined text-[44px] text-gray-400 mb-2">history</span>
+              <p class="font-bold text-sm">لا توجد حركات مسجلة مطابقة للبحث</p>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ========================================================== -->
+<!-- Modal 1: شحن رصيد جديد (Charge Balance Modal) -->
+<!-- ========================================================== -->
+<div
+  *ngIf="showChargeModal"
+  class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fade-in"
+  dir="rtl"
+>
+  <div class="bg-light-surface rounded-2xl border border-outline shadow-2xl w-full max-w-lg overflow-hidden">
+    <!-- Header -->
+    <div class="px-6 py-4 border-b border-outline flex items-center justify-between bg-light-surface-variant/40">
+      <div class="flex items-center gap-2.5">
+        <div class="w-9 h-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold">
+          <span class="material-symbols-outlined text-[22px]">add_card</span>
+        </div>
+        <div>
+          <h3 class="font-bold text-base text-light-on-surface">شحن رصيد لفرع</h3>
+          <p class="text-xs text-light-on-surface-variant">تحويل رصيد محفظة إلكترونية من الـ HQ إلى الفرع</p>
+        </div>
+      </div>
+      <button (click)="closeChargeModal()" class="text-gray-400 hover:text-gray-600 p-1">
+        <span class="material-symbols-outlined text-[20px]">close</span>
+      </button>
+    </div>
+
+    <!-- Form Body -->
+    <div class="p-6 space-y-4 text-xs">
+      <!-- Error Message -->
+      <div *ngIf="chargeError" class="p-3 bg-error/10 border border-error/20 text-error rounded-lg">
+        {{ chargeError }}
+      </div>
+
+      <!-- Store Select -->
+      <div>
+        <label class="block font-semibold text-light-on-surface mb-1">الفرع المستلم:</label>
+        <select
+          [(ngModel)]="chargeForm.storeId"
+          class="w-full px-3 py-2 text-xs border border-outline rounded-lg bg-light-surface text-light-on-surface focus:outline-none focus:border-primary"
+        >
+          <option [ngValue]="null" disabled>-- اختر الفرع --</option>
+          <option *ngFor="let s of stores" [ngValue]="s.id">{{ s.name }} (كود: #{{ s.id }})</option>
+        </select>
+      </div>
+
+      <!-- Balance Type Select -->
+      <div>
+        <label class="block font-semibold text-light-on-surface mb-1">وسيلة الدفع / المحفظة:</label>
+        <select
+          [(ngModel)]="chargeForm.balanceType"
+          class="w-full px-3 py-2 text-xs border border-outline rounded-lg bg-light-surface text-light-on-surface focus:outline-none focus:border-primary"
+        >
+          <option *ngFor="let t of balanceTypes" [ngValue]="t.id">{{ t.name }}</option>
+        </select>
+      </div>
+
+      <!-- Amount Input -->
+      <div>
+        <label class="block font-semibold text-light-on-surface mb-1">المبلغ المراد شحنه (ج.م):</label>
+        <div class="relative">
+          <input
+            type="number"
+            min="1"
+            step="0.01"
+            [(ngModel)]="chargeForm.amount"
+            placeholder="مثال: 1000 أو 1500"
+            class="w-full pl-12 pr-3 py-2 text-sm font-bold border border-outline rounded-lg bg-light-surface text-primary focus:outline-none focus:border-primary"
+          />
+          <span class="absolute left-3 top-2.5 text-xs text-gray-400 font-normal">جنيه</span>
+        </div>
+      </div>
+
+      <!-- Notes Input -->
+      <div>
+        <label class="block font-semibold text-light-on-surface mb-1">ملاحظات (اختياري):</label>
+        <textarea
+          [(ngModel)]="chargeForm.notes"
+          rows="2"
+          placeholder="رقم عملية التحويل، سبب الشحن، أو أي تفاصيل..."
+          class="w-full px-3 py-2 text-xs border border-outline rounded-lg bg-light-surface text-light-on-surface focus:outline-none focus:border-primary"
+        ></textarea>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="px-6 py-3 border-t border-outline bg-light-surface-variant/30 flex items-center justify-end gap-2">
+      <button
+        type="button"
+        (click)="closeChargeModal()"
+        [disabled]="submittingCharge"
+        class="px-4 py-2 rounded-lg border border-outline bg-light-surface text-light-on-surface hover:bg-light-surface-variant transition-colors text-xs font-semibold"
+      >
+        إلغاء
+      </button>
+
+      <button
+        type="button"
+        (click)="submitCharge()"
+        [disabled]="submittingCharge"
+        class="px-5 py-2 rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors text-xs font-semibold inline-flex items-center gap-1.5"
+      >
+        <span *ngIf="submittingCharge" class="inline-block animate-spin w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full"></span>
+        <span>تأكيد الشحن</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ========================================================== -->
+<!-- Modal 2: تسجيل تقفيل يومي للفرع (Daily Close Modal) -->
+<!-- ========================================================== -->
+<div
+  *ngIf="showCloseModal && selectedGroupForClose"
+  class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fade-in"
+  dir="rtl"
+>
+  <div class="bg-light-surface rounded-2xl border border-outline shadow-2xl w-full max-w-lg overflow-hidden">
+    <!-- Header -->
+    <div class="px-6 py-4 border-b border-outline flex items-center justify-between bg-emerald-50/50">
+      <div class="flex items-center gap-2.5">
+        <div class="w-9 h-9 rounded-lg bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold">
+          <span class="material-symbols-outlined text-[22px]">done_all</span>
+        </div>
+        <div>
+          <h3 class="font-bold text-base text-light-on-surface">تقفيل رصيد يومي (استهلاك الفرع)</h3>
+          <p class="text-xs text-light-on-surface-variant">تسجيل المبلغ الذي تم استخدامه فعلياً وخصمه من إجمالي الرصيد</p>
+        </div>
+      </div>
+      <button (click)="closeCloseModal()" class="text-gray-400 hover:text-gray-600 p-1">
+        <span class="material-symbols-outlined text-[20px]">close</span>
+      </button>
+    </div>
+
+    <!-- Body -->
+    <div class="p-6 space-y-4 text-xs">
+      <!-- Error Alert -->
+      <div *ngIf="closeError" class="p-3 bg-error/10 border border-error/20 text-error rounded-lg">
+        {{ closeError }}
+      </div>
+
+      <!-- Balance Card Info -->
+      <div class="p-4 bg-light-surface-variant/50 border border-outline rounded-xl space-y-2">
+        <div class="flex items-center justify-between">
+          <span class="text-gray-500 font-medium">الفرع:</span>
+          <span class="font-bold text-light-on-surface">{{ getStoreName(selectedGroupForClose.storeId) }}</span>
+        </div>
+        <div class="flex items-center justify-between">
+          <span class="text-gray-500 font-medium">وسيلة الدفع:</span>
+          <span class="font-bold text-primary">{{ selectedGroupForClose.balanceTypeName }}</span>
+        </div>
+        <div class="flex items-center justify-between">
+          <span class="text-gray-500 font-medium">إجمالي المشحون:</span>
+          <span class="font-bold text-light-on-surface">{{ selectedGroupForClose.totalCharged | number:'1.2-2' }} ج.م</span>
+        </div>
+        <div class="flex items-center justify-between pt-2 border-t border-outline/50">
+          <span class="text-amber-700 font-bold">الرصيد المتبقي المتاح حالياً:</span>
+          <span class="text-sm font-extrabold text-amber-700">{{ selectedGroupForClose.currentBalance | number:'1.2-2' }} ج.م</span>
+        </div>
+      </div>
+
+      <!-- Amount Used Input -->
+      <div>
+        <label class="block font-semibold text-light-on-surface mb-1">المبلغ الذي تم استخدامه اليوم (ج.م):</label>
+        <div class="relative">
+          <input
+            type="number"
+            min="0.01"
+            [max]="selectedGroupForClose.currentBalance"
+            step="0.01"
+            [(ngModel)]="closeForm.amountUsed"
+            placeholder="أدخل المبلغ المستخدم..."
+            class="w-full pl-12 pr-3 py-2 text-sm font-bold border border-outline rounded-lg bg-light-surface text-emerald-700 focus:outline-none focus:border-emerald-600"
+          />
+          <span class="absolute left-3 top-2.5 text-xs text-gray-400 font-normal">جنيه</span>
+        </div>
+        <div class="flex items-center justify-between text-[11px] text-gray-500 mt-1">
+          <span>الحد الأقصى المتاح: {{ selectedGroupForClose.currentBalance | number:'1.2-2' }} ج.م</span>
+          <button
+            type="button"
+            (click)="closeForm.amountUsed = selectedGroupForClose.currentBalance"
+            class="text-primary hover:underline font-semibold"
+          >
+            استهلاك الرصيد بالكامل
+          </button>
+        </div>
+      </div>
+
+      <!-- Notes Input -->
+      <div>
+        <label class="block font-semibold text-light-on-surface mb-1">ملاحظات التقفيل (اختياري):</label>
+        <textarea
+          [(ngModel)]="closeForm.notes"
+          rows="2"
+          placeholder="تقفيل وردية مسائية، مبيعات فودافون كاش اليوم، إلخ..."
+          class="w-full px-3 py-2 text-xs border border-outline rounded-lg bg-light-surface text-light-on-surface focus:outline-none focus:border-primary"
+        ></textarea>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="px-6 py-3 border-t border-outline bg-light-surface-variant/30 flex items-center justify-end gap-2">
+      <button
+        type="button"
+        (click)="closeCloseModal()"
+        [disabled]="submittingClose"
+        class="px-4 py-2 rounded-lg border border-outline bg-light-surface text-light-on-surface hover:bg-light-surface-variant transition-colors text-xs font-semibold"
+      >
+        إلغاء
+      </button>
+
+      <button
+        type="button"
+        (click)="submitClose()"
+        [disabled]="submittingClose"
+        class="px-5 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors text-xs font-semibold inline-flex items-center gap-1.5"
+      >
+        <span *ngIf="submittingClose" class="inline-block animate-spin w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full"></span>
+        <span>حفظ التقفيل</span>
+      </button>
+    </div>
+  </div>
+</div>

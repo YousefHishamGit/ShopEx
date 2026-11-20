@@ -1,0 +1,114 @@
+<div class="max-w-7xl mx-auto space-y-6">
+  <!-- Page Header & Action Button -->
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div>
+      <h1 class="font-headline text-headline-lg text-light-on-surface tracking-tight font-bold text-2xl">Purchase Worksheets</h1>
+      <p class="text-body-md text-light-on-surface-variant text-sm">
+        Manage purchase order planner worksheets, item quantities, store allocations, and authorization pipelines.
+      </p>
+    </div>
+    <div class="flex items-center gap-3">
+      <button (click)="fetchWorksheets()" class="px-3.5 py-2 text-light-on-surface-variant bg-light-surface border border-outline rounded hover:bg-light-surface-variant text-sm font-medium flex items-center gap-1.5 shadow-sm transition-colors">
+        <span class="material-symbols-outlined text-[18px]">refresh</span>
+        <span>Refresh</span>
+      </button>
+      <a routerLink="/worksheets/new" class="px-4 py-2.5 bg-primary text-on-primary rounded text-sm font-semibold inline-flex items-center gap-2 shadow hover:bg-blue-700 transition-colors">
+        <span class="material-symbols-outlined text-[20px]">add</span>
+        <span>+ New Worksheet</span>
+      </a>
+    </div>
+  </div>
+
+  <!-- Error notification -->
+  <div *ngIf="errorMessage" class="p-4 rounded bg-error-container text-on-error-container border border-error/20 flex items-center gap-2 text-sm">
+    <span class="material-symbols-outlined text-error">error</span>
+    <span>{{ errorMessage }}</span>
+  </div>
+
+  <!-- Worksheets Table Card -->
+  <div class="bg-light-surface rounded-lg border border-outline shadow-sm overflow-hidden">
+    <!-- Filter Toolbar -->
+    <div class="p-4 border-b border-outline flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div class="relative flex-1 max-w-md">
+        <span class="material-symbols-outlined absolute left-3 top-2.5 text-light-on-surface-variant text-[20px]">search</span>
+        <input [(ngModel)]="searchTerm" (ngModelChange)="applyFilter()" type="search" placeholder="Search worksheets by title or ID..."
+               class="w-full pl-10 pr-4 py-2 bg-light-surface-variant border border-outline rounded text-sm text-light-on-surface placeholder:text-light-on-surface-variant/60 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all">
+      </div>
+      <div class="text-sm text-light-on-surface-variant">
+        Total: <span class="font-semibold text-light-on-surface">{{ filteredWorksheets.length }}</span> worksheet(s)
+      </div>
+    </div>
+
+    <!-- Loading Skeleton -->
+    <div *ngIf="loading" class="p-6 space-y-4">
+      <div class="h-6 bg-slate-200 rounded animate-pulse w-3/4"></div>
+      <div class="h-10 bg-slate-100 rounded animate-pulse"></div>
+      <div class="h-10 bg-slate-100 rounded animate-pulse"></div>
+    </div>
+
+    <!-- Empty State -->
+    <div *ngIf="!loading && filteredWorksheets.length === 0" class="py-16 px-4 text-center">
+      <div class="w-16 h-16 mx-auto mb-3 rounded-full bg-light-surface-variant flex items-center justify-center text-light-on-surface-variant">
+        <span class="material-symbols-outlined text-[36px]">assignment</span>
+      </div>
+      <h3 class="font-title text-title-lg text-light-on-surface font-semibold mb-1">No Worksheets Found</h3>
+      <p class="text-body-md text-light-on-surface-variant max-w-md mx-auto mb-4 text-sm">No purchase worksheets currently match your search.</p>
+      <a routerLink="/worksheets/new" class="inline-flex items-center gap-2 px-4 py-2 bg-primary text-on-primary rounded text-sm font-semibold">
+        <span class="material-symbols-outlined text-[18px]">add</span>
+        <span>Open First Worksheet</span>
+      </a>
+    </div>
+
+    <!-- Data Table -->
+    <div *ngIf="!loading && filteredWorksheets.length > 0" class="overflow-x-auto">
+      <table class="w-full text-left border-collapse">
+        <thead class="bg-light-surface-variant border-b border-outline">
+          <tr>
+            <th scope="col" class="px-6 py-3.5 font-title text-title-md text-light-on-surface font-semibold w-28">ID</th>
+            <th scope="col" class="px-6 py-3.5 font-title text-title-md text-light-on-surface font-semibold">Title & Notes</th>
+            <th scope="col" class="px-6 py-3.5 font-title text-title-md text-light-on-surface font-semibold">Effective Date</th>
+            <th scope="col" class="px-6 py-3.5 font-title text-title-md text-light-on-surface font-semibold text-center">Status</th>
+            <th scope="col" class="px-6 py-3.5 font-title text-title-md text-light-on-surface font-semibold text-center">PO Lines</th>
+            <th scope="col" class="px-6 py-3.5 text-right font-title text-title-md text-light-on-surface font-semibold">Actions</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-outline-variant text-body-md text-light-on-surface">
+          <tr *ngFor="let ws of filteredWorksheets" class="hover:bg-light-surface-variant/50 transition-colors">
+            <td class="px-6 py-3.5 font-mono font-bold text-primary">#{{ ws.id }}</td>
+            <td class="px-6 py-3.5">
+              <a [routerLink]="['/worksheets', ws.id]" class="font-semibold text-light-on-surface hover:text-primary hover:underline block">
+                {{ ws.title || 'PO Planner Worksheet' }}
+              </a>
+              <div class="text-xs text-light-on-surface-variant mt-0.5 line-clamp-1">{{ ws.notes || 'No description provided' }}</div>
+            </td>
+            <td class="px-6 py-3.5 font-mono text-sm text-light-on-surface-variant">
+              {{ ws.effectiveDate | date:'dd/MM/yyyy' }}
+            </td>
+            <td class="px-6 py-3.5 text-center">
+              <span *ngIf="ws.status === 2 || ws.statusName === 'Approved'"
+                    class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-success-container text-on-success-container border border-success/20">
+                <span class="w-1.5 h-1.5 rounded-full bg-success"></span> Approved (2)
+              </span>
+              <span *ngIf="ws.status === 1 || ws.statusName === 'PendingApproval'"
+                    class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-warning-container text-on-warning-container border border-warning/20">
+                <span class="w-1.5 h-1.5 rounded-full bg-warning"></span> Pending Approval (1)
+              </span>
+            </td>
+            <td class="px-6 py-3.5 text-center font-mono text-sm font-semibold">
+              <span class="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-xs">
+                {{ ws.purchaseOrders.length }} items
+              </span>
+            </td>
+            <td class="px-6 py-3.5 text-right">
+              <a [routerLink]="['/worksheets', ws.id]" class="px-3 py-1.5 text-primary border border-primary/30 rounded hover:bg-primary/5 text-sm font-medium inline-flex items-center gap-1 transition-colors">
+                <span class="material-symbols-outlined text-[16px]">visibility</span>
+                <span>View</span>
+              </a>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+

@@ -1,0 +1,221 @@
+<div class="space-y-6" dir="rtl">
+  <!-- Page Header -->
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div>
+      <div class="flex items-center gap-2">
+        <span class="material-symbols-outlined text-primary text-[28px]">home_repair_service</span>
+        <h1 class="text-2xl font-bold text-light-on-surface">قسم الصيانة والأجهزة</h1>
+      </div>
+      <p class="text-sm text-light-on-surface-variant mt-1">متابعة صيانة الأجهزة عبر المراحل الثلاث: الاستلام، الإصلاح، والتسليم والدفع</p>
+    </div>
+
+    <a routerLink="/maintenance/new"
+       class="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-primary text-on-primary font-medium rounded-lg hover:bg-primary/90 shadow-sm transition-all text-sm shrink-0">
+      <span class="material-symbols-outlined text-[20px]">add_circle</span>
+      <span>استلام جهاز جديد (المرحلة 1)</span>
+    </a>
+  </div>
+
+  <!-- Summary Statistics Cards -->
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+    <!-- Total -->
+    <div (click)="onFilterStatus('ALL')" class="bg-light-surface p-4 rounded-xl border border-outline hover:border-primary cursor-pointer transition-all shadow-sm">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-medium text-light-on-surface-variant">إجمالي الأجهزة</span>
+        <span class="material-symbols-outlined text-gray-500 text-[20px]">devices</span>
+      </div>
+      <div class="text-2xl font-bold text-light-on-surface mt-2">{{ countTotal }}</div>
+      <div class="text-[11px] text-light-on-surface-variant mt-1">كافة التذاكر المسجلة</div>
+    </div>
+
+    <!-- Under Repair / Received -->
+    <div (click)="onFilterStatus('1')" class="bg-light-surface p-4 rounded-xl border border-outline hover:border-blue-500 cursor-pointer transition-all shadow-sm">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-medium text-blue-700">1. قيد الفحص / الإصلاح</span>
+        <span class="material-symbols-outlined text-blue-600 text-[20px]">build</span>
+      </div>
+      <div class="text-2xl font-bold text-blue-700 mt-2">{{ countReceived }}</div>
+      <div class="text-[11px] text-blue-600/80 mt-1">بانتظار أو قيد العمل</div>
+    </div>
+
+    <!-- Repaired / Ready -->
+    <div (click)="onFilterStatus('3')" class="bg-light-surface p-4 rounded-xl border border-outline hover:border-purple-500 cursor-pointer transition-all shadow-sm">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-medium text-purple-700">2. تم الإصلاح (جاهز للتسليم)</span>
+        <span class="material-symbols-outlined text-purple-600 text-[20px]">check_circle</span>
+      </div>
+      <div class="text-2xl font-bold text-purple-700 mt-2">{{ countCompleted }}</div>
+      <div class="text-[11px] text-purple-600/80 mt-1">جاهز لاستلام العميل</div>
+    </div>
+
+    <!-- Delivered -->
+    <div (click)="onFilterStatus('4')" class="bg-light-surface p-4 rounded-xl border border-outline hover:border-emerald-500 cursor-pointer transition-all shadow-sm">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-medium text-emerald-700">3. تم التسليم والتحصيل</span>
+        <span class="material-symbols-outlined text-emerald-600 text-[20px]">task_alt</span>
+      </div>
+      <div class="text-2xl font-bold text-emerald-700 mt-2">{{ countDelivered }}</div>
+      <div class="text-[11px] text-emerald-600/80 mt-1">تم تسليمه للعميل</div>
+    </div>
+  </div>
+
+  <!-- Search & Filter Controls -->
+  <div class="bg-light-surface p-4 rounded-xl border border-outline space-y-3 shadow-sm">
+    <div class="flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
+      <!-- Search Input -->
+      <div class="relative flex-1">
+        <span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-[20px]">search</span>
+        <input type="text"
+               [(ngModel)]="searchTerm"
+               (input)="applyFilter()"
+               placeholder="ابحث برقم الإيصال، اسم العميل، رقم الهاتف، أو اسم الجهاز..."
+               class="w-full pr-10 pl-4 py-2 border border-outline rounded-lg text-sm bg-light-surface-variant focus:bg-light-surface focus:outline-none focus:border-primary transition-all">
+      </div>
+
+      <!-- Quick Action Refresh -->
+      <button (click)="fetchTickets()" title="تحديث البيانات" class="px-3 py-2 border border-outline hover:bg-light-surface-variant rounded-lg text-light-on-surface-variant text-sm flex items-center justify-center gap-1.5 transition-colors">
+        <span class="material-symbols-outlined text-[18px]">refresh</span>
+        <span>تحديث</span>
+      </button>
+    </div>
+
+    <!-- Status Tabs -->
+    <div class="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs font-medium border-t border-outline/50 pt-3">
+      <button (click)="onFilterStatus('ALL')"
+              [class]="selectedStatus === 'ALL' ? 'bg-primary text-on-primary' : 'bg-light-surface-variant text-light-on-surface-variant hover:bg-outline/50'"
+              class="px-3 py-1.5 rounded-lg whitespace-nowrap transition-colors">
+        الكل ({{ countTotal }})
+      </button>
+      <button (click)="onFilterStatus('1')"
+              [class]="selectedStatus === '1' ? 'bg-blue-600 text-white' : 'bg-light-surface-variant text-light-on-surface-variant hover:bg-outline/50'"
+              class="px-3 py-1.5 rounded-lg whitespace-nowrap transition-colors">
+        مستلم جديد
+      </button>
+      <button (click)="onFilterStatus('2')"
+              [class]="selectedStatus === '2' ? 'bg-amber-600 text-white' : 'bg-light-surface-variant text-light-on-surface-variant hover:bg-outline/50'"
+              class="px-3 py-1.5 rounded-lg whitespace-nowrap transition-colors">
+        قيد الإصلاح
+      </button>
+      <button (click)="onFilterStatus('3')"
+              [class]="selectedStatus === '3' ? 'bg-purple-600 text-white' : 'bg-light-surface-variant text-light-on-surface-variant hover:bg-outline/50'"
+              class="px-3 py-1.5 rounded-lg whitespace-nowrap transition-colors">
+        تم الإصلاح (جاهز للتسليم)
+      </button>
+      <button (click)="onFilterStatus('4')"
+              [class]="selectedStatus === '4' ? 'bg-emerald-600 text-white' : 'bg-light-surface-variant text-light-on-surface-variant hover:bg-outline/50'"
+              class="px-3 py-1.5 rounded-lg whitespace-nowrap transition-colors">
+        تم التسليم والدفع
+      </button>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="loading" class="py-16 text-center">
+    <div class="inline-block animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full mb-3"></div>
+    <p class="text-sm text-light-on-surface-variant">جاري تحميل بيانات الصيانة...</p>
+  </div>
+
+  <!-- Error State -->
+  <div *ngIf="!loading && errorMessage" class="p-4 bg-error-container text-on-error-container rounded-xl border border-error/20 flex items-center gap-3">
+    <span class="material-symbols-outlined text-error">error</span>
+    <span>{{ errorMessage }}</span>
+  </div>
+
+  <!-- Empty State -->
+  <div *ngIf="!loading && !errorMessage && filteredTickets.length === 0" class="py-16 text-center bg-light-surface rounded-xl border border-outline p-8">
+    <span class="material-symbols-outlined text-gray-300 text-[64px] mb-2">build_circle</span>
+    <h3 class="text-lg font-bold text-light-on-surface">لا توجد أجهزة صيانة مطابقة</h3>
+    <p class="text-sm text-light-on-surface-variant mt-1 mb-4">يمكنك إضافة استلام جهاز جديد من العميل للبدء فوراً.</p>
+    <a routerLink="/maintenance/new" class="inline-flex items-center gap-1.5 px-4 py-2 bg-primary text-on-primary rounded-lg text-sm font-medium hover:bg-primary/90">
+      <span class="material-symbols-outlined text-[18px]">add</span>
+      <span>استلام جهاز جديد</span>
+    </a>
+  </div>
+
+  <!-- Tickets Table -->
+  <div *ngIf="!loading && !errorMessage && filteredTickets.length > 0" class="bg-light-surface rounded-xl border border-outline overflow-hidden shadow-sm">
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm text-right">
+        <thead class="bg-light-surface-container text-xs font-semibold text-light-on-surface-variant border-b border-outline">
+          <tr>
+            <th class="py-3 px-4">رقم الإيصال</th>
+            <th class="py-3 px-4">بيانات العميل</th>
+            <th class="py-3 px-4">الجهاز</th>
+            <th class="py-3 px-4">تاريخ الاستلام</th>
+            <th class="py-3 px-4">الحالة</th>
+            <th class="py-3 px-4">التكلفة الإجمالية</th>
+            <th class="py-3 px-4">المسدد / المتبقي</th>
+            <th class="py-3 px-4 text-center">الإجراءات</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-outline">
+          <tr *ngFor="let t of filteredTickets" class="hover:bg-light-surface-variant/70 transition-colors">
+            <!-- Ticket Number -->
+            <td class="py-3.5 px-4 whitespace-nowrap">
+              <a [routerLink]="['/maintenance', t.id]" class="font-bold text-primary hover:underline flex items-center gap-1">
+                <span>{{ t.ticketNumber }}</span>
+              </a>
+            </td>
+
+            <!-- Customer Info -->
+            <td class="py-3.5 px-4">
+              <div class="font-medium text-light-on-surface">{{ t.customerName }}</div>
+              <div class="text-xs text-light-on-surface-variant dir-ltr text-right flex items-center gap-1 mt-0.5">
+                <span class="material-symbols-outlined text-[14px] text-gray-400">call</span>
+                <span>{{ t.customerPhone }}</span>
+              </div>
+            </td>
+
+            <!-- Device Name -->
+            <td class="py-3.5 px-4">
+              <div class="font-medium text-light-on-surface">{{ t.deviceName }}</div>
+            </td>
+
+            <!-- Received Date -->
+            <td class="py-3.5 px-4 whitespace-nowrap text-xs text-light-on-surface-variant">
+              {{ t.receivedAt | date:'yyyy/MM/dd, h:mm a' }}
+            </td>
+
+            <!-- Status Badge -->
+            <td class="py-3.5 px-4 whitespace-nowrap">
+              <span [class]="getStatusBadgeClass(t.status)"
+                    class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border">
+                {{ getStatusArabicName(t.status) }}
+              </span>
+            </td>
+
+            <!-- Total Cost -->
+            <td class="py-3.5 px-4 whitespace-nowrap font-semibold">
+              <span *ngIf="t.totalCost > 0" class="text-light-on-surface">{{ t.totalCost | number:'1.2-2' }} ج.م</span>
+              <span *ngIf="t.totalCost === 0" class="text-gray-400 text-xs">قيد التحديد</span>
+            </td>
+
+            <!-- Paid / Remaining -->
+            <td class="py-3.5 px-4 whitespace-nowrap">
+              <div *ngIf="t.remainingAmount <= 0 && t.totalCost > 0" class="text-xs text-emerald-700 font-medium flex items-center gap-1">
+                <span class="material-symbols-outlined text-[14px]">check_circle</span>
+                <span>مسدد بالكامل</span>
+              </div>
+              <div *ngIf="t.remainingAmount > 0">
+                <div class="text-xs text-rose-700 font-bold">متبقي: {{ t.remainingAmount | number:'1.2-2' }} ج.م</div>
+                <div class="text-[11px] text-gray-500">مدفوع: {{ t.paidAmount | number:'1.2-2' }} ج.م</div>
+              </div>
+              <div *ngIf="t.totalCost === 0 && t.paidAmount > 0" class="text-xs text-blue-700">
+                عربون: {{ t.paidAmount | number:'1.2-2' }} ج.م
+              </div>
+            </td>
+
+            <!-- Actions -->
+            <td class="py-3.5 px-4 text-center whitespace-nowrap">
+              <a [routerLink]="['/maintenance', t.id]"
+                 class="inline-flex items-center gap-1 px-3 py-1.5 bg-primary/10 text-primary hover:bg-primary hover:text-on-primary rounded-lg text-xs font-medium transition-colors">
+                <span>متابعة</span>
+                <span class="material-symbols-outlined text-[14px]">arrow_back</span>
+              </a>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

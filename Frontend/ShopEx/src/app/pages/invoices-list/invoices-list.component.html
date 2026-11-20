@@ -1,0 +1,163 @@
+<div class="max-w-7xl mx-auto space-y-6">
+  <!-- Page Header & Action Button -->
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div>
+      <h1 class="font-headline text-headline-lg text-light-on-surface tracking-tight font-bold text-2xl">Supplier Invoices</h1>
+      <p class="text-body-md text-light-on-surface-variant text-sm">
+        Manage accounts payable, monitor payment statuses, and review credit terms across all vendors.
+      </p>
+    </div>
+    <div class="flex items-center gap-3">
+      <button (click)="fetchInvoices()" class="px-3.5 py-2 text-light-on-surface-variant bg-light-surface border border-outline rounded hover:bg-light-surface-variant text-sm font-medium flex items-center gap-1.5 shadow-sm transition-colors">
+        <span class="material-symbols-outlined text-[18px]">refresh</span>
+        <span>Refresh</span>
+      </button>
+      <a routerLink="/invoices/new" class="px-4 py-2.5 bg-primary text-on-primary rounded text-sm font-semibold inline-flex items-center gap-2 shadow hover:bg-blue-700 transition-colors">
+        <span class="material-symbols-outlined text-[20px]">add</span>
+        <span>+ New Invoice</span>
+      </a>
+    </div>
+  </div>
+
+  <!-- Metric KPI Cards -->
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div class="bg-light-surface p-4 rounded-lg border border-outline shadow-sm">
+      <span class="text-xs text-light-on-surface-variant uppercase tracking-wider font-semibold">Total Invoices</span>
+      <div class="text-2xl font-bold text-light-on-surface tabular-nums mt-1">{{ totalInvoicesCount }}</div>
+      <span class="text-xs text-light-on-surface-variant">Recorded invoices</span>
+    </div>
+    <div class="bg-light-surface p-4 rounded-lg border border-outline shadow-sm">
+      <span class="text-xs text-light-on-surface-variant uppercase tracking-wider font-semibold">Total Invoiced</span>
+      <div class="text-2xl font-bold text-primary tabular-nums mt-1">{{ totalInvoicedAmount | number:'1.2-2' }} EGP</div>
+      <span class="text-xs text-light-on-surface-variant">Cumulative amount</span>
+    </div>
+    <div class="bg-light-surface p-4 rounded-lg border border-outline shadow-sm">
+      <span class="text-xs text-light-on-surface-variant uppercase tracking-wider font-semibold">Paid to Date</span>
+      <div class="text-2xl font-bold text-success tabular-nums mt-1">{{ totalPaidAmount | number:'1.2-2' }} EGP</div>
+      <span class="text-xs text-success flex items-center gap-1 font-medium mt-0.5">
+        <span class="material-symbols-outlined text-[14px]">check</span> Settled amount
+      </span>
+    </div>
+    <div class="bg-light-surface p-4 rounded-lg border border-outline shadow-sm">
+      <span class="text-xs text-light-on-surface-variant uppercase tracking-wider font-semibold">Remaining Due</span>
+      <div class="text-2xl font-bold text-error tabular-nums mt-1">{{ totalRemainingAmount | number:'1.2-2' }} EGP</div>
+      <span class="text-xs text-error font-medium mt-0.5">Requires settlement</span>
+    </div>
+  </div>
+
+  <!-- Error notification -->
+  <div *ngIf="errorMessage" class="p-4 rounded bg-error-container text-on-error-container border border-error/20 flex items-center gap-2 text-sm">
+    <span class="material-symbols-outlined text-error">error</span>
+    <span>{{ errorMessage }}</span>
+  </div>
+
+  <!-- Invoices Table Container Card -->
+  <div class="bg-light-surface rounded-lg border border-outline shadow-sm overflow-hidden">
+    <!-- Filter Toolbar -->
+    <div class="p-4 border-b border-outline flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div class="flex flex-1 items-center gap-3">
+        <div class="relative flex-1 max-w-sm">
+          <span class="material-symbols-outlined absolute left-3 top-2.5 text-light-on-surface-variant text-[20px]">search</span>
+          <input [(ngModel)]="searchTerm" (ngModelChange)="applyFilter()" type="search" placeholder="Filter by invoice # or supplier..."
+                 class="w-full pl-10 pr-4 py-2 bg-light-surface-variant border border-outline rounded text-sm text-light-on-surface placeholder:text-light-on-surface-variant/60 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all">
+        </div>
+
+        <!-- Status Quick Filter Dropdown -->
+        <select [(ngModel)]="statusFilter" (ngModelChange)="applyFilter()" class="px-3 py-2 bg-light-surface border border-outline rounded text-sm text-light-on-surface focus:outline-none focus:ring-1 focus:ring-primary">
+          <option value="ALL">All Statuses</option>
+          <option value="Unpaid">Unpaid</option>
+          <option value="PartiallyPaid">Partially Paid</option>
+          <option value="Paid">Paid</option>
+        </select>
+      </div>
+
+      <div class="text-sm text-light-on-surface-variant">
+        Showing <span class="font-semibold text-light-on-surface">{{ filteredInvoices.length }}</span> invoice(s)
+      </div>
+    </div>
+
+    <!-- Loading Skeleton -->
+    <div *ngIf="loading" class="p-6 space-y-4">
+      <div class="h-6 bg-slate-200 rounded animate-pulse w-3/4"></div>
+      <div class="h-10 bg-slate-100 rounded animate-pulse"></div>
+      <div class="h-10 bg-slate-100 rounded animate-pulse"></div>
+    </div>
+
+    <!-- Empty State -->
+    <div *ngIf="!loading && filteredInvoices.length === 0" class="py-16 px-4 text-center">
+      <div class="w-16 h-16 mx-auto mb-3 rounded-full bg-light-surface-variant flex items-center justify-center text-light-on-surface-variant">
+        <span class="material-symbols-outlined text-[36px]">receipt</span>
+      </div>
+      <h3 class="font-title text-title-lg text-light-on-surface font-semibold mb-1">No Invoices Found</h3>
+      <p class="text-body-md text-light-on-surface-variant max-w-md mx-auto mb-4 text-sm">No supplier invoices match your current filters. Create a new invoice to get started.</p>
+      <a routerLink="/invoices/new" class="px-4 py-2 bg-primary text-on-primary rounded text-sm font-semibold inline-flex items-center gap-1.5 shadow">
+        <span class="material-symbols-outlined text-[18px]">add</span>
+        <span>Create First Invoice</span>
+      </a>
+    </div>
+
+    <!-- Data Table -->
+    <div *ngIf="!loading && filteredInvoices.length > 0" class="overflow-x-auto">
+      <table class="w-full text-left border-collapse">
+        <thead class="bg-light-surface-variant border-b border-outline">
+          <tr>
+            <th scope="col" class="px-6 py-3.5 font-title text-title-md text-light-on-surface font-semibold">Invoice #</th>
+            <th scope="col" class="px-6 py-3.5 font-title text-title-md text-light-on-surface font-semibold">Supplier</th>
+            <th scope="col" class="px-4 py-3.5 font-title text-title-md text-light-on-surface font-semibold text-right">Total Amount</th>
+            <th scope="col" class="px-4 py-3.5 font-title text-title-md text-light-on-surface font-semibold text-right">Paid</th>
+            <th scope="col" class="px-4 py-3.5 font-title text-title-md text-light-on-surface font-semibold text-right">Remaining</th>
+            <th scope="col" class="px-4 py-3.5 font-title text-title-md text-light-on-surface font-semibold text-center">Status</th>
+            <th scope="col" class="px-4 py-3.5 font-title text-title-md text-light-on-surface font-semibold">Payment Type</th>
+            <th scope="col" class="px-4 py-3.5 font-title text-title-md text-light-on-surface font-semibold">Due Date</th>
+            <th scope="col" class="px-6 py-3.5 text-right font-title text-title-md text-light-on-surface font-semibold">Actions</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-outline-variant text-body-md text-light-on-surface">
+          <tr *ngFor="let inv of filteredInvoices" class="hover:bg-light-surface-variant/50 transition-colors">
+            <td class="px-6 py-3.5 font-mono font-bold text-primary">
+              <a [routerLink]="['/invoices', inv.id]" class="hover:underline flex items-center gap-1">
+                <span>{{ inv.invoiceNumber }}</span>
+                <span class="text-xs text-light-on-surface-variant font-normal">#{{ inv.id }}</span>
+              </a>
+            </td>
+            <td class="px-6 py-3.5">
+              <div class="font-medium text-light-on-surface">{{ inv.rmsSupplierName || ('Supplier #' + inv.rmsSupplierID) }}</div>
+              <div class="text-xs text-light-on-surface-variant font-mono">ID: {{ inv.rmsSupplierID }}</div>
+            </td>
+            <td class="px-4 py-3.5 font-mono text-sm font-semibold text-right">{{ inv.totalAmount | number:'1.2-2' }}</td>
+            <td class="px-4 py-3.5 font-mono text-sm text-right text-success">{{ inv.paidAmount | number:'1.2-2' }}</td>
+            <td class="px-4 py-3.5 font-mono text-sm font-bold text-right" [ngClass]="inv.remainingAmount > 0 ? 'text-error' : 'text-light-on-surface-variant'">
+              {{ inv.remainingAmount | number:'1.2-2' }}
+            </td>
+            <td class="px-4 py-3.5 text-center">
+              <span *ngIf="inv.statusName === 'Paid' || inv.status === 3" class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-success-container text-on-success-container border border-success/20">
+                <span class="w-1.5 h-1.5 rounded-full bg-success"></span> Paid
+              </span>
+              <span *ngIf="inv.statusName === 'PartiallyPaid' || inv.status === 2" class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-container text-on-amber-container border border-amber/20">
+                <span class="w-1.5 h-1.5 rounded-full bg-amber"></span> Partial
+              </span>
+              <span *ngIf="inv.statusName === 'Unpaid' || inv.status === 1" class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-error-container text-on-error-container border border-error/20">
+                <span class="w-1.5 h-1.5 rounded-full bg-error"></span> Unpaid
+              </span>
+            </td>
+            <td class="px-4 py-3.5 text-sm">
+              <span class="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-xs font-medium">
+                {{ inv.paymentTypeName || (inv.paymentType === 1 ? 'Cash' : 'Credit') }}
+              </span>
+            </td>
+            <td class="px-4 py-3.5 font-mono text-xs text-light-on-surface-variant">
+              {{ inv.dueDate ? (inv.dueDate | date:'dd/MM/yyyy') : '—' }}
+            </td>
+            <td class="px-6 py-3.5 text-right">
+              <a [routerLink]="['/invoices', inv.id]" class="px-3 py-1.5 text-primary border border-primary/30 rounded hover:bg-primary/5 text-sm font-medium inline-flex items-center gap-1 transition-colors">
+                <span class="material-symbols-outlined text-[16px]">visibility</span>
+                <span>View</span>
+              </a>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+

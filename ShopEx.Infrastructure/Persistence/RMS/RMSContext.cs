@@ -18,8 +18,29 @@ namespace ShopEx.Infrastructure.Persistence.RMS
         public DbSet<Order> Orders { get; set; }
         public DbSet<OrderEntry> OrderEntries { get; set; }
         public DbSet<Store> Stores { get; set; }
+        public DbSet<Transaction> Transactions { get; set; }
+        public DbSet<TransactionEntry> TransactionEntries { get; set; }
         public RMSContext(DbContextOptions<RMSContext> options) : base(options)
         {
+        }
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            base.OnModelCreating(modelBuilder);
+
+            // RMS tables are read-only for us (no migrations). Both have an identity AutoID as the real key.
+            modelBuilder.Entity<Transaction>(e =>
+            {
+                e.ToTable("Transaction", "dbo");
+                e.HasKey(t => t.AutoID);
+                e.Ignore(t => t.DBTimeStamp);
+            });
+
+            modelBuilder.Entity<TransactionEntry>(e =>
+            {
+                e.HasKey(t => t.AutoID);
+                e.Ignore(t => t.DBTimeStamp);
+            });
         }
     }
 }

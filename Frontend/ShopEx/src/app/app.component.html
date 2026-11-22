@@ -43,6 +43,12 @@
     <!-- Sidebar Navigation -->
     <aside *ngIf="sidebarOpen" class="w-64 bg-white border-l border-outline flex flex-col transition-all duration-surface-enter z-20 shrink-0 shadow-sm">
         <nav *ngIf="auth.isAdmin()" class="p-3 space-y-1.5" aria-label="القائمة الرئيسية">
+            <!-- 0. الرئيسية (Dashboard) -->
+            <a routerLink="/dashboard" routerLinkActive="bg-primary/10 text-primary font-bold border-r-4 border-primary" class="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-600 hover:text-primary hover:bg-slate-50 text-sm transition-colors">
+                <span class="material-symbols-outlined text-[22px]">dashboard</span>
+                <span class="sidebar-label font-medium">الرئيسية (لوحة اليوم)</span>
+            </a>
+
             <!-- 1. الموردين (Suppliers) -->
             <a routerLink="/suppliers" routerLinkActive="bg-primary/10 text-primary font-bold border-r-4 border-primary" [routerLinkActiveOptions]="{exact: false}" class="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-600 hover:text-primary hover:bg-slate-50 text-sm transition-colors">
                 <span class="material-symbols-outlined text-[22px]">storefront</span>

@@ -1,3 +1,4 @@
+import { API_URL } from '../core/api-config';
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
@@ -16,7 +17,7 @@ import {
   providedIn: 'root'
 })
 export class MaintenanceService {
-  private readonly baseUrl = 'https://localhost:7122/api/MaintenanceTickets';
+  private readonly baseUrl = API_URL + '/MaintenanceTickets';
 
   constructor(private http: HttpClient) {}
 

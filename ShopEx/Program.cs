@@ -53,6 +53,7 @@ namespace ShopEx
             builder.Services.AddScoped<IWorksheetRepository,WorksheetRepository>();
             builder.Services.AddScoped<ICustomerOrderRepository, CustomerOrderRepository>();
             builder.Services.AddScoped<IStoreRepository, StoreRepository>();
+            builder.Services.AddScoped<ISalesRepository, SalesRepository>();
 
             builder.Services.AddScoped<ISupplierService, SupplierService>();
             builder.Services.AddScoped<IWorksheetService, WorksheetService>();
@@ -68,6 +69,7 @@ namespace ShopEx
             builder.Services.AddScoped<IConsignmentRepository, ConsignmentRepository>();
             builder.Services.AddScoped<IBalanceRepository, BalanceRepository>();
             builder.Services.AddScoped<IExpenseRepository, ExpenseRepository>();
+            builder.Services.AddScoped<IDashboardRepository, DashboardRepository>();
 
             builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
@@ -79,6 +81,7 @@ namespace ShopEx
             builder.Services.AddScoped<IConsignmentService, ConsignmentService>();
             builder.Services.AddScoped<IBalanceService, BalanceService>();
             builder.Services.AddScoped<IExpenseService, ExpenseService>();
+            builder.Services.AddScoped<IDashboardService, DashboardService>();
 
             // Users & Auth
             builder.Services.AddScoped<IUserRepository, UserRepository>();
@@ -256,7 +259,16 @@ namespace ShopEx
 
             app.UseCors("Frontend");
 
-            app.UseHttpsRedirection();
+            // التطبيق الأمامي (Angular) يُقدَّم من نفس الـ API (مجلد wwwroot) عند النشر
+            var serveSpa = app.Configuration.GetValue("ServeSpa", true);
+            if (serveSpa)
+            {
+                app.UseDefaultFiles();
+                app.UseStaticFiles();
+            }
+
+            if (!app.Configuration.GetValue("DisableHttpsRedirection", false))
+                app.UseHttpsRedirection();
 
             app.UseRateLimiter();
 
@@ -265,6 +277,12 @@ namespace ShopEx
 
 
             app.MapControllers();
+
+            if (serveSpa)
+            {
+                // أي مسار غير /api يرجع index.html (Angular routing)
+                app.MapFallbackToFile("index.html").AllowAnonymous();
+            }
 
             // Seed default data if needed
             using (var scope = app.Services.CreateScope())

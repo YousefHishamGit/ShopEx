@@ -1,3 +1,4 @@
+import { API_URL } from '../core/api-config';
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
@@ -17,7 +18,7 @@ import {
   providedIn: 'root'
 })
 export class BalanceService {
-  private readonly baseUrl = 'https://localhost:7122/api/Balances';
+  private readonly baseUrl = API_URL + '/Balances';
 
   constructor(private http: HttpClient) {}
 

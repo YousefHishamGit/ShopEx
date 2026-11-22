@@ -1,3 +1,4 @@
+import { API_URL } from '../core/api-config';
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { EMPTY, Observable } from 'rxjs';
@@ -8,7 +9,7 @@ import { Warehouse, StockBalance, PagedStockBalances, StockMovement, StockAdjust
   providedIn: 'root'
 })
 export class StockService {
-  private readonly baseUrl = 'https://localhost:7122/api';
+  private readonly baseUrl = API_URL;
 
   constructor(private http: HttpClient) {}
 

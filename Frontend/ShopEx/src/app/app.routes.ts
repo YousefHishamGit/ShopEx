@@ -2,6 +2,7 @@ import { Routes } from '@angular/router';
 import { adminGuard, employeeGuard, guestGuard } from './core/auth.guard';
 
 // Every page is lazy-loaded so the initial bundle only contains the app shell.
+const dashboard = () => import('./pages/dashboard/dashboard.component').then(m => m.DashboardComponent);
 const suppliersList = () => import('./pages/suppliers-list/suppliers-list.component').then(m => m.SuppliersListComponent);
 const supplierStatement = () => import('./pages/supplier-statement/supplier-statement.component').then(m => m.SupplierStatementComponent);
 const supplierItems = () => import('./pages/supplier-items/supplier-items.component').then(m => m.SupplierItemsComponent);
@@ -47,7 +48,8 @@ export const routes: Routes = [
     path: '',
     canActivate: [adminGuard],
     children: [
-      { path: '', redirectTo: 'suppliers', pathMatch: 'full' },
+      { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
+      { path: 'dashboard', loadComponent: dashboard },
       { path: 'suppliers', loadComponent: suppliersList },
       { path: 'suppliers/:id', loadComponent: supplierStatement },
       { path: 'suppliers/:id/statement', loadComponent: supplierStatement },

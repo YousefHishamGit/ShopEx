@@ -1,3 +1,4 @@
+import { API_URL } from '../core/api-config';
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
@@ -14,7 +15,7 @@ import {
 
 @Injectable({ providedIn: 'root' })
 export class ExpenseService {
-  private base = 'https://localhost:7122/api/Expenses';
+  private base = API_URL + '/Expenses';
 
   constructor(private http: HttpClient) {}
 

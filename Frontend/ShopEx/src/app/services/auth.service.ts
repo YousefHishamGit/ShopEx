@@ -1,3 +1,4 @@
+import { API_URL } from '../core/api-config';
 import { Injectable, computed, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
@@ -17,7 +18,7 @@ const STORAGE_KEY = 'shopex.session';
 })
 export class AuthService {
   /** Base URL of the API — also used by the interceptor to decide where the token may be sent. */
-  static readonly apiUrl = 'https://localhost:7122/api';
+  static readonly apiUrl = API_URL;
 
   private readonly session = signal<StoredSession | null>(this.restore());
 
@@ -72,7 +73,7 @@ export class AuthService {
 
   /** The page each role lands on after login. */
   homeRoute(): string {
-    return this.isEmployee() ? '/branch/receive' : '/suppliers';
+    return this.isEmployee() ? '/branch/receive' : '/dashboard';
   }
 
   private isExpired(s: StoredSession): boolean {

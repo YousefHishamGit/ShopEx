@@ -1,0 +1,378 @@
+<div class="space-y-5" dir="rtl">
+
+  <!-- ============ Header ============ -->
+  <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+    <div class="flex items-center gap-3">
+      <div class="w-12 h-12 rounded-2xl bg-primary text-white flex items-center justify-center shadow-sm">
+        <span class="material-symbols-outlined text-[26px]">dashboard</span>
+      </div>
+      <div>
+        <h1 class="text-xl sm:text-2xl font-bold text-light-on-surface leading-tight">
+          {{ isToday ? 'لوحة اليوم' : 'لوحة يوم ' + selectedDate }}
+        </h1>
+        <p class="text-xs sm:text-sm text-light-on-surface-variant mt-0.5">
+          المبيعات والأرباح والأجهزة المستلمة بالفروع، وفواتير الموردين والأمانات المستحقة
+          <span *ngIf="data" class="text-slate-400">— آخر تحديث {{ data.generatedAt | date:'shortTime' }}</span>
+        </p>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-2">
+      <button type="button" (click)="shiftDay(-1)" title="اليوم السابق" aria-label="اليوم السابق"
+        class="p-2.5 border border-outline rounded-xl bg-light-surface hover:bg-light-surface-variant text-light-on-surface transition-colors">
+        <span class="material-symbols-outlined text-[20px]">chevron_right</span>
+      </button>
+      <input type="date" [(ngModel)]="selectedDate" (change)="onDateChange()"
+        class="px-3 py-2 border border-outline rounded-xl bg-light-surface text-sm text-light-on-surface focus:outline-none focus:ring-2 focus:ring-primary/30" />
+      <button type="button" (click)="shiftDay(1)" [disabled]="isToday" title="اليوم التالي" aria-label="اليوم التالي"
+        class="p-2.5 border border-outline rounded-xl bg-light-surface hover:bg-light-surface-variant text-light-on-surface transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+        <span class="material-symbols-outlined text-[20px]">chevron_left</span>
+      </button>
+      <button *ngIf="!isToday" type="button" (click)="goToday()"
+        class="px-3 py-2.5 border border-primary/30 text-primary rounded-xl text-sm font-semibold hover:bg-primary/5 transition-colors">
+        اليوم
+      </button>
+      <button type="button" (click)="load()" [disabled]="loading" title="تحديث البيانات" aria-label="تحديث البيانات"
+        class="p-2.5 border border-outline rounded-xl bg-light-surface hover:bg-light-surface-variant text-light-on-surface transition-colors disabled:opacity-50">
+        <span class="material-symbols-outlined text-[20px]" [class.animate-spin]="loading">refresh</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ============ Error ============ -->
+  <div *ngIf="errorMessage" role="alert"
+    class="flex items-start gap-3 p-4 rounded-2xl border border-red-200 bg-red-50 text-red-700 text-sm">
+    <span class="material-symbols-outlined text-[22px]">error</span>
+    <div class="flex-1">{{ errorMessage }}</div>
+    <button type="button" (click)="load()" class="font-bold underline">إعادة المحاولة</button>
+  </div>
+
+  <!-- ============ Loading (first load only) ============ -->
+  <div *ngIf="loading && !data" class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4" aria-busy="true">
+    <div *ngFor="let _ of [1,2,3,4,5,6,7,8]" class="h-24 rounded-2xl bg-slate-200/60 animate-pulse"></div>
+  </div>
+
+  <ng-container *ngIf="data as d">
+
+    <!-- ============ KPI Cards ============ -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+
+      <!-- المبيعات -->
+      <div class="relative overflow-hidden bg-light-surface p-4 rounded-2xl border border-outline shadow-sm">
+        <span class="absolute inset-y-0 right-0 w-1 bg-primary"></span>
+        <div class="flex items-start justify-between gap-2">
+          <div class="min-w-0">
+            <span class="text-[11px] sm:text-xs text-light-on-surface-variant font-medium block mb-1">صافي المبيعات</span>
+            <div class="text-lg sm:text-xl font-bold text-light-on-surface break-words">
+              {{ d.sales.totalSales | number:'1.0-2' }}
+              <span class="text-[11px] font-normal text-gray-500">ج.م</span>
+            </div>
+            <div class="text-[11px] text-slate-500 mt-1">{{ d.sales.transactionsCount | number }} فاتورة بيع · {{ d.sales.itemsSold | number:'1.0-2' }} قطعة</div>
+          </div>
+          <div class="w-9 h-9 shrink-0 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+            <span class="material-symbols-outlined text-[20px]">point_of_sale</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- الربح -->
+      <div class="relative overflow-hidden bg-light-surface p-4 rounded-2xl border border-outline shadow-sm">
+        <span class="absolute inset-y-0 right-0 w-1" [ngClass]="d.sales.grossProfit < 0 ? 'bg-red-500' : 'bg-emerald-500'"></span>
+        <div class="flex items-start justify-between gap-2">
+          <div class="min-w-0">
+            <span class="text-[11px] sm:text-xs text-light-on-surface-variant font-medium block mb-1">إجمالي الربح</span>
+            <div class="text-lg sm:text-xl font-bold break-words" [ngClass]="d.sales.grossProfit < 0 ? 'text-red-600' : 'text-emerald-700'">
+              {{ d.sales.grossProfit | number:'1.0-2' }}
+              <span class="text-[11px] font-normal text-gray-500">ج.م</span>
+            </div>
+            <div class="text-[11px] text-slate-500 mt-1">هامش {{ d.sales.marginPercent | number:'1.0-1' }}% · تكلفة {{ d.sales.totalCost | number:'1.0-0' }}</div>
+          </div>
+          <div class="w-9 h-9 shrink-0 rounded-xl flex items-center justify-center"
+            [ngClass]="d.sales.grossProfit < 0 ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-700'">
+            <span class="material-symbols-outlined text-[20px]">trending_up</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- الأجهزة المستلمة -->
+      <a routerLink="/maintenance" class="relative overflow-hidden bg-light-surface p-4 rounded-2xl border border-outline shadow-sm hover:border-primary/40 transition-colors">
+        <span class="absolute inset-y-0 right-0 w-1 bg-violet-500"></span>
+        <div class="flex items-start justify-between gap-2">
+          <div class="min-w-0">
+            <span class="text-[11px] sm:text-xs text-light-on-surface-variant font-medium block mb-1">أجهزة استلمتها الفروع</span>
+            <div class="text-lg sm:text-xl font-bold text-violet-700">
+              {{ d.maintenance.receivedToday | number }}
+              <span class="text-[11px] font-normal text-gray-500">جهاز</span>
+            </div>
+            <div class="text-[11px] text-slate-500 mt-1">سُلّم {{ d.maintenance.deliveredToday | number }} · أُصلح {{ d.maintenance.repairedToday | number }}</div>
+          </div>
+          <div class="w-9 h-9 shrink-0 rounded-xl bg-violet-50 text-violet-700 flex items-center justify-center">
+            <span class="material-symbols-outlined text-[20px]">move_to_inbox</span>
+          </div>
+        </div>
+      </a>
+
+      <!-- إيراد الصيانة -->
+      <div class="relative overflow-hidden bg-light-surface p-4 rounded-2xl border border-outline shadow-sm">
+        <span class="absolute inset-y-0 right-0 w-1 bg-teal-500"></span>
+        <div class="flex items-start justify-between gap-2">
+          <div class="min-w-0">
+            <span class="text-[11px] sm:text-xs text-light-on-surface-variant font-medium block mb-1">مقبوض الصيانة</span>
+            <div class="text-lg sm:text-xl font-bold text-teal-700 break-words">
+              {{ d.maintenance.revenueToday | number:'1.0-2' }}
+              <span class="text-[11px] font-normal text-gray-500">ج.م</span>
+            </div>
+            <div class="text-[11px] text-slate-500 mt-1">دفعات العملاء في اليوم</div>
+          </div>
+          <div class="w-9 h-9 shrink-0 rounded-xl bg-teal-50 text-teal-700 flex items-center justify-center">
+            <span class="material-symbols-outlined text-[20px]">build_circle</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- المصروفات -->
+      <a routerLink="/expenses" class="relative overflow-hidden bg-light-surface p-4 rounded-2xl border border-outline shadow-sm hover:border-primary/40 transition-colors">
+        <span class="absolute inset-y-0 right-0 w-1 bg-orange-500"></span>
+        <div class="flex items-start justify-between gap-2">
+          <div class="min-w-0">
+            <span class="text-[11px] sm:text-xs text-light-on-surface-variant font-medium block mb-1">مصروفات اليوم</span>
+            <div class="text-lg sm:text-xl font-bold text-orange-700 break-words">
+              {{ d.expenses.total | number:'1.0-2' }}
+              <span class="text-[11px] font-normal text-gray-500">ج.م</span>
+            </div>
+            <div class="text-[11px] text-slate-500 mt-1">{{ d.expenses.count | number }} حركة</div>
+          </div>
+          <div class="w-9 h-9 shrink-0 rounded-xl bg-orange-50 text-orange-700 flex items-center justify-center">
+            <span class="material-symbols-outlined text-[20px]">receipt_long</span>
+          </div>
+        </div>
+      </a>
+
+      <!-- أرصدة الفروع -->
+      <a routerLink="/balances" class="relative overflow-hidden bg-light-surface p-4 rounded-2xl border border-outline shadow-sm hover:border-primary/40 transition-colors">
+        <span class="absolute inset-y-0 right-0 w-1 bg-sky-500"></span>
+        <div class="flex items-start justify-between gap-2">
+          <div class="min-w-0">
+            <span class="text-[11px] sm:text-xs text-light-on-surface-variant font-medium block mb-1">رصيد مقفَّل بالفروع</span>
+            <div class="text-lg sm:text-xl font-bold text-sky-700 break-words">
+              {{ d.balances.closedToday | number:'1.0-2' }}
+              <span class="text-[11px] font-normal text-gray-500">ج.م</span>
+            </div>
+            <div class="text-[11px] text-slate-500 mt-1">شُحن اليوم {{ d.balances.chargedToday | number:'1.0-0' }}</div>
+          </div>
+          <div class="w-9 h-9 shrink-0 rounded-xl bg-sky-50 text-sky-700 flex items-center justify-center">
+            <span class="material-symbols-outlined text-[20px]">payments</span>
+          </div>
+        </div>
+      </a>
+
+      <!-- فواتير الموردين المتأخرة -->
+      <a routerLink="/invoices" class="relative overflow-hidden bg-light-surface p-4 rounded-2xl border border-outline shadow-sm hover:border-primary/40 transition-colors">
+        <span class="absolute inset-y-0 right-0 w-1" [ngClass]="d.supplierInvoices.overdueCount > 0 ? 'bg-red-500' : 'bg-slate-300'"></span>
+        <div class="flex items-start justify-between gap-2">
+          <div class="min-w-0">
+            <span class="text-[11px] sm:text-xs text-light-on-surface-variant font-medium block mb-1">فواتير موردين متأخرة</span>
+            <div class="text-lg sm:text-xl font-bold break-words" [ngClass]="d.supplierInvoices.overdueCount > 0 ? 'text-red-600' : 'text-light-on-surface'">
+              {{ d.supplierInvoices.overdueAmount | number:'1.0-2' }}
+              <span class="text-[11px] font-normal text-gray-500">ج.م</span>
+            </div>
+            <div class="text-[11px] text-slate-500 mt-1">{{ d.supplierInvoices.overdueCount | number }} فاتورة · إجمالي المتبقي {{ d.supplierInvoices.totalOutstanding | number:'1.0-0' }}</div>
+          </div>
+          <div class="w-9 h-9 shrink-0 rounded-xl flex items-center justify-center"
+            [ngClass]="d.supplierInvoices.overdueCount > 0 ? 'bg-red-50 text-red-600' : 'bg-slate-100 text-slate-500'">
+            <span class="material-symbols-outlined text-[20px]">event_busy</span>
+          </div>
+        </div>
+      </a>
+
+      <!-- أمانات البنزيمات المتأخرة -->
+      <a routerLink="/consignments" class="relative overflow-hidden bg-light-surface p-4 rounded-2xl border border-outline shadow-sm hover:border-primary/40 transition-colors">
+        <span class="absolute inset-y-0 right-0 w-1" [ngClass]="d.consignments.overdueCount > 0 ? 'bg-amber-500' : 'bg-slate-300'"></span>
+        <div class="flex items-start justify-between gap-2">
+          <div class="min-w-0">
+            <span class="text-[11px] sm:text-xs text-light-on-surface-variant font-medium block mb-1">أمانات تجار متأخرة</span>
+            <div class="text-lg sm:text-xl font-bold" [ngClass]="d.consignments.overdueCount > 0 ? 'text-amber-600' : 'text-light-on-surface'">
+              {{ d.consignments.overdueCount | number }}
+              <span class="text-[11px] font-normal text-gray-500">أمانة</span>
+            </div>
+            <div class="text-[11px] text-slate-500 mt-1">فلوس {{ d.consignments.overdueMoney | number:'1.0-0' }} · بضاعة {{ d.consignments.overdueGoodsValue | number:'1.0-0' }}</div>
+          </div>
+          <div class="w-9 h-9 shrink-0 rounded-xl flex items-center justify-center"
+            [ngClass]="d.consignments.overdueCount > 0 ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-500'">
+            <span class="material-symbols-outlined text-[20px]">local_gas_station</span>
+          </div>
+        </div>
+      </a>
+    </div>
+
+    <!-- ============ Branches table ============ -->
+    <section class="bg-light-surface rounded-2xl border border-outline shadow-sm overflow-hidden" aria-labelledby="branches-title">
+      <div class="px-4 sm:px-5 py-3.5 border-b border-outline flex items-center justify-between gap-3">
+        <h2 id="branches-title" class="font-bold text-light-on-surface flex items-center gap-2">
+          <span class="material-symbols-outlined text-primary text-[22px]">storefront</span>
+          أداء الفروع
+        </h2>
+        <span class="text-xs text-slate-500">{{ d.branches.length }} فرع</span>
+      </div>
+
+      <div *ngIf="d.branches.length === 0" class="p-8 text-center text-sm text-slate-500">لا توجد فروع مسجلة في RMS.</div>
+
+      <div *ngIf="d.branches.length > 0" class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead class="bg-slate-50 text-slate-600 text-xs">
+            <tr>
+              <th scope="col" class="px-3 py-2.5 text-right font-semibold">الفرع</th>
+              <th scope="col" class="px-3 py-2.5 text-right font-semibold">المبيعات</th>
+              <th scope="col" class="px-3 py-2.5 text-right font-semibold">الربح</th>
+              <th scope="col" class="px-3 py-2.5 text-right font-semibold">عدد الفواتير</th>
+              <th scope="col" class="px-3 py-2.5 text-right font-semibold">أجهزة مستلمة</th>
+              <th scope="col" class="px-3 py-2.5 text-right font-semibold">أجهزة مسلّمة</th>
+              <th scope="col" class="px-3 py-2.5 text-right font-semibold">مصروفات</th>
+              <th scope="col" class="px-3 py-2.5 text-right font-semibold">رصيد مقفَّل</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            <tr *ngFor="let b of d.branches; trackBy: trackBranch" class="hover:bg-slate-50/70">
+              <th scope="row" class="px-3 py-3 text-right font-semibold text-light-on-surface whitespace-nowrap">{{ b.storeName }}</th>
+              <td class="px-3 py-3 tabular-nums">{{ b.sales | number:'1.0-2' }}</td>
+              <td class="px-3 py-3 tabular-nums font-semibold" [ngClass]="b.profit < 0 ? 'text-red-600' : (b.profit > 0 ? 'text-emerald-700' : 'text-slate-400')">{{ b.profit | number:'1.0-2' }}</td>
+              <td class="px-3 py-3 tabular-nums">{{ b.transactionsCount | number }}</td>
+              <td class="px-3 py-3 tabular-nums" [ngClass]="b.devicesReceived > 0 ? 'text-violet-700 font-semibold' : 'text-slate-400'">{{ b.devicesReceived | number }}</td>
+              <td class="px-3 py-3 tabular-nums" [ngClass]="b.devicesDelivered > 0 ? 'text-slate-800' : 'text-slate-400'">{{ b.devicesDelivered | number }}</td>
+              <td class="px-3 py-3 tabular-nums" [ngClass]="b.expenses > 0 ? 'text-orange-700' : 'text-slate-400'">{{ b.expenses | number:'1.0-2' }}</td>
+              <td class="px-3 py-3 tabular-nums" [ngClass]="b.balanceClosed > 0 ? 'text-sky-700' : 'text-slate-400'">{{ b.balanceClosed | number:'1.0-2' }}</td>
+            </tr>
+          </tbody>
+          <tfoot class="bg-slate-50 font-bold text-light-on-surface">
+            <tr>
+              <th scope="row" class="px-3 py-3 text-right">الإجمالي</th>
+              <td class="px-3 py-3 tabular-nums">{{ totals.sales | number:'1.0-2' }}</td>
+              <td class="px-3 py-3 tabular-nums" [ngClass]="totals.profit < 0 ? 'text-red-600' : 'text-emerald-700'">{{ totals.profit | number:'1.0-2' }}</td>
+              <td class="px-3 py-3 tabular-nums">{{ totals.transactions | number }}</td>
+              <td class="px-3 py-3 tabular-nums">{{ totals.received | number }}</td>
+              <td class="px-3 py-3 tabular-nums">{{ totals.delivered | number }}</td>
+              <td class="px-3 py-3 tabular-nums">{{ totals.expenses | number:'1.0-2' }}</td>
+              <td class="px-3 py-3 tabular-nums">{{ totals.balanceClosed | number:'1.0-2' }}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </section>
+
+    <!-- ============ Maintenance status strip ============ -->
+    <a routerLink="/maintenance"
+      class="flex flex-wrap items-center gap-x-8 gap-y-2 bg-light-surface rounded-2xl border border-outline shadow-sm px-4 sm:px-5 py-3.5 hover:border-primary/40 transition-colors">
+      <span class="font-bold text-light-on-surface flex items-center gap-2">
+        <span class="material-symbols-outlined text-primary text-[22px]">home_repair_service</span>
+        حالة الصيانة الآن
+      </span>
+      <span class="text-sm text-slate-600">قيد الاستلام / الإصلاح:
+        <b class="text-violet-700 tabular-nums">{{ d.maintenance.underRepairNow | number }}</b> جهاز</span>
+      <span class="text-sm text-slate-600">جاهزة وبانتظار التسليم:
+        <b class="tabular-nums" [ngClass]="d.maintenance.readyForDeliveryNow > 0 ? 'text-amber-600' : 'text-slate-800'">{{ d.maintenance.readyForDeliveryNow | number }}</b> جهاز</span>
+    </a>
+
+    <!-- ============ Dues ============ -->
+    <div class="grid grid-cols-1 xl:grid-cols-2 gap-5">
+
+      <!-- فواتير الموردين -->
+      <section class="bg-light-surface rounded-2xl border border-outline shadow-sm overflow-hidden" aria-labelledby="inv-title">
+        <div class="px-4 sm:px-5 py-3.5 border-b border-outline">
+          <div class="flex items-center justify-between gap-3">
+            <h2 id="inv-title" class="font-bold text-light-on-surface flex items-center gap-2">
+              <span class="material-symbols-outlined text-red-600 text-[22px]">event_busy</span>
+              فواتير الموردين وفترة السماح
+            </h2>
+            <a routerLink="/invoices" class="text-xs font-semibold text-primary hover:underline">كل الفواتير</a>
+          </div>
+          <div class="flex flex-wrap gap-2 mt-3 text-xs">
+            <span class="px-2.5 py-1 rounded-full border bg-red-50 text-red-700 border-red-200 font-semibold">
+              متأخرة {{ d.supplierInvoices.overdueCount | number }} · {{ d.supplierInvoices.overdueAmount | number:'1.0-0' }}
+            </span>
+            <span class="px-2.5 py-1 rounded-full border bg-amber-50 text-amber-700 border-amber-200 font-semibold">
+              مستحقة اليوم {{ d.supplierInvoices.dueTodayCount | number }} · {{ d.supplierInvoices.dueTodayAmount | number:'1.0-0' }}
+            </span>
+            <span class="px-2.5 py-1 rounded-full border bg-blue-50 text-blue-700 border-blue-200 font-semibold">
+              خلال {{ d.supplierInvoices.dueSoonDays }} أيام {{ d.supplierInvoices.dueSoonCount | number }} · {{ d.supplierInvoices.dueSoonAmount | number:'1.0-0' }}
+            </span>
+          </div>
+        </div>
+
+        <div *ngIf="d.supplierInvoices.items.length === 0" class="p-8 text-center text-sm text-slate-500">
+          <span class="material-symbols-outlined text-emerald-500 text-[32px] block mb-1">check_circle</span>
+          لا توجد فواتير متأخرة أو قريبة الاستحقاق.
+        </div>
+
+        <ul *ngIf="d.supplierInvoices.items.length > 0" class="divide-y divide-slate-100">
+          <li *ngFor="let inv of d.supplierInvoices.items">
+            <a [routerLink]="['/invoices', inv.invoiceId]" class="flex items-center gap-3 px-4 sm:px-5 py-3 hover:bg-slate-50/70 transition-colors">
+              <div class="min-w-0 flex-1">
+                <div class="font-semibold text-sm text-light-on-surface truncate">{{ inv.supplierName }}</div>
+                <div class="text-[11px] text-slate-500 truncate">فاتورة {{ inv.invoiceNumber }} · استحقاق {{ inv.dueDate | date:'yyyy-MM-dd' }}</div>
+              </div>
+              <div class="text-left shrink-0">
+                <div class="font-bold text-sm tabular-nums text-light-on-surface">{{ inv.remainingAmount | number:'1.0-2' }}</div>
+                <span class="inline-block mt-0.5 px-2 py-0.5 rounded-full border text-[10px] font-bold" [ngClass]="dueClass(inv.daysToDue)">
+                  {{ dueLabel(inv.daysToDue) }}
+                </span>
+              </div>
+            </a>
+          </li>
+        </ul>
+      </section>
+
+      <!-- أمانات التجار -->
+      <section class="bg-light-surface rounded-2xl border border-outline shadow-sm overflow-hidden" aria-labelledby="cons-title">
+        <div class="px-4 sm:px-5 py-3.5 border-b border-outline">
+          <div class="flex items-center justify-between gap-3">
+            <h2 id="cons-title" class="font-bold text-light-on-surface flex items-center gap-2">
+              <span class="material-symbols-outlined text-amber-600 text-[22px]">local_gas_station</span>
+              أمانات التجار (البنزيمات)
+            </h2>
+            <a routerLink="/consignments" class="text-xs font-semibold text-primary hover:underline">كل الأمانات</a>
+          </div>
+          <div class="flex flex-wrap gap-2 mt-3 text-xs">
+            <span class="px-2.5 py-1 rounded-full border bg-red-50 text-red-700 border-red-200 font-semibold">
+              متأخرة {{ d.consignments.overdueCount | number }}
+            </span>
+            <span class="px-2.5 py-1 rounded-full border bg-blue-50 text-blue-700 border-blue-200 font-semibold">
+              تستحق خلال {{ d.consignments.dueSoonDays }} أيام {{ d.consignments.dueSoonCount | number }}
+            </span>
+          </div>
+        </div>
+
+        <div *ngIf="d.consignments.items.length === 0" class="p-8 text-center text-sm text-slate-500">
+          <span class="material-symbols-outlined text-emerald-500 text-[32px] block mb-1">check_circle</span>
+          لا توجد أمانات متأخرة أو قريبة الاستحقاق.
+        </div>
+
+        <ul *ngIf="d.consignments.items.length > 0" class="divide-y divide-slate-100">
+          <li *ngFor="let c of d.consignments.items">
+            <a [routerLink]="['/consignments', c.consignmentId]" class="flex items-center gap-3 px-4 sm:px-5 py-3 hover:bg-slate-50/70 transition-colors">
+              <div class="min-w-0 flex-1">
+                <div class="font-semibold text-sm text-light-on-surface truncate">{{ c.dealerName }}</div>
+                <div class="text-[11px] text-slate-500 truncate">
+                  أمانة {{ c.consignmentNumber }} · استحقاق {{ c.dueDate | date:'yyyy-MM-dd' }}
+                  <span *ngIf="c.dealerPhone" dir="ltr"> · {{ c.dealerPhone }}</span>
+                </div>
+              </div>
+              <div class="text-left shrink-0">
+                <div class="text-[11px] text-slate-500">
+                  فلوس <b class="tabular-nums text-light-on-surface">{{ c.remainingMoney | number:'1.0-0' }}</b>
+                  · بضاعة <b class="tabular-nums text-light-on-surface">{{ c.outstandingGoodsValue | number:'1.0-0' }}</b>
+                </div>
+                <span class="inline-block mt-0.5 px-2 py-0.5 rounded-full border text-[10px] font-bold" [ngClass]="dueClass(c.daysToDue)">
+                  {{ dueLabel(c.daysToDue) }}
+                </span>
+              </div>
+            </a>
+          </li>
+        </ul>
+      </section>
+    </div>
+
+    <p *ngIf="!isToday" class="text-xs text-slate-500">
+      ملاحظة: المبيعات والأجهزة والمصروفات أعلاه تخص {{ d.date | date:'yyyy-MM-dd' }}، أما فواتير الموردين والأمانات المستحقة فتُحسب دائماً بالنسبة لتاريخ اليوم الفعلي.
+    </p>
+  </ng-container>
+</div>

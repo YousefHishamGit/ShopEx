@@ -1045,3 +1045,92 @@ export interface CreateUserRequest {
   password: string;
   storeId?: number | null;
 }
+
+// ===================== Dashboard =====================
+
+export interface DashboardSales {
+  totalSales: number;
+  totalCost: number;
+  grossProfit: number;
+  marginPercent: number;
+  transactionsCount: number;
+  itemsSold: number;
+}
+
+export interface DashboardMaintenance {
+  receivedToday: number;
+  repairedToday: number;
+  deliveredToday: number;
+  revenueToday: number;
+  underRepairNow: number;
+  readyForDeliveryNow: number;
+}
+
+export interface DashboardBranch {
+  storeId: number | null;
+  storeName: string;
+  sales: number;
+  profit: number;
+  transactionsCount: number;
+  devicesReceived: number;
+  devicesDelivered: number;
+  expenses: number;
+  balanceClosed: number;
+}
+
+export interface DashboardDueInvoice {
+  invoiceId: number;
+  invoiceNumber: string;
+  supplierId: number;
+  supplierName: string;
+  dueDate: string;
+  totalAmount: number;
+  paidAmount: number;
+  remainingAmount: number;
+  /** negative = overdue by that many days, 0 = due today */
+  daysToDue: number;
+}
+
+export interface DashboardInvoiceDues {
+  dueSoonDays: number;
+  overdueCount: number;
+  overdueAmount: number;
+  dueTodayCount: number;
+  dueTodayAmount: number;
+  dueSoonCount: number;
+  dueSoonAmount: number;
+  totalOutstanding: number;
+  items: DashboardDueInvoice[];
+}
+
+export interface DashboardDueConsignment {
+  consignmentId: number;
+  consignmentNumber: string;
+  dealerName: string;
+  dealerPhone: string;
+  dueDate: string;
+  remainingMoney: number;
+  outstandingGoodsValue: number;
+  daysToDue: number;
+}
+
+export interface DashboardConsignmentDues {
+  dueSoonDays: number;
+  overdueCount: number;
+  overdueMoney: number;
+  overdueGoodsValue: number;
+  dueSoonCount: number;
+  items: DashboardDueConsignment[];
+}
+
+export interface DashboardData {
+  date: string;
+  generatedAt: string;
+  sales: DashboardSales;
+  maintenance: DashboardMaintenance;
+  expenses: { total: number; count: number };
+  balances: { chargedToday: number; closedToday: number };
+  supplierInvoices: DashboardInvoiceDues;
+  consignments: DashboardConsignmentDues;
+  branches: DashboardBranch[];
+}

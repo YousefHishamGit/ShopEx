@@ -1,3 +1,4 @@
+import { API_URL } from '../core/api-config';
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
@@ -24,7 +25,7 @@ export const AGREED_DAYS_OPTIONS = [7, 15, 30, 45, 60];
   providedIn: 'root'
 })
 export class ConsignmentService {
-  private readonly baseUrl = 'https://localhost:7122/api';
+  private readonly baseUrl = API_URL;
 
   constructor(private http: HttpClient) {}
 

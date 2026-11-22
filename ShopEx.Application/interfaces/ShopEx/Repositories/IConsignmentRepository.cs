@@ -1,3 +1,4 @@
+using ShopEx.Application.DTOs.Consignment;
 using ShopEx.Domain.Entity;
 using ShopEx.Domain.Enum;
 using System;
@@ -12,6 +13,13 @@ namespace ShopEx.Application.interfaces.ShopEx.Repositories
         Task<Consignment?> GetByIdAsync(int id, CancellationToken ct = default);
         Task<Consignment?> GetByConsignmentNumberAsync(string consignmentNumber, CancellationToken ct = default);
         Task<List<Consignment>> GetAllAsync(
+            int? dealerId = null,
+            ConsignmentStatus? status = null,
+            DateTime? fromDate = null,
+            DateTime? toDate = null,
+            CancellationToken ct = default);
+
+        Task<List<ConsignmentSummaryResponse>> GetSummariesAsync(
             int? dealerId = null,
             ConsignmentStatus? status = null,
             DateTime? fromDate = null,

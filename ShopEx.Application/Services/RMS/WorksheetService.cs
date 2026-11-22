@@ -63,9 +63,7 @@ namespace ShopEx.Application.Services.RMS
             var lines = MapLines(worksheetId, items);
             await _repo.AddLinesAsync(lines, cancellationToken);
             await _repo.SaveAsync(cancellationToken);
-
-            // Deduct stock from default warehouse
-            await DeductStockForLinesAsync(worksheetId, ws.Title, items, cancellationToken);
+            // Stock is NOT touched here: it is deducted only when the worksheet is approved/closed.
         }
 
         public async Task<int> OpenWorksheetWithPurchasesAsync(OpenWorksheetDto dto, List<PurchaseLineDto> items, CancellationToken cancellationToken = default)
@@ -78,17 +76,49 @@ namespace ShopEx.Application.Services.RMS
 
             await _repo.AddWorkSheetAsync(ws, cancellationToken);
             await _repo.SaveAsync(cancellationToken);
+            return ws.ID;
+        }
 
-            if (items != null && items.Count > 0)
+        public async Task<int> CreateApprovedTransferAsync(TransferWorksheetRequest request, CancellationToken cancellationToken = default)
+        {
+            if (request == null) throw new ArgumentNullException(nameof(request));
+            if (request.StoreId <= 0)
+                throw new ArgumentException("يجب اختيار الفرع المستلم.");
+            if (request.Items == null || request.Items.Count == 0)
+                throw new ArgumentException("يجب إضافة صنف واحد على الأقل.");
+            if (request.Items.Any(i => i.ItemId <= 0 || i.Qty <= 0))
+                throw new ArgumentException("يجب أن تكون كل الأصناف صالحة والكميات أكبر من صفر.");
+
+            var defaultWh = await _warehouseRepository.GetDefaultAsync(cancellationToken)
+                ?? throw new InvalidOperationException("لم يتم العثور على المخزن الافتراضي لصرف الأصناف.");
+
+            var items = request.Items.Select(i => { i.StoreId = request.StoreId; return i; }).ToList();
+            var ws = CreateWorksheet(new OpenWorksheetDto { Title = request.Title, Notes = request.Notes });
+            ws.Status = StatusApproved;
+            ws.Worksheet_PurchaseOrders = MapLines(0, items).ToList();
+            var lines = ws.Worksheet_PurchaseOrders.ToList();
+
+            // Check stock for every item before writing anything.
+            var balances = await ValidateStockAsync(defaultWh, lines, cancellationToken);
+
+            await _repo.AddWorkSheetAsync(ws, cancellationToken);
+            await _repo.SaveAsync(cancellationToken);
+
+            try
             {
-                // Deduct stock from default warehouse
-                await DeductStockForLinesAsync(ws.ID, ws.Title, items, cancellationToken);
+                await DeductStockAsync(defaultWh, ws.ID, ws.Title, lines, balances, cancellationToken);
+            }
+            catch
+            {
+                ws.Status = StatusOpen;
+                await _repo.SaveAsync(cancellationToken);
+                throw;
             }
 
             return ws.ID;
         }
 
-        public async Task ApproveWorksheetAsync(int worksheetId, CancellationToken cancellationToken = default)
+        public async Task ApproveWorksheetAsync(int worksheetId, int? destinationStoreId = null, CancellationToken cancellationToken = default)
         {
             if (worksheetId <= 0)
                 throw new ArgumentException("Invalid worksheet ID.", nameof(worksheetId));
@@ -100,8 +130,42 @@ namespace ShopEx.Application.Services.RMS
             if (ws.Status != StatusOpen)
                 throw new InvalidOperationException($"Worksheet {worksheetId} cannot be approved because its status is {ws.Status} (only pending worksheets with status 1 can be approved).");
 
-            ws.Status = StatusApproved; // Status converts to 2
+            var lines = ws.Worksheet_PurchaseOrders?.ToList() ?? new List<Worksheet_PurchaseOrder>();
+            if (lines.Count == 0)
+                throw new InvalidOperationException("لا يمكن اعتماد ورقة عمل بدون بنود.");
+
+            // A destination branch chosen at closing time applies to every line.
+            if (destinationStoreId.HasValue)
+            {
+                if (destinationStoreId.Value <= 0)
+                    throw new ArgumentException("Invalid destination store ID.", nameof(destinationStoreId));
+                foreach (var line in lines)
+                    line.StoreID = destinationStoreId.Value;
+            }
+
+            if (lines.Any(l => !l.StoreID.HasValue || l.StoreID.Value <= 0))
+                throw new InvalidOperationException("يجب تحديد الفرع المستلم لجميع البنود قبل الاعتماد.");
+
+            var defaultWh = await _warehouseRepository.GetDefaultAsync(cancellationToken)
+                ?? throw new InvalidOperationException("لم يتم العثور على المخزن الافتراضي لصرف الأصناف.");
+
+            // Validate stock for ALL lines (aggregated per item) before changing anything.
+            var balances = await ValidateStockAsync(defaultWh, lines, cancellationToken);
+
+            ws.Status = StatusApproved;
             await _repo.SaveAsync(cancellationToken);
+
+            try
+            {
+                await DeductStockAsync(defaultWh, worksheetId, ws.Title, lines, balances, cancellationToken);
+            }
+            catch
+            {
+                // Keep the worksheet open if stock could not be issued, so approval can be retried.
+                ws.Status = StatusOpen;
+                await _repo.SaveAsync(cancellationToken);
+                throw;
+            }
         }
 
         public async Task<WorksheetResponse?> GetByIdAsync(int worksheetId, CancellationToken cancellationToken = default)
@@ -122,47 +186,53 @@ namespace ShopEx.Application.Services.RMS
             return list.Select(MapToResponse).ToList();
         }
 
-        private async Task DeductStockForLinesAsync(int worksheetId, string? title, List<PurchaseLineDto> items, CancellationToken cancellationToken)
+        private async Task<Dictionary<int, StockBalance>> ValidateStockAsync(Warehouse wh, List<Worksheet_PurchaseOrder> lines, CancellationToken ct)
         {
-            if (items == null || items.Count == 0) return;
-
-            var defaultWh = await _warehouseRepository.GetDefaultAsync(cancellationToken);
-            if (defaultWh == null)
-                throw new InvalidOperationException("لم يتم العثور على المخزن الافتراضي لصرف الأصناف.");
-
-            foreach (var item in items)
+            var balances = new Dictionary<int, StockBalance>();
+            foreach (var group in lines.GroupBy(l => l.ItemID ?? 0))
             {
-                var balance = await _stockRepository.GetBalanceAsync(defaultWh.ID, item.ItemId, cancellationToken);
-                var requestedQty = (decimal)item.Qty;
+                var requestedQty = (decimal)group.Sum(l => l.QuantityOrdered ?? 0);
+                var balance = group.Key > 0 ? await _stockRepository.GetBalanceAsync(wh.ID, group.Key, ct) : null;
 
                 if (balance == null || balance.QuantityOnHand < requestedQty)
                 {
                     var available = balance?.QuantityOnHand ?? 0;
                     throw new InvalidOperationException(
-                        $"الرصيد المتاح في المخزن ({defaultWh.Name}) للصنف {item.ItemId} هو ({available})، وهو غير كافٍ للكمية المطلوبة في ورقة العمل ({requestedQty}).");
+                        $"الرصيد المتاح في المخزن ({wh.Name}) للصنف {group.Key} هو ({available})، وهو غير كافٍ للكمية المطلوبة في ورقة العمل ({requestedQty}).");
                 }
+                balances[group.Key] = balance;
+            }
+            return balances;
+        }
 
-                balance.QuantityOnHand -= requestedQty;
+        private async Task DeductStockAsync(Warehouse wh, int worksheetId, string? title, List<Worksheet_PurchaseOrder> lines,
+            Dictionary<int, StockBalance> balances, CancellationToken ct)
+        {
+            foreach (var line in lines)
+            {
+                var balance = balances[line.ItemID ?? 0];
+                var qty = (decimal)(line.QuantityOrdered ?? 0);
+
+                balance.QuantityOnHand -= qty;
                 balance.LastUpdatedAt = DateTime.Now;
                 _stockRepository.UpdateBalance(balance);
 
-                var movement = new StockMovement
+                await _stockRepository.AddMovementAsync(new StockMovement
                 {
-                    WarehouseID = defaultWh.ID,
-                    RMSItemID = item.ItemId,
+                    WarehouseID = wh.ID,
+                    RMSItemID = line.ItemID!.Value,
                     MovementType = StockMovementType.TransferOut,
-                    Quantity = requestedQty,
-                    UnitCost = item.Price > 0 ? (decimal)item.Price : balance.AverageCost,
+                    Quantity = qty,
+                    UnitCost = line.Price.HasValue && line.Price.Value > 0 ? line.Price.Value : balance.AverageCost,
                     MovementDate = DateTime.Now,
                     ReferenceType = "RMSWorksheet",
                     ReferenceID = worksheetId,
-                    Notes = $"صرف ورقة عمل رقم {worksheetId} - {title}",
+                    Notes = $"صرف ورقة عمل رقم {worksheetId} - {title} إلى الفرع رقم {line.StoreID}",
                     CreatedBy = "System"
-                };
-                await _stockRepository.AddMovementAsync(movement, cancellationToken);
+                }, ct);
             }
 
-            await _shopUnitOfWork.SaveChangesAsync(cancellationToken);
+            await _shopUnitOfWork.SaveChangesAsync(ct);
         }
 
         private static WorksheetResponse MapToResponse(Worksheet ws)

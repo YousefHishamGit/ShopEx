@@ -135,32 +135,24 @@ namespace ShopEx.Controllers
         /// </summary>
         [HttpGet]
         [ProducesResponseType(typeof(List<ExpenseResponse>), StatusCodes.Status200OK)]
-        public async Task<IActionResult> GetAll(
-            [FromQuery] int? storeId,
-            [FromQuery] int? categoryId,
-            [FromQuery] DateTime? fromDate,
-            [FromQuery] DateTime? toDate,
-            [FromQuery] ExpensePaymentMethod? paymentMethod,
-            CancellationToken ct)
+        public async Task<IActionResult> GetAll([FromQuery] ExpenseFilter filter, CancellationToken ct)
         {
-            var list = await _expenseService.GetExpensesAsync(storeId, categoryId, fromDate, toDate, paymentMethod, ct);
+            var list = await _expenseService.GetExpensesAsync(filter, ct);
             return Ok(list);
         }
 
         /// <summary>
-        /// استرجاع ملخص المصروفات والإحصائيات مقسمة حسب كل بند
+        /// ملخص المصروفات: الإجماليات والتوزيع على البنود لكل النتائج، مع صفحة واحدة من الحركات
         /// </summary>
         [HttpGet("summary")]
         [ProducesResponseType(typeof(ExpenseSummaryDto), StatusCodes.Status200OK)]
         public async Task<IActionResult> GetSummary(
-            [FromQuery] int? storeId,
-            [FromQuery] int? categoryId,
-            [FromQuery] DateTime? fromDate,
-            [FromQuery] DateTime? toDate,
-            [FromQuery] ExpensePaymentMethod? paymentMethod,
-            CancellationToken ct)
+            [FromQuery] ExpenseFilter filter,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 25,
+            CancellationToken ct = default)
         {
-            var summary = await _expenseService.GetExpensesSummaryAsync(storeId, categoryId, fromDate, toDate, paymentMethod, ct);
+            var summary = await _expenseService.GetExpensesSummaryAsync(filter, page, pageSize, ct);
             return Ok(summary);
         }
 
@@ -202,9 +194,9 @@ namespace ShopEx.Controllers
             {
                 return NotFound(new { message = ex.Message });
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
-                return StatusCode(StatusCodes.Status500InternalServerError, new { message = ex.Message });
+                return BadRequest(new { message = ex.Message });
             }
         }
 
@@ -227,6 +219,10 @@ namespace ShopEx.Controllers
                 return NotFound(new { message = ex.Message });
             }
             catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
             {
                 return BadRequest(new { message = ex.Message });
             }

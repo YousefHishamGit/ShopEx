@@ -127,12 +127,17 @@ namespace ShopEx.Infrastructure.Persistence.ShopDb.Migrations
                         .HasColumnType("nvarchar(50)")
                         .HasDefaultValue("Open");
 
+                    b.Property<int?>("WarehouseID")
+                        .HasColumnType("int");
+
                     b.HasKey("ID");
 
                     b.HasIndex("ConsignmentNumber")
                         .IsUnique();
 
-                    b.HasIndex("DealerID");
+                    b.HasIndex("IssueDate");
+
+                    b.HasIndex("DealerID", "Status");
 
                     b.ToTable("Consignments", (string)null);
                 });

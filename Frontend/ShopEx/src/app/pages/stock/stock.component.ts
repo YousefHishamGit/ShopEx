@@ -1,8 +1,25 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Subject, Subscription } from 'rxjs';
+import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 import { StockService } from '../../services/stock.service';
+import { ToastService } from '../../services/toast.service';
 import { Warehouse, StockBalance, StockMovement, StockAdjustmentRequest } from '../../models/models';
+
+const MOVEMENT_LABELS: Record<number, string> = {
+  1: 'رصيد افتتاحي',
+  2: 'شراء',
+  3: 'مرتجع لمورد',
+  4: 'بيع',
+  5: 'مرتجع عميل',
+  6: 'تسوية بالزيادة',
+  7: 'تسوية بالخصم',
+  8: 'تحويل وارد',
+  9: 'تحويل صادر',
+  10: 'صرف أمانة',
+  11: 'مرتجع أمانة'
+};
 
 @Component({
   selector: 'app-stock',
@@ -10,27 +27,29 @@ import { Warehouse, StockBalance, StockMovement, StockAdjustmentRequest } from '
   imports: [CommonModule, FormsModule],
   templateUrl: './stock.component.html'
 })
-export class StockComponent implements OnInit {
+export class StockComponent implements OnInit, OnDestroy {
   warehouses: Warehouse[] = [];
   selectedWarehouseId: number | null = null;
   selectedWarehouse: Warehouse | null = null;
 
   balances: StockBalance[] = [];
-  filteredBalances: StockBalance[] = [];
   movements: StockMovement[] = [];
 
   activeTab: 'balances' | 'movements' = 'balances';
-  lowStockOnly: boolean = false;
   searchQuery: string = '';
+
+  // Pagination (server side)
+  page = 1;
+  readonly pageSize = 20;
+  totalCount = 0;
+  totalPages = 0;
 
   loading: boolean = false;
   errorMessage: string = '';
   successMessage: string = '';
 
-  // Stats
-  totalItemsCount: number = 0;
-  totalStockValue: number = 0;
-  lowStockCount: number = 0;
+  private search$ = new Subject<string>();
+  private searchSub?: Subscription;
 
   // Adjustment Modal
   showAdjustModal: boolean = false;
@@ -54,10 +73,23 @@ export class StockComponent implements OnInit {
   };
   creatingWarehouse: boolean = false;
 
-  constructor(private stockService: StockService) {}
+  constructor(
+    private stockService: StockService,
+    private toast: ToastService
+  ) {}
 
   ngOnInit(): void {
+    this.searchSub = this.search$
+      .pipe(debounceTime(350), distinctUntilChanged())
+      .subscribe(() => {
+        this.page = 1;
+        this.loadBalances();
+      });
     this.loadWarehouses();
+  }
+
+  ngOnDestroy(): void {
+    this.searchSub?.unsubscribe();
   }
 
   loadWarehouses(): void {
@@ -66,7 +98,6 @@ export class StockComponent implements OnInit {
       next: (data) => {
         this.warehouses = data || [];
         if (this.warehouses.length > 0) {
-          // Select default or first
           const defaultWh = this.warehouses.find(w => w.isDefault) || this.warehouses[0];
           this.onSelectWarehouse(defaultWh.id);
         } else {
@@ -83,9 +114,12 @@ export class StockComponent implements OnInit {
   onSelectWarehouse(warehouseId: number): void {
     this.selectedWarehouseId = warehouseId;
     this.selectedWarehouse = this.warehouses.find(w => w.id === warehouseId) || null;
+    this.page = 1;
     this.loadBalances();
     if (this.activeTab === 'movements') {
       this.loadMovements();
+    } else {
+      this.movements = [];
     }
   }
 
@@ -93,11 +127,11 @@ export class StockComponent implements OnInit {
     if (!this.selectedWarehouseId) return;
     this.loading = true;
     this.errorMessage = '';
-    this.stockService.getBalances(this.selectedWarehouseId, this.lowStockOnly).subscribe({
-      next: (data) => {
-        this.balances = data || [];
-        this.calculateStats();
-        this.applyFilter();
+    this.stockService.getBalances(this.selectedWarehouseId, this.page, this.pageSize, this.searchQuery.trim()).subscribe({
+      next: (res) => {
+        this.balances = res.items || [];
+        this.totalCount = res.totalCount;
+        this.totalPages = res.totalPages;
         this.loading = false;
       },
       error: (err) => {
@@ -124,35 +158,31 @@ export class StockComponent implements OnInit {
 
   switchTab(tab: 'balances' | 'movements'): void {
     this.activeTab = tab;
-    if (tab === 'movements' && this.movements.length === 0) {
+    if (tab === 'movements') {
       this.loadMovements();
     }
   }
 
-  onToggleLowStock(): void {
-    this.lowStockOnly = !this.lowStockOnly;
+  onSearchChange(): void {
+    this.search$.next(this.searchQuery.trim());
+  }
+
+  goToPage(p: number): void {
+    if (p < 1 || p > this.totalPages || p === this.page) return;
+    this.page = p;
     this.loadBalances();
   }
 
-  onSearch(): void {
-    this.applyFilter();
+  get rangeStart(): number {
+    return this.totalCount === 0 ? 0 : (this.page - 1) * this.pageSize + 1;
   }
 
-  applyFilter(): void {
-    if (!this.searchQuery.trim()) {
-      this.filteredBalances = [...this.balances];
-    } else {
-      const q = this.searchQuery.trim().toLowerCase();
-      this.filteredBalances = this.balances.filter(b =>
-        b.rmsItemID.toString().includes(q)
-      );
-    }
+  get rangeEnd(): number {
+    return Math.min(this.page * this.pageSize, this.totalCount);
   }
 
-  calculateStats(): void {
-    this.totalItemsCount = this.balances.length;
-    this.totalStockValue = this.balances.reduce((acc, b) => acc + (b.totalValue || 0), 0);
-    this.lowStockCount = this.balances.filter(b => b.isLowStock).length;
+  movementLabel(m: StockMovement): string {
+    return MOVEMENT_LABELS[m.movementType] || m.movementTypeName;
   }
 
   // Open adjustment modal
@@ -193,6 +223,7 @@ export class StockComponent implements OnInit {
         this.adjusting = false;
         this.showAdjustModal = false;
         this.successMessage = 'تمت التسوية المخزنية بنجاح!';
+        this.toast.success(this.successMessage);
         this.loadBalances();
         if (this.activeTab === 'movements') {
           this.loadMovements();
@@ -200,7 +231,8 @@ export class StockComponent implements OnInit {
       },
       error: (err) => {
         this.adjusting = false;
-        alert('حدث خطأ أثناء التسوية: ' + (err.error?.message || err.message));
+        const msg = err.error?.message || err.message || 'حدث خطأ أثناء التسوية';
+        this.toast.error(msg);
       }
     });
   }

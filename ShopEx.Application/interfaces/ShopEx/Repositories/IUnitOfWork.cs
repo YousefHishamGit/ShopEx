@@ -9,5 +9,6 @@ namespace ShopEx.Application.interfaces.ShopEx.Repositories
     public interface IUnitOfWork
     {
         Task<int> SaveChangesAsync(CancellationToken ct = default);
+        Task ExecuteInTransactionAsync(Func<Task> work, CancellationToken ct = default);
     }
 }

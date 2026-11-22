@@ -11,5 +11,6 @@ namespace ShopEx.Application.DTOs.RMS
         public int ID { get; set; }
         public string SupplierName { get; set; }
         public string Code { get; set; }
+        public string Phone { get; set; }
     }
 }

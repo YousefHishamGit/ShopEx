@@ -21,5 +21,18 @@ namespace ShopEx.Infrastructure.Repositories.ShopEx
         {
             return _db.SaveChangesAsync(ct);
         }
+
+        public async Task ExecuteInTransactionAsync(Func<Task> work, CancellationToken ct = default)
+        {
+            if (_db.Database.CurrentTransaction != null)
+            {
+                await work();
+                return;
+            }
+
+            await using var tx = await _db.Database.BeginTransactionAsync(ct);
+            await work();
+            await tx.CommitAsync(ct);
+        }
     }
 }

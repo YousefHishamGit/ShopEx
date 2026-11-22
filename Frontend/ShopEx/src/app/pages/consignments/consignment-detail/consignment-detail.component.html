@@ -1,4 +1,4 @@
-<div class="space-y-6 max-w-6xl mx-auto" dir="rtl">
+<div class="screen-only space-y-6 max-w-6xl mx-auto" dir="rtl">
   <!-- Loading & Error -->
   <div *ngIf="loading" class="p-8 text-center bg-light-surface rounded-xl border border-outline">
     <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-primary border-t-transparent"></div>
@@ -13,10 +13,8 @@
     <!-- Top Action Header -->
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-outline">
       <div class="flex items-center gap-3">
-        <a
-          routerLink="/consignments"
-          class="p-2 rounded-lg border border-outline hover:bg-light-surface text-light-on-surface-variant transition-colors"
-        >
+        <a routerLink="/consignments"
+          class="p-2 rounded-lg border border-outline hover:bg-light-surface text-light-on-surface-variant transition-colors">
           <span class="material-symbols-outlined text-[20px]">arrow_forward</span>
         </a>
         <div>
@@ -24,30 +22,22 @@
             <h1 class="text-xl font-bold text-light-on-surface font-mono">{{ consignment.consignmentNumber }}</h1>
 
             <!-- Status Badge -->
-            <span
-              *ngIf="isOpen(consignment.status)"
-              class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200"
-            >
+            <span *ngIf="isOpen(consignment.status)"
+              class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
               قيد البيع عند البنزينة
             </span>
-            <span
-              *ngIf="isClosed(consignment.status)"
-              class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200"
-            >
+            <span *ngIf="isClosed(consignment.status)"
+              class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
               مسواة ومغلقة بالكامل
             </span>
-            <span
-              *ngIf="isCancelled(consignment.status)"
-              class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 border border-gray-200"
-            >
+            <span *ngIf="isCancelled(consignment.status)"
+              class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 border border-gray-200">
               ملغي
             </span>
 
             <!-- Overdue Badge -->
-            <span
-              *ngIf="consignment.isOverdue"
-              class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700 border border-red-300 flex items-center gap-1"
-            >
+            <span *ngIf="consignment.isOverdue"
+              class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700 border border-red-300 flex items-center gap-1">
               <span class="material-symbols-outlined text-[13px]">warning</span>
               متأخر عن التسوية
             </span>
@@ -60,55 +50,42 @@
       </div>
 
       <!-- Action Buttons -->
-      <div class="flex flex-wrap items-center gap-2">
+      <div class="flex flex-wrap items-center gap-2 print:hidden">
         <!-- Print Button -->
-        <button
-          (click)="printConsignment()"
-          class="px-3.5 py-2 border border-outline hover:bg-light-surface rounded-lg text-xs font-medium text-light-on-surface flex items-center gap-1.5 shadow-sm"
-        >
+        <button (click)="printConsignment()"
+          class="px-3.5 py-2 border border-outline hover:bg-light-surface rounded-lg text-xs font-medium text-light-on-surface flex items-center gap-1.5 shadow-sm">
           <span class="material-symbols-outlined text-[18px]">print</span>
           <span>طباعة</span>
         </button>
 
         <!-- Settlement Button (Active when can settle) -->
-        <button
-          *ngIf="canSettle()"
-          (click)="openSettlementModal()"
-          class="px-5 py-2.5 bg-primary text-on-primary font-bold rounded-lg hover:bg-primary/90 shadow-md hover:shadow-lg transition-all text-xs flex items-center gap-2 ring-2 ring-primary/20"
-        >
+        <button *ngIf="canSettle()" (click)="openSettlementModal()"
+          class="px-5 py-2.5 bg-primary text-on-primary font-bold rounded-lg hover:bg-primary/90 shadow-md hover:shadow-lg transition-all text-xs flex items-center gap-2 ring-2 ring-primary/20">
           <span class="material-symbols-outlined text-[20px]">handshake</span>
           <span>تسجيل تسوية (بيع / مرتجع)</span>
         </button>
 
         <!-- Payment Button (Active when can pay) -->
-        <button
-          *ngIf="canPay()"
-          (click)="openPaymentModal()"
-          class="px-4 py-2 bg-emerald-600 text-white font-medium rounded-lg hover:bg-emerald-700 shadow-sm transition-all text-xs flex items-center gap-1.5"
-        >
+        <button *ngIf="canPay()" (click)="openPaymentModal()"
+          class="px-4 py-2 bg-emerald-600 text-white font-medium rounded-lg hover:bg-emerald-700 shadow-sm transition-all text-xs flex items-center gap-1.5">
           <span class="material-symbols-outlined text-[18px]">payments</span>
           <span>تحصيل دفعة نقدية</span>
         </button>
 
-        <!-- Cancel Consignment Button -->
-        <button
-          *ngIf="isOpen(consignment.status) && (!consignment.settlements || consignment.settlements.length === 0) && (!consignment.payments || consignment.payments.length === 0)"
-          (click)="cancelConsignment()"
-          [disabled]="cancelling"
-          class="px-3 py-2 border border-red-200 text-red-600 hover:bg-red-50 rounded-lg text-xs font-medium transition-all flex items-center gap-1"
-        >
-          <span class="material-symbols-outlined text-[16px]">cancel</span>
-          <span>إلغاء الإذن</span>
-        </button>
+
       </div>
     </div>
 
     <!-- Dealer & Info Card -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 bg-light-surface p-4 rounded-xl border border-outline shadow-sm text-xs">
+    <div
+      class="grid grid-cols-1 md:grid-cols-4 gap-4 bg-light-surface p-4 rounded-xl border border-outline shadow-sm text-xs">
       <div>
         <span class="text-gray-500 block mb-0.5">البنزينة / المحل:</span>
         <span class="font-bold text-sm text-light-on-surface">{{ consignment.dealerName }}</span>
         <span class="text-gray-500 block mt-0.5">{{ consignment.dealerPhone }}</span>
+        <span *ngIf="consignment.warehouseName" class="text-gray-500 block mt-0.5">
+          المخزن: <strong class="text-light-on-surface">{{ consignment.warehouseName }}</strong>
+        </span>
       </div>
 
       <div>
@@ -121,7 +98,9 @@
         <span class="text-gray-500 block mb-0.5">تاريخ الاستحقاق المتفق عليه:</span>
         <span class="font-semibold text-light-on-surface">{{ consignment.dueDate | date : 'yyyy/MM/dd' }}</span>
         <span *ngIf="consignment.isOverdue" class="text-red-600 font-bold block mt-0.5">تجاوزت موعد التسوية!</span>
-        <span *ngIf="!consignment.isOverdue && consignment.status === 'Open'" class="text-blue-600 block mt-0.5">في المهلة</span>
+        <span *ngIf="!consignment.isOverdue && isOpen(consignment.status)" class="text-blue-600 block mt-0.5">
+          {{ daysToDue > 0 ? 'متبقي ' + daysToDue + ' يوم' : daysToDue === 0 ? 'يستحق اليوم' : 'في المهلة' }}
+        </span>
       </div>
 
       <div>
@@ -136,7 +115,8 @@
       <div class="bg-light-surface p-3.5 rounded-xl border border-outline shadow-sm">
         <span class="text-[11px] text-gray-500 block">إجمالي المنصرف</span>
         <div class="text-lg font-bold text-light-on-surface mt-1">
-          {{ consignment.totalIssuedValue | number : '1.0-0' }} <span class="text-[10px] text-gray-500 font-normal">ج.م</span>
+          {{ consignment.totalIssuedValue | number : '1.0-0' }} <span
+            class="text-[10px] text-gray-500 font-normal">ج.م</span>
         </div>
       </div>
 
@@ -144,7 +124,8 @@
       <div class="bg-light-surface p-3.5 rounded-xl border border-outline shadow-sm">
         <span class="text-[11px] text-blue-700 block">قيمة ما تم بيعه</span>
         <div class="text-lg font-bold text-blue-700 mt-1">
-          {{ consignment.totalSoldValue | number : '1.0-0' }} <span class="text-[10px] text-gray-500 font-normal">ج.م</span>
+          {{ consignment.totalSoldValue | number : '1.0-0' }} <span
+            class="text-[10px] text-gray-500 font-normal">ج.م</span>
         </div>
       </div>
 
@@ -152,7 +133,8 @@
       <div class="bg-light-surface p-3.5 rounded-xl border border-outline shadow-sm">
         <span class="text-[11px] text-amber-700 block">متبقي عند البنزينة</span>
         <div class="text-lg font-bold text-amber-700 mt-1">
-          {{ consignment.outstandingValue | number : '1.0-0' }} <span class="text-[10px] text-gray-500 font-normal">ج.م</span>
+          {{ consignment.outstandingValue | number : '1.0-0' }} <span
+            class="text-[10px] text-gray-500 font-normal">ج.م</span>
         </div>
         <div class="text-[10px] text-gray-500 mt-0.5">{{ consignment.outstandingQuantity }} قطعة متبقية</div>
       </div>
@@ -169,7 +151,8 @@
       <div class="bg-light-surface p-3.5 rounded-xl border border-outline shadow-sm">
         <span class="text-[11px] text-red-700 block">متبقي للدفع</span>
         <div class="text-lg font-bold text-red-700 mt-1">
-          {{ consignment.remainingAmount | number : '1.0-0' }} <span class="text-[10px] text-gray-500 font-normal">ج.م</span>
+          {{ consignment.remainingAmount | number : '1.0-0' }} <span
+            class="text-[10px] text-gray-500 font-normal">ج.م</span>
         </div>
         <div class="text-[10px] text-gray-500 mt-0.5" *ngIf="consignment.remainingAmount === 0">مسدد بالكامل ✓</div>
       </div>
@@ -184,37 +167,41 @@
       </div>
     </div>
 
+    <!-- Settlement progress -->
+    <div *ngIf="!isCancelled(consignment.status)"
+      class="bg-light-surface p-3.5 rounded-xl border border-outline shadow-sm">
+      <div class="flex items-center justify-between text-[11px] mb-2">
+        <span class="font-semibold text-light-on-surface">تقدّم التسوية</span>
+        <span class="text-gray-500">
+          تمت تسوية <strong class="text-light-on-surface">{{ settledPercent }}%</strong> من الكمية المنصرفة
+          (مباع {{ soldPercent }}% — مرتجع {{ settledPercent - soldPercent }}%)
+        </span>
+      </div>
+      <div class="h-2.5 w-full rounded-full bg-gray-100 overflow-hidden flex">
+        <div class="h-full bg-blue-500 transition-all" [style.width.%]="soldPercent"></div>
+        <div class="h-full bg-gray-400 transition-all" [style.width.%]="settledPercent - soldPercent"></div>
+      </div>
+    </div>
+
     <!-- Navigation Tabs -->
-    <div class="flex items-center gap-2 border-b border-outline text-xs font-semibold">
-      <button
-        (click)="activeTab = 'items'"
-        [class.border-b-2]="activeTab === 'items'"
-        [class.border-primary]="activeTab === 'items'"
-        [class.text-primary]="activeTab === 'items'"
-        class="pb-3 px-3 transition-all text-light-on-surface-variant flex items-center gap-1.5"
-      >
+    <div class="flex items-center gap-2 border-b border-outline text-xs font-semibold print:hidden">
+      <button (click)="activeTab = 'items'" [class.border-b-2]="activeTab === 'items'"
+        [class.border-primary]="activeTab === 'items'" [class.text-primary]="activeTab === 'items'"
+        class="pb-3 px-3 transition-all text-light-on-surface-variant flex items-center gap-1.5">
         <span class="material-symbols-outlined text-[18px]">inventory_2</span>
         <span>أصناف الأمانة وموقفها ({{ consignment.items.length }})</span>
       </button>
 
-      <button
-        (click)="activeTab = 'settlements'"
-        [class.border-b-2]="activeTab === 'settlements'"
-        [class.border-primary]="activeTab === 'settlements'"
-        [class.text-primary]="activeTab === 'settlements'"
-        class="pb-3 px-3 transition-all text-light-on-surface-variant flex items-center gap-1.5"
-      >
+      <button (click)="activeTab = 'settlements'" [class.border-b-2]="activeTab === 'settlements'"
+        [class.border-primary]="activeTab === 'settlements'" [class.text-primary]="activeTab === 'settlements'"
+        class="pb-3 px-3 transition-all text-light-on-surface-variant flex items-center gap-1.5">
         <span class="material-symbols-outlined text-[18px]">handshake</span>
         <span>سجل التسويات ({{ consignment.settlements.length }})</span>
       </button>
 
-      <button
-        (click)="activeTab = 'payments'"
-        [class.border-b-2]="activeTab === 'payments'"
-        [class.border-primary]="activeTab === 'payments'"
-        [class.text-primary]="activeTab === 'payments'"
-        class="pb-3 px-3 transition-all text-light-on-surface-variant flex items-center gap-1.5"
-      >
+      <button (click)="activeTab = 'payments'" [class.border-b-2]="activeTab === 'payments'"
+        [class.border-primary]="activeTab === 'payments'" [class.text-primary]="activeTab === 'payments'"
+        class="pb-3 px-3 transition-all text-light-on-surface-variant flex items-center gap-1.5">
         <span class="material-symbols-outlined text-[18px]">payments</span>
         <span>سجل التحصيلات النقدية ({{ consignment.payments.length }})</span>
       </button>
@@ -223,54 +210,60 @@
     <!-- ==================================================== -->
     <!-- Tab 1: الأصناف وموقفها الحالي -->
     <!-- ==================================================== -->
-    <div *ngIf="activeTab === 'items'" class="bg-light-surface rounded-xl border border-outline shadow-sm overflow-hidden">
-      <table class="w-full text-xs text-right border-collapse">
-        <thead class="bg-light-surface-variant text-light-on-surface-variant">
-          <tr>
-            <th class="p-3">#</th>
-            <th class="p-3">كود الصنف (RMS)</th>
-            <th class="p-3 text-center">الكمية الصادرة</th>
-            <th class="p-3 text-center text-blue-700">المباع</th>
-            <th class="p-3 text-center text-gray-600">المرتجع للمخزن</th>
-            <th class="p-3 text-center text-amber-700">المتبقي بالأمانة</th>
-            <th class="p-3 text-left">سعر البيع</th>
-            <th class="p-3 text-left">سعر التكلفة</th>
-            <th class="p-3 text-left font-bold">قيمة المباع</th>
-            <th class="p-3 text-left text-emerald-700 font-bold">الأرباح</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-outline">
-          <tr *ngFor="let item of consignment.items; let idx = index" class="hover:bg-light-surface-variant/40">
-            <td class="p-3 text-gray-400 font-bold">{{ idx + 1 }}</td>
-            <td class="p-3 font-mono font-bold text-light-on-surface">{{ item.rmsItemID }}</td>
-            <td class="p-3 text-center font-semibold text-light-on-surface">{{ item.quantityIssued }}</td>
-            <td class="p-3 text-center font-bold text-blue-700">{{ item.quantitySold }}</td>
-            <td class="p-3 text-center font-medium text-gray-600">{{ item.quantityReturned }}</td>
-            <td class="p-3 text-center font-bold">
-              <span
-                class="px-2 py-0.5 rounded-full"
-                [class.bg-amber-100]="item.quantityOutstanding > 0"
-                [class.text-amber-800]="item.quantityOutstanding > 0"
-                [class.bg-gray-100]="item.quantityOutstanding === 0"
-                [class.text-gray-500]="item.quantityOutstanding === 0"
-              >
-                {{ item.quantityOutstanding }}
-              </span>
-            </td>
-            <td class="p-3 text-left text-light-on-surface">{{ item.unitPrice | number : '1.2-2' }}</td>
-            <td class="p-3 text-left text-gray-500">{{ item.unitCost | number : '1.2-2' }}</td>
-            <td class="p-3 text-left font-bold text-blue-700">{{ item.soldValue | number : '1.2-2' }}</td>
-            <td class="p-3 text-left font-bold text-emerald-700">{{ item.profit | number : '1.2-2' }}</td>
-          </tr>
-        </tbody>
-      </table>
+    <div *ngIf="activeTab === 'items'"
+      class="bg-light-surface rounded-xl border border-outline shadow-sm overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full text-xs text-right border-collapse">
+          <thead class="bg-light-surface-variant text-light-on-surface-variant">
+            <tr>
+              <th class="p-3">#</th>
+              <th class="p-3">الصنف</th>
+              <th class="p-3 text-center">الكمية الصادرة</th>
+              <th class="p-3 text-center text-blue-700">المباع</th>
+              <th class="p-3 text-center text-gray-600">المرتجع للمخزن</th>
+              <th class="p-3 text-center text-amber-700">المتبقي بالأمانة</th>
+              <th class="p-3 text-left">سعر البيع</th>
+              <th class="p-3 text-left">سعر التكلفة</th>
+              <th class="p-3 text-left font-bold">قيمة المباع</th>
+              <th class="p-3 text-left text-emerald-700 font-bold">الأرباح</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-outline">
+            <tr *ngFor="let item of consignment.items; let idx = index" class="hover:bg-light-surface-variant/40">
+              <td class="p-3 text-gray-400 font-bold">{{ idx + 1 }}</td>
+              <td class="p-3">
+                <div class="font-semibold text-light-on-surface">{{ item.itemDescription || ('صنف #' + item.rmsItemID)
+                  }}</div>
+                <div *ngIf="item.itemLookupCode" class="text-[10px] text-gray-500 font-mono mt-0.5">{{
+                  item.itemLookupCode }}</div>
+              </td>
+              <td class="p-3 text-center font-semibold text-light-on-surface">{{ item.quantityIssued }}</td>
+              <td class="p-3 text-center font-bold text-blue-700">{{ item.quantitySold }}</td>
+              <td class="p-3 text-center font-medium text-gray-600">{{ item.quantityReturned }}</td>
+              <td class="p-3 text-center font-bold">
+                <span class="px-2 py-0.5 rounded-full" [class.bg-amber-100]="item.quantityOutstanding > 0"
+                  [class.text-amber-800]="item.quantityOutstanding > 0"
+                  [class.bg-gray-100]="item.quantityOutstanding === 0"
+                  [class.text-gray-500]="item.quantityOutstanding === 0">
+                  {{ item.quantityOutstanding }}
+                </span>
+              </td>
+              <td class="p-3 text-left text-light-on-surface">{{ item.unitPrice | number : '1.2-2' }}</td>
+              <td class="p-3 text-left text-gray-500">{{ item.unitCost | number : '1.2-2' }}</td>
+              <td class="p-3 text-left font-bold text-blue-700">{{ item.soldValue | number : '1.2-2' }}</td>
+              <td class="p-3 text-left font-bold text-emerald-700">{{ item.profit | number : '1.2-2' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
 
     <!-- ==================================================== -->
     <!-- Tab 2: سجل جلسات التسوية -->
     <!-- ==================================================== -->
     <div *ngIf="activeTab === 'settlements'" class="space-y-4">
-      <div *ngFor="let s of consignment.settlements; let sIdx = index" class="bg-light-surface rounded-xl border border-outline shadow-sm p-4 space-y-3">
+      <div *ngFor="let s of consignment.settlements; let sIdx = index"
+        class="bg-light-surface rounded-xl border border-outline shadow-sm p-4 space-y-3">
         <div class="flex items-center justify-between pb-2 border-b border-outline">
           <div class="flex items-center gap-2">
             <span class="material-symbols-outlined text-primary text-[20px]">handshake</span>
@@ -292,7 +285,7 @@
         <table class="w-full text-xs text-right border-collapse">
           <thead class="bg-light-surface-variant/70 text-light-on-surface-variant">
             <tr>
-              <th class="p-2">كود الصنف</th>
+              <th class="p-2">الصنف</th>
               <th class="p-2 text-center text-blue-700">الكمية المباعة</th>
               <th class="p-2 text-center text-gray-700">الكمية المرتجعة للمخزن</th>
               <th class="p-2 text-left">قيمة المباع</th>
@@ -300,7 +293,7 @@
           </thead>
           <tbody class="divide-y divide-outline">
             <tr *ngFor="let si of s.items">
-              <td class="p-2 font-mono font-semibold">{{ si.rmsItemID }}</td>
+              <td class="p-2 font-semibold">{{ si.itemDescription || ('صنف #' + si.rmsItemID) }}</td>
               <td class="p-2 text-center font-bold text-blue-700">{{ si.quantitySold }}</td>
               <td class="p-2 text-center font-semibold text-gray-600">{{ si.quantityReturned }}</td>
               <td class="p-2 text-left font-bold">{{ si.soldValue | number : '1.2-2' }} ج.م</td>
@@ -309,7 +302,8 @@
         </table>
       </div>
 
-      <div *ngIf="!consignment.settlements || consignment.settlements.length === 0" class="p-8 text-center bg-light-surface rounded-xl border border-outline text-gray-500 text-xs">
+      <div *ngIf="!consignment.settlements || consignment.settlements.length === 0"
+        class="p-8 text-center bg-light-surface rounded-xl border border-outline text-gray-500 text-xs">
         <span class="material-symbols-outlined text-[36px] text-gray-400 block mb-1">hourglass_empty</span>
         لم تتم أي تسوية حتى الآن. البضاعة ما زالت كاملة في حوزة البنزينة.
       </div>
@@ -318,7 +312,8 @@
     <!-- ==================================================== -->
     <!-- Tab 3: سجل التحصيلات النقدية -->
     <!-- ==================================================== -->
-    <div *ngIf="activeTab === 'payments'" class="bg-light-surface rounded-xl border border-outline shadow-sm overflow-hidden">
+    <div *ngIf="activeTab === 'payments'"
+      class="bg-light-surface rounded-xl border border-outline shadow-sm overflow-hidden">
       <table class="w-full text-xs text-right border-collapse">
         <thead class="bg-light-surface-variant text-light-on-surface-variant">
           <tr>
@@ -351,252 +346,367 @@
 <!-- ==================================================== -->
 <!-- Modal: تسجيل تسوية (بيع / مرتجع) -->
 <!-- ==================================================== -->
-<div *ngIf="showSettlementModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" dir="rtl">
-  <div class="bg-light-surface rounded-2xl border border-outline shadow-xl max-w-3xl w-full max-h-[90vh] flex flex-col overflow-hidden">
-    <!-- Header -->
-    <div class="p-5 border-b border-outline flex items-center justify-between">
-      <div class="flex items-center gap-2">
-        <span class="material-symbols-outlined text-primary text-[24px]">handshake</span>
+<div *ngIf="showSettlementModal"
+  class="screen-only fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-[1px]" dir="rtl">
+  <div
+    class="bg-light-surface rounded-2xl border border-outline shadow-2xl max-w-3xl w-full max-h-[92vh] flex flex-col overflow-hidden">
+    <div class="px-5 py-4 bg-primary/5 border-b border-outline flex items-center justify-between">
+      <div class="flex items-center gap-2.5">
+        <span class="w-9 h-9 rounded-full bg-primary text-on-primary flex items-center justify-center">
+          <span class="material-symbols-outlined text-[20px]">handshake</span>
+        </span>
         <div>
-          <h2 class="text-base font-bold text-light-on-surface">تسجيل تسوية بضاعة الأمانة</h2>
-          <p class="text-xs text-light-on-surface-variant">
-            تحديد الكميات المباعة (لحساب الفلوس) والكميات المرتجعة (للرجوع لمخزن الـ HQ)
-          </p>
+          <h2 class="text-base font-bold text-light-on-surface">تسجيل تسوية</h2>
+          <p class="text-[11px] text-light-on-surface-variant">المباع يُحسب عليهم، والمرتجع يعود إلى {{
+            consignment?.warehouseName || 'المخزن' }}</p>
         </div>
       </div>
-      <button (click)="closeSettlementModal()" class="text-gray-400 hover:text-gray-600 p-1">
-        <span class="material-symbols-outlined text-[20px]">close</span>
-      </button>
+      <button (click)="closeSettlementModal()" class="text-gray-400 hover:text-gray-600 p-1"><span
+          class="material-symbols-outlined text-[20px]">close</span></button>
     </div>
 
-    <!-- Body -->
     <div class="p-5 overflow-y-auto space-y-4 flex-1">
-      <div *ngIf="settlementError" class="p-3 bg-red-50 text-red-700 text-xs rounded-lg border border-red-200">
-        {{ settlementError }}
-      </div>
+      <div *ngIf="settlementError" class="p-3 bg-red-50 text-red-700 text-xs rounded-lg border border-red-200">{{
+        settlementError }}</div>
 
-      <!-- Items to Settle Table -->
-      <div class="border border-outline rounded-xl overflow-hidden">
+      <div class="border border-outline rounded-xl overflow-x-auto">
         <table class="w-full text-xs text-right border-collapse">
           <thead class="bg-light-surface-variant text-light-on-surface-variant">
             <tr>
-              <th class="p-2.5">كود الصنف</th>
-              <th class="p-2.5 text-center">المتبقي حالياً</th>
-              <th class="p-2.5 text-center text-blue-700">كمية المباع *</th>
-              <th class="p-2.5 text-center text-gray-700">المرتجع للـ HQ *</th>
-              <th class="p-2.5 text-left">سعر البيع</th>
-              <th class="p-2.5 text-left font-bold">قيمة المباع</th>
+              <th class="p-2.5">الصنف</th>
+              <th class="p-2.5 text-center">المتبقي</th>
+              <th class="p-2.5 text-center text-blue-700">مباع</th>
+              <th class="p-2.5 text-center text-gray-700">مرتجع</th>
+              <th class="p-2.5 text-left">قيمة المباع</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-outline">
-            <tr *ngFor="let item of settlementItems" class="hover:bg-light-surface-variant/40">
-              <td class="p-2.5 font-mono font-bold">{{ item.rmsItemID }}</td>
-              <td class="p-2.5 text-center font-bold text-amber-700">{{ item.quantityOutstanding }}</td>
-
-              <!-- Quantity Sold -->
-              <td class="p-2.5 text-center w-28">
-                <input
-                  type="number"
-                  [(ngModel)]="item.quantitySold"
-                  (change)="onSettlementSoldChange()"
-                  min="0"
-                  [max]="item.quantityOutstanding"
-                  class="w-full px-2 py-1 text-center border border-outline rounded bg-light-surface focus:outline-none focus:border-blue-500 font-bold text-blue-700 text-xs"
-                />
+            <tr *ngFor="let item of settlementItems" class="hover:bg-light-surface-variant/40"
+              [class.bg-red-50]="isRowInvalid(item)">
+              <td class="p-2.5">
+                <div class="font-semibold">{{ item.itemDescription || ('صنف #' + item.rmsItemID) }}</div>
+                <div class="flex items-center gap-1.5 mt-1">
+                  <button type="button" (click)="sellAll(item)"
+                    class="text-[10px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100">بيع
+                    الكل</button>
+                  <button type="button" (click)="returnAll(item)"
+                    class="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-700 border border-gray-200 hover:bg-gray-200">إرجاع
+                    الكل</button>
+                </div>
               </td>
-
-              <!-- Quantity Returned -->
-              <td class="p-2.5 text-center w-28">
-                <input
-                  type="number"
-                  [(ngModel)]="item.quantityReturned"
-                  min="0"
-                  [max]="item.quantityOutstanding"
-                  class="w-full px-2 py-1 text-center border border-outline rounded bg-light-surface focus:outline-none focus:border-gray-500 font-semibold text-xs text-gray-700"
-                />
+              <td class="p-2.5 text-center"><span
+                  class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-bold">{{ item.quantityOutstanding
+                  }}</span></td>
+              <td class="p-2.5">
+                <div class="flex items-stretch rounded-lg border overflow-hidden bg-light-surface w-28 mx-auto"
+                  [class.border-red-400]="isRowInvalid(item)" [class.border-outline]="!isRowInvalid(item)">
+                  <button type="button" (click)="step(item, 'quantitySold', -1)"
+                    class="px-2 hover:bg-light-surface-variant"><span
+                      class="material-symbols-outlined text-[15px]">remove</span></button>
+                  <input type="number" [(ngModel)]="item.quantitySold" (change)="onSettlementSoldChange()" min="0"
+                    [max]="item.quantityOutstanding"
+                    class="w-full min-w-0 text-center font-bold text-xs py-1.5 focus:outline-none bg-transparent text-blue-700" />
+                  <button type="button" (click)="step(item, 'quantitySold', 1)"
+                    class="px-2 hover:bg-light-surface-variant"><span
+                      class="material-symbols-outlined text-[15px]">add</span></button>
+                </div>
               </td>
-
-              <td class="p-2.5 text-left text-gray-600">{{ item.unitPrice | number : '1.2-2' }}</td>
-              <td class="p-2.5 text-left font-bold text-blue-700">
-                {{ (item.quantitySold * item.unitPrice) | number : '1.2-2' }} ج.م
+              <td class="p-2.5">
+                <div class="flex items-stretch rounded-lg border overflow-hidden bg-light-surface w-28 mx-auto"
+                  [class.border-red-400]="isRowInvalid(item)" [class.border-outline]="!isRowInvalid(item)">
+                  <button type="button" (click)="step(item, 'quantityReturned', -1)"
+                    class="px-2 hover:bg-light-surface-variant"><span
+                      class="material-symbols-outlined text-[15px]">remove</span></button>
+                  <input type="number" [(ngModel)]="item.quantityReturned" (change)="onSettlementSoldChange()" min="0"
+                    [max]="item.quantityOutstanding"
+                    class="w-full min-w-0 text-center font-bold text-xs py-1.5 focus:outline-none bg-transparent text-gray-700" />
+                  <button type="button" (click)="step(item, 'quantityReturned', 1)"
+                    class="px-2 hover:bg-light-surface-variant"><span
+                      class="material-symbols-outlined text-[15px]">add</span></button>
+                </div>
               </td>
+              <td class="p-2.5 text-left font-bold text-blue-700 font-mono">{{ (item.quantitySold * item.unitPrice) |
+                number : '1.2-2' }}</td>
             </tr>
           </tbody>
         </table>
       </div>
 
-      <!-- Settlement Total Sold Preview -->
-      <div class="p-3 bg-blue-50 rounded-xl border border-blue-200 flex items-center justify-between text-xs">
-        <span class="text-blue-900 font-semibold">إجمالي قيمة مبيعات هذه التسوية:</span>
-        <span class="text-base font-bold text-blue-700">{{ totalSettlementSoldValue | number : '1.2-2' }} ج.م</span>
+      <div class="p-3.5 bg-blue-50 rounded-xl border border-blue-200 flex items-center justify-between text-xs">
+        <span class="text-blue-900 font-semibold">إجمالي مبيعات هذه التسوية</span>
+        <span class="text-lg font-black text-blue-700 font-mono">{{ totalSettlementSoldValue | number : '1.2-2' }} <span
+            class="text-xs font-normal">ج.م</span></span>
       </div>
 
-      <!-- Payment Integration Checkbox -->
-      <div class="p-3 bg-light-surface-variant rounded-xl border border-outline space-y-3">
-        <label class="flex items-center gap-2 cursor-pointer text-xs font-bold text-light-on-surface">
-          <input
-            type="checkbox"
-            [(ngModel)]="collectPaymentNow"
-            (change)="toggleCollectPayment()"
-            class="rounded border-outline text-primary focus:ring-primary h-4 w-4"
-          />
-          <span>استلام وتحصيل نقدية فورية الآن (كاش / تحويل)</span>
+      <!-- Collect payment now -->
+      <div class="rounded-xl border border-outline overflow-hidden">
+        <label class="flex items-center justify-between gap-2 p-3.5 cursor-pointer bg-light-surface-variant/50">
+          <span class="flex items-center gap-2 text-xs font-bold text-light-on-surface">
+            <span class="material-symbols-outlined text-[18px] text-emerald-600">payments</span>
+            تحصيل مبلغ الآن
+          </span>
+          <input type="checkbox" [(ngModel)]="collectPaymentNow" (change)="toggleCollectPayment()"
+            class="rounded border-outline text-primary h-4 w-4" />
         </label>
 
-        <div *ngIf="collectPaymentNow" class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-outline">
-          <div>
-            <label class="block text-xs font-medium text-light-on-surface-variant mb-1">المبلغ المحصل (ج.م)</label>
-            <input
-              type="number"
-              [(ngModel)]="immediatePaymentAmount"
-              min="0.01"
-              step="0.01"
-              class="w-full px-3 py-1.5 text-xs font-bold text-emerald-700 border border-outline rounded-lg bg-light-surface focus:outline-none focus:border-primary"
-            />
+        <div *ngIf="collectPaymentNow" class="p-3.5 space-y-3 border-t border-outline">
+          <div class="grid grid-cols-3 gap-2">
+            <button type="button" (click)="setCollectMode('now')" [class.bg-emerald-600]="collectMode === 'now'"
+              [class.text-white]="collectMode === 'now'"
+              class="py-2 rounded-lg border border-outline text-[11px] font-bold hover:border-emerald-500">قيمة
+              التسوية</button>
+            <button type="button" (click)="setCollectMode('all')" [class.bg-emerald-600]="collectMode === 'all'"
+              [class.text-white]="collectMode === 'all'"
+              class="py-2 rounded-lg border border-outline text-[11px] font-bold hover:border-emerald-500">كامل
+              المستحق</button>
+            <button type="button" (click)="setCollectMode('custom')" [class.bg-emerald-600]="collectMode === 'custom'"
+              [class.text-white]="collectMode === 'custom'"
+              class="py-2 rounded-lg border border-outline text-[11px] font-bold hover:border-emerald-500">مبلغ
+              آخر</button>
           </div>
-
-          <div>
-            <label class="block text-xs font-medium text-light-on-surface-variant mb-1">طريقة الدفع</label>
-            <select
-              [(ngModel)]="immediatePaymentMethod"
-              class="w-full px-3 py-1.5 text-xs border border-outline rounded-lg bg-light-surface focus:outline-none focus:border-primary"
-            >
-              <option value="نقدي">نقدي (كاش)</option>
-              <option value="تحويل بنكي / فودافون كاش">تحويل بنكي / إنستاباي</option>
-              <option value="شيك">شيك</option>
-            </select>
+          <input *ngIf="collectMode === 'custom'" type="number" [(ngModel)]="immediatePaymentAmount" min="0.01"
+            step="0.01" [max]="settlementDueTotal"
+            class="w-full px-3 py-2 text-sm border border-emerald-400 rounded-lg bg-light-surface font-bold text-emerald-700 focus:outline-none" />
+          <div
+            class="flex items-baseline justify-center gap-1 py-2.5 rounded-lg bg-emerald-50/60 border border-emerald-100">
+            <span class="text-xl font-black text-emerald-700 font-mono">{{ immediatePaymentAmount | number : '1.2-2'
+              }}</span>
+            <span class="text-xs text-emerald-700/70">ج.م</span>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <button *ngFor="let m of paymentMethods" type="button" (click)="immediatePaymentMethod = m.value"
+              [class.bg-primary]="immediatePaymentMethod === m.value"
+              [class.text-on-primary]="immediatePaymentMethod === m.value"
+              class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-outline text-xs font-semibold text-light-on-surface-variant hover:border-primary">
+              <span class="material-symbols-outlined text-[15px]">{{ m.icon }}</span>{{ m.label }}
+            </button>
           </div>
         </div>
       </div>
 
-      <!-- Extra Info -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div>
-          <label class="block text-xs font-medium text-light-on-surface-variant mb-1">المسئول / مستلم التسوية</label>
-          <input
-            type="text"
-            [(ngModel)]="settlementCreatedBy"
-            placeholder="مثال: أ/ محمد مندوب التوزيع"
-            class="w-full px-3 py-1.5 text-xs border border-outline rounded-lg bg-light-surface focus:outline-none focus:border-primary"
-          />
-        </div>
-
-        <div>
-          <label class="block text-xs font-medium text-light-on-surface-variant mb-1">ملاحظات التسوية</label>
-          <input
-            type="text"
-            [(ngModel)]="settlementNotes"
-            placeholder="أي تفاصيل أو ملاحظات على حالة المرتجع"
-            class="w-full px-3 py-1.5 text-xs border border-outline rounded-lg bg-light-surface focus:outline-none focus:border-primary"
-          />
-        </div>
-      </div>
+      <input type="text" [(ngModel)]="settlementNotes" placeholder="ملاحظة على التسوية (اختياري)"
+        class="w-full px-3 py-2 text-xs border border-outline rounded-lg bg-light-surface focus:outline-none focus:border-primary" />
     </div>
 
-    <!-- Footer -->
-    <div class="p-4 border-t border-outline flex justify-end gap-2">
-      <button
-        (click)="closeSettlementModal()"
-        class="px-4 py-2 border border-outline rounded-lg text-xs font-medium hover:bg-light-surface-variant"
-      >
-        إلغاء
-      </button>
-      <button
-        (click)="submitSettlement()"
-        [disabled]="savingSettlement"
-        class="px-5 py-2 bg-primary text-on-primary font-medium rounded-lg hover:bg-primary/90 text-xs transition-all flex items-center gap-1.5"
-      >
-        <span *ngIf="savingSettlement" class="animate-spin rounded-full h-3.5 w-3.5 border-2 border-white border-t-transparent"></span>
-        <span>تأكيد التسوية وحفظ الحسابات</span>
+    <div class="px-5 py-4 border-t border-outline flex justify-end gap-2 bg-light-surface-variant/40">
+      <button (click)="closeSettlementModal()"
+        class="px-4 py-2 border border-outline rounded-lg text-xs font-medium hover:bg-light-surface-variant">إلغاء</button>
+      <button (click)="submitSettlement()" [disabled]="savingSettlement"
+        class="px-5 py-2 bg-primary text-on-primary font-bold rounded-lg hover:bg-primary/90 text-xs transition-all flex items-center gap-1.5 disabled:opacity-60">
+        <span *ngIf="savingSettlement"
+          class="animate-spin rounded-full h-3.5 w-3.5 border-2 border-white border-t-transparent"></span>
+        <span>تأكيد التسوية</span>
       </button>
     </div>
   </div>
 </div>
 
 <!-- ==================================================== -->
-<!-- Modal: تحصيل دفعة نقدية (Payment Modal) -->
+<!-- Modal: تحصيل دفعة -->
 <!-- ==================================================== -->
-<div *ngIf="showPaymentModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" dir="rtl">
-  <div class="bg-light-surface rounded-2xl border border-outline shadow-xl max-w-md w-full p-5 space-y-4">
-    <div class="flex items-center justify-between pb-3 border-b border-outline">
-      <div class="flex items-center gap-2">
-        <span class="material-symbols-outlined text-emerald-600 text-[24px]">payments</span>
-        <h2 class="text-base font-bold text-light-on-surface">تحصيل دفعة نقدية</h2>
+<div *ngIf="showPaymentModal"
+  class="screen-only fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-[1px]" dir="rtl">
+  <div class="bg-light-surface rounded-2xl border border-outline shadow-2xl max-w-md w-full overflow-hidden">
+    <div class="px-5 py-4 bg-emerald-50 border-b border-emerald-100 flex items-center justify-between">
+      <div class="flex items-center gap-2.5">
+        <span class="w-9 h-9 rounded-full bg-emerald-600 text-white flex items-center justify-center">
+          <span class="material-symbols-outlined text-[20px]">payments</span>
+        </span>
+        <h2 class="text-base font-bold text-emerald-900">تحصيل دفعة</h2>
       </div>
-      <button (click)="closePaymentModal()" class="text-gray-400 hover:text-gray-600">
-        <span class="material-symbols-outlined text-[20px]">close</span>
-      </button>
+      <button (click)="closePaymentModal()" class="text-emerald-700/60 hover:text-emerald-800"><span
+          class="material-symbols-outlined text-[20px]">close</span></button>
     </div>
 
-    <div *ngIf="consignment" class="p-3 bg-light-surface-variant rounded-lg text-xs space-y-1">
-      <div class="flex justify-between">
-        <span class="text-gray-500">إجمالي قيمة ما تم بيعه:</span>
-        <span class="font-bold text-blue-700">{{ consignment.totalSoldValue | number : '1.2-2' }} ج.م</span>
+    <div class="p-5 space-y-4">
+      <div *ngIf="consignment" class="p-3 bg-light-surface-variant rounded-xl text-xs space-y-1.5">
+        <div class="flex justify-between"><span class="text-gray-500">إجمالي المباع</span><span
+            class="font-bold text-blue-700">{{ consignment.totalSoldValue | number : '1.2-2' }} ج.م</span></div>
+        <div class="flex justify-between"><span class="text-gray-500">المحصل</span><span
+            class="font-semibold text-emerald-700">{{ consignment.paidAmount | number : '1.2-2' }} ج.م</span></div>
+        <div class="flex justify-between border-t border-outline pt-1.5"><span class="text-gray-500">المتبقي</span><span
+            class="font-bold text-red-600">{{ consignment.remainingAmount | number : '1.2-2' }} ج.م</span></div>
       </div>
-      <div class="flex justify-between">
-        <span class="text-gray-500">المحصل حتى الآن:</span>
-        <span class="font-semibold text-emerald-700">{{ consignment.paidAmount | number : '1.2-2' }} ج.م</span>
-      </div>
-      <div class="flex justify-between border-t border-outline pt-1 mt-1">
-        <span class="text-gray-500">المتبقي غير المسدد:</span>
-        <span class="font-bold text-red-600">{{ consignment.remainingAmount | number : '1.2-2' }} ج.م</span>
-      </div>
-    </div>
 
-    <div *ngIf="paymentError" class="p-3 bg-red-50 text-red-700 text-xs rounded-lg border border-red-200">
-      {{ paymentError }}
-    </div>
-
-    <div class="space-y-3">
-      <div>
-        <label class="block text-xs font-medium text-light-on-surface-variant mb-1">المبلغ المحصل (ج.م) *</label>
-        <input
-          type="number"
-          [(ngModel)]="paymentRequest.amount"
-          min="0.01"
-          step="0.01"
-          class="w-full px-3 py-2 text-sm border border-outline rounded-lg bg-light-surface focus:outline-none focus:border-primary font-bold text-emerald-700"
-        />
-      </div>
+      <div *ngIf="paymentError" class="p-3 bg-red-50 text-red-700 text-xs rounded-lg border border-red-200">{{
+        paymentError }}</div>
 
       <div>
-        <label class="block text-xs font-medium text-light-on-surface-variant mb-1">طريقة الدفع</label>
-        <select
-          [(ngModel)]="paymentRequest.paymentMethod"
-          class="w-full px-3 py-2 text-xs border border-outline rounded-lg bg-light-surface focus:outline-none focus:border-primary"
-        >
-          <option value="نقدي">نقدي (كاش)</option>
-          <option value="تحويل بنكي / فودافون كاش">تحويل بنكي / إنستاباي</option>
-          <option value="شيك">شيك</option>
-        </select>
+        <div class="text-xs font-semibold text-light-on-surface-variant mb-2">المبلغ</div>
+        <div class="grid grid-cols-3 gap-2">
+          <button type="button" (click)="setPaymentMode('full')" [class.bg-emerald-600]="paymentMode === 'full'"
+            [class.text-white]="paymentMode === 'full'"
+            class="py-2 rounded-lg border border-outline text-xs font-bold hover:border-emerald-500 transition-all">كامل
+            المتبقي</button>
+          <button type="button" (click)="setPaymentMode('half')" [class.bg-emerald-600]="paymentMode === 'half'"
+            [class.text-white]="paymentMode === 'half'"
+            class="py-2 rounded-lg border border-outline text-xs font-bold hover:border-emerald-500 transition-all">النصف</button>
+          <button type="button" (click)="setPaymentMode('custom')" [class.bg-emerald-600]="paymentMode === 'custom'"
+            [class.text-white]="paymentMode === 'custom'"
+            class="py-2 rounded-lg border border-outline text-xs font-bold hover:border-emerald-500 transition-all">مبلغ
+            آخر</button>
+        </div>
+        <input *ngIf="paymentMode === 'custom'" type="number" [(ngModel)]="paymentRequest.amount" min="0.01" step="0.01"
+          [max]="consignment?.remainingAmount || 0"
+          class="mt-2 w-full px-3 py-2 text-sm border border-emerald-400 rounded-lg bg-light-surface font-bold text-emerald-700 focus:outline-none" />
+        <div
+          class="mt-3 flex items-baseline justify-center gap-1 py-3 rounded-xl bg-emerald-50/60 border border-emerald-100">
+          <span class="text-2xl font-black text-emerald-700 font-mono">{{ paymentRequest.amount | number : '1.2-2'
+            }}</span>
+          <span class="text-xs text-emerald-700/70">ج.م</span>
+        </div>
       </div>
 
       <div>
-        <label class="block text-xs font-medium text-light-on-surface-variant mb-1">ملاحظات الدفعة</label>
-        <input
-          type="text"
-          [(ngModel)]="paymentRequest.notes"
-          placeholder="مثال: سداد نقدية من حساب التسوية"
-          class="w-full px-3 py-2 text-xs border border-outline rounded-lg bg-light-surface focus:outline-none focus:border-primary"
-        />
+        <div class="text-xs font-semibold text-light-on-surface-variant mb-2">طريقة الدفع</div>
+        <div class="flex flex-wrap gap-2">
+          <button *ngFor="let m of paymentMethods" type="button" (click)="paymentRequest.paymentMethod = m.value"
+            [class.bg-primary]="paymentRequest.paymentMethod === m.value"
+            [class.text-on-primary]="paymentRequest.paymentMethod === m.value"
+            [class.border-primary]="paymentRequest.paymentMethod === m.value"
+            class="flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-outline text-xs font-semibold text-light-on-surface-variant hover:border-primary transition-all">
+            <span class="material-symbols-outlined text-[16px]">{{ m.icon }}</span>{{ m.label }}
+          </button>
+        </div>
       </div>
     </div>
 
-    <div class="pt-3 border-t border-outline flex justify-end gap-2">
-      <button
-        (click)="closePaymentModal()"
-        class="px-4 py-2 border border-outline rounded-lg text-xs font-medium hover:bg-light-surface-variant"
-      >
-        إلغاء
-      </button>
-      <button
-        (click)="submitPayment()"
-        [disabled]="savingPayment"
-        class="px-4 py-2 bg-emerald-600 text-white rounded-lg text-xs font-medium hover:bg-emerald-700 transition-all flex items-center gap-1.5"
-      >
-        <span *ngIf="savingPayment" class="animate-spin rounded-full h-3.5 w-3.5 border-2 border-white border-t-transparent"></span>
+    <div class="px-5 py-4 border-t border-outline flex justify-end gap-2 bg-light-surface-variant/40">
+      <button (click)="closePaymentModal()"
+        class="px-4 py-2 border border-outline rounded-lg text-xs font-medium hover:bg-light-surface-variant">إلغاء</button>
+      <button (click)="submitPayment()" [disabled]="savingPayment"
+        class="px-5 py-2 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700 transition-all flex items-center gap-1.5 disabled:opacity-60">
+        <span *ngIf="savingPayment"
+          class="animate-spin rounded-full h-3.5 w-3.5 border-2 border-white border-t-transparent"></span>
         <span>تأكيد التحصيل</span>
       </button>
     </div>
   </div>
 </div>
+
+<!-- ==================================================== -->
+<!-- OFFICIAL PRINT: إذن صرف بضاعة أمانة (A4) -->
+<!-- ==================================================== -->
+<app-print-sheet *ngIf="consignment"
+  title="إذن صرف بضاعة أمانة"
+  [docNumber]="consignment.consignmentNumber"
+  [status]="statusLabel"
+  subtitle="إدارة الأمانات والتعامل مع الموزعين"
+  [signatures]="['مسؤول المخزن', 'المستلم (' + consignment.dealerName + ')', 'الاعتماد والختم']">
+
+  <div class="ps-row">
+    <div class="ps-box">
+      <div class="ps-box-title">بيانات المستلم</div>
+      <div class="ps-box-body">
+        <div class="ps-kv"><span>البنزينة / المحل:</span><strong>{{ consignment.dealerName }}</strong></div>
+        <div class="ps-kv" *ngIf="consignment.dealerPhone"><span>الهاتف:</span><strong class="ps-mono">{{ consignment.dealerPhone }}</strong></div>
+        <div class="ps-kv" *ngIf="consignment.warehouseName"><span>المخزن المصروف منه:</span><strong>{{ consignment.warehouseName }}</strong></div>
+      </div>
+    </div>
+    <div class="ps-box">
+      <div class="ps-box-title">بيانات الإذن</div>
+      <div class="ps-box-body">
+        <div class="ps-kv"><span>تاريخ الصرف:</span><strong class="ps-mono">{{ consignment.issueDate | date:'yyyy/MM/dd hh:mm a' }}</strong></div>
+        <div class="ps-kv"><span>مدة التسوية:</span><strong>{{ consignment.agreedDays || 15 }} يوم</strong></div>
+        <div class="ps-kv"><span>تاريخ الاستحقاق:</span><strong class="ps-mono">{{ consignment.dueDate | date:'yyyy/MM/dd' }}</strong></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ps-h">الأصناف المصروفة وموقفها</div>
+  <table class="ps-table">
+    <thead>
+      <tr>
+        <th class="ps-c" style="width:28px">#</th>
+        <th>الصنف</th>
+        <th class="ps-c" style="width:52px">المنصرف</th>
+        <th class="ps-c" style="width:44px">المباع</th>
+        <th class="ps-c" style="width:52px">المرتجع</th>
+        <th class="ps-c" style="width:52px">المتبقي</th>
+        <th class="ps-n" style="width:76px">سعر البيع</th>
+        <th class="ps-n" style="width:90px">قيمة المباع</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let item of consignment.items; let i = index">
+        <td class="ps-c">{{ i + 1 }}</td>
+        <td>
+          {{ item.itemDescription || ('صنف #' + item.rmsItemID) }}
+          <span *ngIf="item.itemLookupCode" class="ps-mono" style="font-size:10px"> ({{ item.itemLookupCode }})</span>
+        </td>
+        <td class="ps-c">{{ item.quantityIssued }}</td>
+        <td class="ps-c">{{ item.quantitySold }}</td>
+        <td class="ps-c">{{ item.quantityReturned }}</td>
+        <td class="ps-c">{{ item.quantityOutstanding }}</td>
+        <td class="ps-n">{{ item.unitPrice | number:'1.2-2' }}</td>
+        <td class="ps-n">{{ item.soldValue | number:'1.2-2' }}</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="ps-split">
+    <div class="ps-note-box" *ngIf="consignment.notes">
+      <div class="ps-note-title">ملاحظات</div>
+      {{ consignment.notes }}
+    </div>
+    <div class="ps-totals">
+      <table>
+        <tr><td>إجمالي قيمة المنصرف</td><td>{{ consignment.totalIssuedValue | number:'1.2-2' }} ج.م</td></tr>
+        <tr><td>قيمة ما تم بيعه</td><td>{{ consignment.totalSoldValue | number:'1.2-2' }} ج.م</td></tr>
+        <tr><td>المحصل نقداً</td><td>{{ consignment.paidAmount | number:'1.2-2' }} ج.م</td></tr>
+        <tr class="ps-grand"><td>المتبقي للدفع</td><td>{{ consignment.remainingAmount | number:'1.2-2' }} ج.م</td></tr>
+        <tr><td>بضاعة متبقية عند المستلم</td><td>{{ consignment.outstandingValue | number:'1.2-2' }} ج.م ({{ consignment.outstandingQuantity }} قطعة)</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <ng-container *ngIf="consignment.settlements && consignment.settlements.length > 0">
+    <div class="ps-h">سجل التسويات</div>
+    <table class="ps-table">
+      <thead>
+        <tr>
+          <th class="ps-c" style="width:28px">#</th>
+          <th>التاريخ</th>
+          <th>الأصناف (مباع / مرتجع)</th>
+          <th class="ps-n" style="width:100px">قيمة المباع</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let s of consignment.settlements; let i = index">
+          <td class="ps-c">{{ i + 1 }}</td>
+          <td class="ps-mono" style="white-space:nowrap">{{ s.settlementDate | date:'yyyy/MM/dd hh:mm a' }}</td>
+          <td>
+            <div *ngFor="let si of s.items">
+              {{ si.itemDescription || ('صنف #' + si.rmsItemID) }}: مباع {{ si.quantitySold }} / مرتجع {{ si.quantityReturned }}
+            </div>
+          </td>
+          <td class="ps-n">{{ s.amountDue | number:'1.2-2' }} ج.م</td>
+        </tr>
+      </tbody>
+    </table>
+  </ng-container>
+
+  <ng-container *ngIf="consignment.payments && consignment.payments.length > 0">
+    <div class="ps-h">سجل التحصيلات النقدية</div>
+    <table class="ps-table">
+      <thead>
+        <tr>
+          <th class="ps-c" style="width:28px">#</th>
+          <th>التاريخ</th>
+          <th>طريقة الدفع</th>
+          <th>ملاحظات</th>
+          <th class="ps-n" style="width:100px">المبلغ</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let p of consignment.payments; let i = index">
+          <td class="ps-c">{{ i + 1 }}</td>
+          <td class="ps-mono" style="white-space:nowrap">{{ p.paymentDate | date:'yyyy/MM/dd hh:mm a' }}</td>
+          <td>{{ p.paymentMethod || 'نقدي' }}</td>
+          <td>{{ p.notes || '—' }}</td>
+          <td class="ps-n">{{ p.amount | number:'1.2-2' }} ج.م</td>
+        </tr>
+      </tbody>
+    </table>
+  </ng-container>
+</app-print-sheet>

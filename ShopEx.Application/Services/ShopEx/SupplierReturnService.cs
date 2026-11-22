@@ -1,4 +1,5 @@
 using ShopEx.Application.DTOs.SupplierReturn;
+using ShopEx.Application.interfaces.RMS.Repositories;
 using ShopEx.Application.interfaces.ShopEx.Repositories;
 using ShopEx.Application.interfaces.ShopEx.Services;
 using ShopEx.Domain.Entity;
@@ -17,13 +18,19 @@ namespace ShopEx.Application.Services.ShopEx
         private readonly IWarehouseRepository _warehouseRepository;
         private readonly IStockRepository _stockRepository;
         private readonly IUnitOfWork _unitOfWork;
+        private readonly ISupplierRepository _supplierRepository;
+        private readonly ISupplierInvoiceRepository _invoiceRepository;
 
         public SupplierReturnService(
             ISupplierReturnRepository returnRepository,
             IWarehouseRepository warehouseRepository,
             IStockRepository stockRepository,
-            IUnitOfWork unitOfWork)
+            IUnitOfWork unitOfWork,
+            ISupplierRepository supplierRepository,
+            ISupplierInvoiceRepository invoiceRepository)
         {
+            _supplierRepository = supplierRepository ?? throw new ArgumentNullException(nameof(supplierRepository));
+            _invoiceRepository = invoiceRepository ?? throw new ArgumentNullException(nameof(invoiceRepository));
             _returnRepository = returnRepository ?? throw new ArgumentNullException(nameof(returnRepository));
             _warehouseRepository = warehouseRepository ?? throw new ArgumentNullException(nameof(warehouseRepository));
             _stockRepository = stockRepository ?? throw new ArgumentNullException(nameof(stockRepository));
@@ -37,6 +44,11 @@ namespace ShopEx.Application.Services.ShopEx
             if (request.RMSSupplierID <= 0)
             {
                 throw new ArgumentException("معرف المورد غير صالح.", nameof(request.RMSSupplierID));
+            }
+
+            if (await _supplierRepository.GetByIdAsync(request.RMSSupplierID) == null)
+            {
+                throw new KeyNotFoundException($"المورد برقم {request.RMSSupplierID} غير موجود.");
             }
 
             var warehouse = await _warehouseRepository.GetByIdAsync(request.WarehouseID, ct);
@@ -60,6 +72,56 @@ namespace ShopEx.Application.Services.ShopEx
                     throw new ArgumentException("سعر الوحدة لا يمكن أن يكون سالباً.");
             }
 
+            // Merge duplicate item lines (same item + same price)
+            var lines = request.Items
+                .GroupBy(i => new { i.RMSItemID, UnitPrice = Math.Round(i.UnitPrice, 2, MidpointRounding.AwayFromZero), i.SupplierInvoiceItemID })
+                .Select(g => new CreateSupplierReturnItemRequest
+                {
+                    RMSItemID = g.Key.RMSItemID,
+                    UnitPrice = g.Key.UnitPrice,
+                    SupplierInvoiceItemID = g.Key.SupplierInvoiceItemID,
+                    Quantity = g.Sum(x => x.Quantity),
+                    Reason = g.Select(x => x.Reason?.Trim()).FirstOrDefault(r => !string.IsNullOrEmpty(r))
+                })
+                .ToList();
+
+            // Link to the original invoice: must belong to the same supplier, and
+            // returned quantity can't exceed what was purchased minus earlier returns.
+            if (request.SupplierInvoiceID.HasValue)
+            {
+                var invoice = await _invoiceRepository.GetByIdAsync(request.SupplierInvoiceID.Value, ct);
+                if (invoice == null)
+                    throw new KeyNotFoundException($"فاتورة المورد برقم {request.SupplierInvoiceID} غير موجودة.");
+                if (invoice.RMSSupplierID != request.RMSSupplierID)
+                    throw new InvalidOperationException("الفاتورة المحددة لا تخص هذا المورد.");
+
+                var earlier = (await _returnRepository.GetAllAsync(request.RMSSupplierID, null, null, ct))
+                    .Where(r => r.SupplierInvoiceID == invoice.ID && r.Status != SupplierReturnStatus.Cancelled)
+                    .SelectMany(r => r.Items)
+                    .GroupBy(i => i.RMSItemID)
+                    .ToDictionary(g => g.Key, g => g.Sum(i => i.Quantity));
+
+                foreach (var line in lines)
+                {
+                    var invoiceItems = invoice.Items.Where(i => i.RMSItemID == line.RMSItemID).ToList();
+                    if (invoiceItems.Count == 0)
+                        throw new InvalidOperationException($"الصنف {line.RMSItemID} غير موجود في الفاتورة {invoice.InvoiceNumber}.");
+
+                    var purchased = invoiceItems.Sum(i => i.Quantity);
+                    var alreadyReturned = earlier.GetValueOrDefault(line.RMSItemID);
+                    var requestedForItem = lines.Where(l => l.RMSItemID == line.RMSItemID).Sum(l => l.Quantity);
+                    if (alreadyReturned + requestedForItem > purchased)
+                        throw new InvalidOperationException(
+                            $"كمية مرتجع الصنف {line.RMSItemID} ({requestedForItem}) تتجاوز المتاح للإرجاع من الفاتورة ({purchased - alreadyReturned}).");
+
+                    line.SupplierInvoiceItemID ??= invoiceItems[0].ID;
+                }
+            }
+            else if (lines.Any(l => l.SupplierInvoiceItemID.HasValue))
+            {
+                throw new InvalidOperationException("لا يمكن تحديد بند فاتورة بدون تحديد الفاتورة.");
+            }
+
             var returnNumber = await _returnRepository.GetNextReturnNumberAsync(ct);
 
             var supplierReturn = new SupplierReturn
@@ -72,18 +134,24 @@ namespace ShopEx.Application.Services.ShopEx
                 Status = SupplierReturnStatus.Draft,
                 SettlementType = request.SettlementType,
                 Notes = request.Notes?.Trim(),
-                Items = request.Items.Select(i => new SupplierReturnItem
+                Items = lines.Select(i => new SupplierReturnItem
                 {
                     SupplierInvoiceItemID = i.SupplierInvoiceItemID,
                     RMSItemID = i.RMSItemID,
                     Quantity = i.Quantity,
                     UnitPrice = i.UnitPrice,
-                    Reason = i.Reason?.Trim()
+                    Reason = i.Reason
                 }).ToList()
             };
 
-            await _returnRepository.AddAsync(supplierReturn, ct);
-            await _unitOfWork.SaveChangesAsync(ct);
+            await _unitOfWork.ExecuteInTransactionAsync(async () =>
+            {
+                await _returnRepository.AddAsync(supplierReturn, ct);
+                await _unitOfWork.SaveChangesAsync(ct);
+
+                if (request.ConfirmImmediately)
+                    await ApplyConfirmAsync(supplierReturn, ct);
+            }, ct);
 
             return MapToResponse(supplierReturn);
         }
@@ -138,43 +206,7 @@ namespace ShopEx.Application.Services.ShopEx
                 throw new InvalidOperationException($"لا يمكن تأكيد المرتجع لأن حالته الحالية هي '{entity.Status}'.");
             }
 
-            // Deduct stock and record movement for each item
-            foreach (var item in entity.Items)
-            {
-                var balance = await _stockRepository.GetBalanceAsync(entity.WarehouseID, item.RMSItemID, ct);
-
-                if (balance == null || balance.QuantityOnHand < item.Quantity)
-                {
-                    var available = balance?.QuantityOnHand ?? 0;
-                    throw new InvalidOperationException(
-                        $"الرصيد المتاح في المخزن للصنف {item.RMSItemID} هو ({available}) وهو غير كافٍ لمرتجع ({item.Quantity}).");
-                }
-
-                balance.QuantityOnHand -= item.Quantity;
-                balance.LastUpdatedAt = DateTime.Now;
-                _stockRepository.UpdateBalance(balance);
-
-                var movement = new StockMovement
-                {
-                    WarehouseID = entity.WarehouseID,
-                    RMSItemID = item.RMSItemID,
-                    MovementType = StockMovementType.SupplierReturnOut,
-                    Quantity = item.Quantity,
-                    UnitCost = item.UnitPrice,
-                    MovementDate = DateTime.Now,
-                    ReferenceType = "SupplierReturn",
-                    ReferenceID = entity.ID,
-                    Notes = $"مرتجع مورد رقم {entity.ReturnNumber}",
-                    CreatedBy = "System"
-                };
-
-                await _stockRepository.AddMovementAsync(movement, ct);
-            }
-
-            entity.Status = SupplierReturnStatus.Confirmed;
-            _returnRepository.Update(entity);
-
-            await _unitOfWork.SaveChangesAsync(ct);
+            await _unitOfWork.ExecuteInTransactionAsync(() => ApplyConfirmAsync(entity, ct), ct);
 
             return MapToResponse(entity);
         }
@@ -204,7 +236,8 @@ namespace ShopEx.Application.Services.ShopEx
         {
             if (request == null) throw new ArgumentNullException(nameof(request));
 
-            if (request.Amount <= 0)
+            var refundAmount = Math.Round(request.Amount, 2, MidpointRounding.AwayFromZero);
+            if (refundAmount <= 0)
             {
                 throw new ArgumentException("مبلغ الاسترداد يجب أن يكون أكبر من صفر.", nameof(request.Amount));
             }
@@ -215,25 +248,26 @@ namespace ShopEx.Application.Services.ShopEx
                 throw new KeyNotFoundException($"مرتجع المورد برقم {returnId} غير موجود.");
             }
 
-            if (entity.Status != SupplierReturnStatus.Confirmed)
+            if (entity.Status == SupplierReturnStatus.Draft)
             {
-                throw new InvalidOperationException("لا يمكن تسجيل استرداد مالي إلا بعد تأكيد المرتجع.");
+                await ConfirmReturnAsync(returnId, ct);
+                entity = await _returnRepository.GetByIdAsync(returnId, ct)
+                    ?? throw new KeyNotFoundException($"مرتجع المورد برقم {returnId} غير موجود.");
+            }
+            else if (entity.Status != SupplierReturnStatus.Confirmed)
+            {
+                throw new InvalidOperationException("لا يمكن تسجيل استرداد مالي لمرتجع ملغي.");
             }
 
-            if (entity.SettlementType != SupplierReturnSettlementType.CashRefund)
+            if (refundAmount > Math.Round(entity.PendingRefund, 2, MidpointRounding.AwayFromZero))
             {
-                throw new InvalidOperationException("لا يمكن تسجيل استرداد نقدي لمرتجع نوع تسويته ليس نقدي (Cash Refund).");
-            }
-
-            if (request.Amount > entity.PendingRefund)
-            {
-                throw new InvalidOperationException($"مبلغ الاسترداد ({request.Amount:N2}) يتجاوز المبلغ المتبقي ({entity.PendingRefund:N2}).");
+                throw new InvalidOperationException($"مبلغ الاسترداد ({refundAmount:N2}) يتجاوز المبلغ المتبقي المستحق ({entity.PendingRefund:N2}).");
             }
 
             var refund = new SupplierRefund
             {
                 SupplierReturnID = returnId,
-                Amount = request.Amount,
+                Amount = refundAmount,
                 RefundDate = request.RefundDate ?? DateTime.Now,
                 PaymentMethod = request.PaymentMethod?.Trim(),
                 Notes = request.Notes?.Trim()
@@ -245,6 +279,44 @@ namespace ShopEx.Application.Services.ShopEx
             await _unitOfWork.SaveChangesAsync(ct);
 
             return MapToResponse(entity);
+        }
+
+        // Deducts stock, records movements, marks Confirmed and saves. Caller guarantees Draft status.
+        private async Task ApplyConfirmAsync(SupplierReturn entity, CancellationToken ct)
+        {
+            var now = DateTime.Now;
+            foreach (var item in entity.Items)
+            {
+                var balance = await _stockRepository.GetBalanceAsync(entity.WarehouseID, item.RMSItemID, ct);
+
+                if (balance == null || balance.QuantityOnHand < item.Quantity)
+                {
+                    var available = balance?.QuantityOnHand ?? 0;
+                    throw new InvalidOperationException(
+                        $"الرصيد المتاح في المخزن للصنف {item.RMSItemID} هو ({available}) وهو غير كافٍ لمرتجع ({item.Quantity}).");
+                }
+
+                balance.QuantityOnHand -= item.Quantity;
+                balance.LastUpdatedAt = now;
+                _stockRepository.UpdateBalance(balance);
+
+                await _stockRepository.AddMovementAsync(new StockMovement
+                {
+                    WarehouseID = entity.WarehouseID,
+                    RMSItemID = item.RMSItemID,
+                    MovementType = StockMovementType.SupplierReturnOut,
+                    Quantity = item.Quantity,
+                    UnitCost = item.UnitPrice,
+                    MovementDate = now,
+                    ReferenceType = "SupplierReturn",
+                    ReferenceID = entity.ID,
+                    Notes = $"مرتجع مورد رقم {entity.ReturnNumber}",
+                    CreatedBy = "System"
+                }, ct);
+            }
+
+            entity.Status = SupplierReturnStatus.Confirmed;
+            await _unitOfWork.SaveChangesAsync(ct);
         }
 
         private static SupplierReturnResponse MapToResponse(SupplierReturn r)

@@ -13,6 +13,9 @@ namespace ShopEx.Application.DTOs.SupplierReturn
         public SupplierReturnSettlementType SettlementType { get; set; } = SupplierReturnSettlementType.CreditToAccount;
         public string? Notes { get; set; }
 
+        /// <summary>Create and confirm in one atomic step (stock deducted immediately).</summary>
+        public bool ConfirmImmediately { get; set; }
+
         public List<CreateSupplierReturnItemRequest> Items { get; set; } = new();
     }
 

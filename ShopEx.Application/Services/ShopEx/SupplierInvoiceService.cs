@@ -19,14 +19,17 @@ namespace ShopEx.Application.Services.ShopEx
         private readonly ISupplierRepository _supplierRepository;
         private readonly IWarehouseRepository _warehouseRepository;
         private readonly IStockRepository _stockRepository;
+        private readonly IItemRepository _itemRepository;
 
         public SupplierInvoiceService(
             ISupplierInvoiceRepository invoiceRepository,
             IUnitOfWork unitOfWork,
             ISupplierRepository supplierRepository,
             IWarehouseRepository warehouseRepository,
-            IStockRepository stockRepository)
+            IStockRepository stockRepository,
+            IItemRepository itemRepository)
         {
+            _itemRepository = itemRepository ?? throw new ArgumentNullException(nameof(itemRepository));
             _invoiceRepository = invoiceRepository ?? throw new ArgumentNullException(nameof(invoiceRepository));
             _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
             _supplierRepository = supplierRepository ?? throw new ArgumentNullException(nameof(supplierRepository));
@@ -154,57 +157,72 @@ namespace ShopEx.Application.Services.ShopEx
                 targetWarehouseId = defaultWh.ID;
             }
 
-            await _invoiceRepository.AddAsync(invoice, ct);
-
-            // Update StockBalance and record StockMovement (PurchaseIn) for each item
-            foreach (var item in request.Items)
-            {
-                var balance = await _stockRepository.GetBalanceAsync(targetWarehouseId, item.RMSItemID, ct);
-                if (balance == null)
+            // Merge duplicate item lines so each item is processed once against stock
+            var stockLines = request.Items
+                .GroupBy(i => i.RMSItemID)
+                .Select(g => new
                 {
-                    balance = new StockBalance
+                    RMSItemID = g.Key,
+                    Quantity = g.Sum(x => x.Quantity),
+                    UnitPrice = g.Sum(x => x.Quantity * x.UnitPrice) / g.Sum(x => x.Quantity)
+                })
+                .ToList();
+
+            await _unitOfWork.ExecuteInTransactionAsync(async () =>
+            {
+                // Save the invoice first so invoice.ID is real when stock movements reference it
+                await _invoiceRepository.AddAsync(invoice, ct);
+                await _unitOfWork.SaveChangesAsync(ct);
+
+                foreach (var line in stockLines)
+                {
+                    var unitCost = Math.Round(line.UnitPrice, 2, MidpointRounding.AwayFromZero);
+                    var balance = await _stockRepository.GetBalanceAsync(targetWarehouseId, line.RMSItemID, ct);
+                    if (balance == null)
+                    {
+                        balance = new StockBalance
+                        {
+                            WarehouseID = targetWarehouseId,
+                            RMSItemID = line.RMSItemID,
+                            QuantityOnHand = line.Quantity,
+                            AverageCost = unitCost,
+                            LastUpdatedAt = invoiceDate
+                        };
+                        await _stockRepository.AddBalanceAsync(balance, ct);
+                    }
+                    else
+                    {
+                        var newQty = balance.QuantityOnHand + line.Quantity;
+                        if (newQty > 0)
+                        {
+                            var currentTotalValue = Math.Max(balance.QuantityOnHand, 0) * balance.AverageCost;
+                            var addedValue = line.Quantity * line.UnitPrice;
+                            balance.AverageCost = Math.Round((currentTotalValue + addedValue) / newQty, 2);
+                        }
+                        balance.QuantityOnHand = newQty;
+                        balance.LastUpdatedAt = invoiceDate;
+                        _stockRepository.UpdateBalance(balance);
+                    }
+
+                    await _stockRepository.AddMovementAsync(new StockMovement
                     {
                         WarehouseID = targetWarehouseId,
-                        RMSItemID = item.RMSItemID,
-                        QuantityOnHand = item.Quantity,
-                        AverageCost = item.UnitPrice,
-                        LastUpdatedAt = invoiceDate
-                    };
-                    await _stockRepository.AddBalanceAsync(balance, ct);
-                }
-                else
-                {
-                    var newQty = balance.QuantityOnHand + item.Quantity;
-                    if (newQty > 0)
-                    {
-                        var currentTotalValue = balance.QuantityOnHand * balance.AverageCost;
-                        var addedValue = item.Quantity * item.UnitPrice;
-                        balance.AverageCost = Math.Round((currentTotalValue + addedValue) / newQty, 2);
-                    }
-                    balance.QuantityOnHand = newQty;
-                    balance.LastUpdatedAt = invoiceDate;
-                    _stockRepository.UpdateBalance(balance);
+                        RMSItemID = line.RMSItemID,
+                        MovementType = StockMovementType.PurchaseIn,
+                        Quantity = line.Quantity,
+                        UnitCost = unitCost,
+                        MovementDate = invoiceDate,
+                        ReferenceType = "SupplierInvoice",
+                        ReferenceID = invoice.ID,
+                        Notes = $"فاتورة مورد رقم {invoice.InvoiceNumber}",
+                        CreatedBy = "System"
+                    }, ct);
                 }
 
-                var movement = new StockMovement
-                {
-                    WarehouseID = targetWarehouseId,
-                    RMSItemID = item.RMSItemID,
-                    MovementType = StockMovementType.PurchaseIn,
-                    Quantity = item.Quantity,
-                    UnitCost = item.UnitPrice,
-                    MovementDate = invoiceDate,
-                    ReferenceType = "SupplierInvoice",
-                    ReferenceID = invoice.ID,
-                    Notes = $"فاتورة مورد رقم {invoice.InvoiceNumber}",
-                    CreatedBy = "System"
-                };
-                await _stockRepository.AddMovementAsync(movement, ct);
-            }
+                await _unitOfWork.SaveChangesAsync(ct);
+            }, ct);
 
-            await _unitOfWork.SaveChangesAsync(ct);
-
-            return MapToResponse(invoice);
+            return await EnrichAsync(MapToResponse(invoice));
         }
 
         public async Task<SupplierInvoiceResponse> AddPaymentAsync(int invoiceId, AddPaymentRequest request, CancellationToken ct = default)
@@ -239,7 +257,7 @@ namespace ShopEx.Application.Services.ShopEx
 
             await _unitOfWork.SaveChangesAsync(ct);
 
-            return MapToResponse(invoice);
+            return await EnrichAsync(MapToResponse(invoice));
         }
 
         public async Task<SupplierInvoiceResponse?> GetByIdAsync(int invoiceId, CancellationToken ct = default)
@@ -248,7 +266,27 @@ namespace ShopEx.Application.Services.ShopEx
             if (invoice == null)
                 return null;
 
-            return MapToResponse(invoice);
+            return await EnrichAsync(MapToResponse(invoice));
+        }
+
+        public async Task<SupplierInvoicesPage> GetPagedAsync(
+            int page, int pageSize, string? search, string? status, int? supplierId, CancellationToken ct = default)
+        {
+            page = page > 0 ? page : 1;
+            pageSize = pageSize > 0 ? Math.Min(pageSize, 100) : 10;
+
+            // Supplier names live in the RMS database, so resolve the search term there first
+            IReadOnlyCollection<int>? matchingSuppliers = null;
+            if (!string.IsNullOrWhiteSpace(search))
+                matchingSuppliers = await _supplierRepository.SearchIdsAsync(search);
+
+            var result = await _invoiceRepository.GetPagedAsync(page, pageSize, search, matchingSuppliers, status, supplierId, ct);
+
+            var suppliers = await _supplierRepository.GetByIdsAsync(result.Items.Select(i => i.RMSSupplierID));
+            foreach (var row in result.Items)
+                row.RMSSupplierName = suppliers.TryGetValue(row.RMSSupplierID, out var s) ? s.SupplierName : null;
+
+            return result;
         }
 
         public async Task<List<SupplierInvoiceResponse>> GetAllAsync(CancellationToken ct = default)
@@ -258,6 +296,24 @@ namespace ShopEx.Application.Services.ShopEx
         }
 
        
+        // Adds supplier name + item descriptions (RMS lives in another database, so no join is possible)
+        private async Task<SupplierInvoiceResponse> EnrichAsync(SupplierInvoiceResponse response)
+        {
+            var supplier = await _supplierRepository.GetByIdAsync(response.RMSSupplierID);
+            response.RMSSupplierName = supplier?.SupplierName;
+
+            var items = await _itemRepository.GetByIdsAsync(response.Items.Select(i => i.RMSItemID));
+            foreach (var line in response.Items)
+            {
+                if (items.TryGetValue(line.RMSItemID, out var item))
+                {
+                    line.ItemDescription = item.Description;
+                    line.ItemLookupCode = item.ItemLookupCode;
+                }
+            }
+            return response;
+        }
+
         private static void RefreshStatus(SupplierInvoice invoice)
         {
             var paid = invoice.PaidAmount;

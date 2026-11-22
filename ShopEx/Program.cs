@@ -22,11 +22,14 @@ namespace ShopEx
             var builder = WebApplication.CreateBuilder(args);
 
             builder.Services.AddDbContext<RMSContext>(opt =>
-               opt.UseSqlServer(builder.Configuration.GetConnectionString("RMSConnection"))
+               opt.UseSqlServer(builder.Configuration.GetConnectionString("RMSConnection"),
+                  // RMS database has an older compatibility level (no OPENJSON): translate Contains() to IN (...)
+                  sql => sql.UseCompatibilityLevel(120))
             );
 
             builder.Services.AddDbContext<ShopContext>(opt =>
-               opt.UseSqlServer(builder.Configuration.GetConnectionString("ShopEXConnection"))
+               opt.UseSqlServer(builder.Configuration.GetConnectionString("ShopEXConnection"),
+                  sql => sql.UseCompatibilityLevel(120))
             );
 
             // Add services to the container.

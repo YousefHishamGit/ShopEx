@@ -15,9 +15,9 @@ namespace ShopEx.Application.interfaces.ShopEx.Services
         Task<WarehouseResponse> UpdateWarehouseAsync(int id, UpdateWarehouseRequest request, CancellationToken ct = default);
 
         // Stock Balances & Movements
-        Task<List<StockBalanceResponse>> GetBalancesAsync(int warehouseId, bool lowStockOnly = false, CancellationToken ct = default);
+        Task<PagedStockBalanceResponse> GetBalancesAsync(int warehouseId, string? search = null, int page = 1, int pageSize = 20, CancellationToken ct = default);
         Task<StockBalanceResponse?> GetItemBalanceAsync(int warehouseId, int rmsItemId, CancellationToken ct = default);
-        Task<List<StockMovementResponse>> GetMovementsAsync(int? warehouseId = null, int? rmsItemId = null, DateTime? fromDate = null, DateTime? toDate = null, CancellationToken ct = default);
+        Task<List<StockMovementResponse>> GetRecentMovementsAsync(int? warehouseId = null, CancellationToken ct = default);
         Task<StockBalanceResponse> AdjustStockAsync(StockAdjustmentRequest request, CancellationToken ct = default);
     }
 }

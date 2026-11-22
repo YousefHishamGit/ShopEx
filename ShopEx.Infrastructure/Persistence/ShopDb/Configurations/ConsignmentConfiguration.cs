@@ -17,6 +17,8 @@ namespace ShopEx.Infrastructure.Persistence.ShopDb.Configurations
                    .HasMaxLength(50);
 
             builder.HasIndex(c => c.ConsignmentNumber).IsUnique();
+            builder.HasIndex(c => new { c.DealerID, c.Status });
+            builder.HasIndex(c => c.IssueDate);
 
             builder.Property(c => c.IssueDate).HasDefaultValueSql("GETDATE()");
             builder.Property(c => c.AgreedDays);

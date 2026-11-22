@@ -3,6 +3,9 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { CustomerStatementService } from '../../../services/customer-statement.service';
+import { PrintService } from '../../../shared/print/print.service';
+import { PrintSheetComponent } from '../../../shared/print/print-sheet.component';
+import { CustomerInvoicePrintComponent } from '../../../shared/print/customer-invoice-print.component';
 import {
   CustomerStatement,
   CustomerOpenInvoice,
@@ -12,7 +15,7 @@ import {
 @Component({
   selector: 'app-customer-statement-detail',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule, FormsModule, RouterLink, PrintSheetComponent, CustomerInvoicePrintComponent],
   templateUrl: './customer-statement-detail.component.html'
 })
 export class CustomerStatementDetailComponent implements OnInit {
@@ -35,7 +38,8 @@ export class CustomerStatementDetailComponent implements OnInit {
   constructor(
     private route: ActivatedRoute,
     private router: Router,
-    private statementService: CustomerStatementService
+    private statementService: CustomerStatementService,
+    private printer: PrintService
   ) {}
 
   ngOnInit(): void {
@@ -131,11 +135,28 @@ export class CustomerStatementDetailComponent implements OnInit {
     this.selectedInvoiceDetail = null;
   }
 
+  /** Which official document is currently being printed */
+  printMode: 'statement' | 'invoice' = 'statement';
+
+  get filteredTotal(): number {
+    return this.filteredInvoices.reduce((s, i) => s + (i.totalAmount || 0), 0);
+  }
+
+  get filteredDeposit(): number {
+    return this.filteredInvoices.reduce((s, i) => s + (i.deposit || 0), 0);
+  }
+
+  get filteredRemaining(): number {
+    return this.filteredInvoices.reduce((s, i) => s + (i.remainingAmount || 0), 0);
+  }
+
   printInvoiceModal(): void {
-    window.print();
+    this.printMode = 'invoice';
+    this.printer.print();
   }
 
   printStatement(): void {
-    window.print();
+    this.printMode = 'statement';
+    this.printer.print();
   }
 }

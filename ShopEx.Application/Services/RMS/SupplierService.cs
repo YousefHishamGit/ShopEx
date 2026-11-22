@@ -17,16 +17,13 @@ namespace ShopEx.Application.Services.RMS
     {
         private readonly ISupplierRepository _supplierRepository;
         private readonly IItemRepository _itemRepository;
-        private readonly ISupplierReturnRepository _returnRepository;
 
         public SupplierService(
             ISupplierRepository supplierRepository,
-            IItemRepository itemRepository,
-            ISupplierReturnRepository returnRepository)
+            IItemRepository itemRepository)
         {
             _supplierRepository = supplierRepository ?? throw new ArgumentNullException(nameof(supplierRepository));
             _itemRepository = itemRepository ?? throw new ArgumentNullException(nameof(itemRepository));
-            _returnRepository = returnRepository ?? throw new ArgumentNullException(nameof(returnRepository));
         }
 
         public async Task<IEnumerable<SupplierResponse>> GetAllSuppliersAsync()
@@ -40,7 +37,9 @@ namespace ShopEx.Application.Services.RMS
             {
               ID = s.ID,
               SupplierName=s.SupplierName,
-              Code=s.Code
+              Code=s.Code,
+                Phone=s.PhoneNumber
+
             });
             return supplierResponses;
         }
@@ -64,87 +63,52 @@ namespace ShopEx.Application.Services.RMS
                 Description = i.Description,
                 SupplierID = i.SupplierID,
                 Price = i.Price,
-                PriceA= i.PriceA,
+                PriceA = i.PriceA,
                 Cost = i.Cost,
-
+                LastCost = i.LastCost,
+                ItemLookupCode = i.ItemLookupCode,
+                Quantity = i.Quantity
             });
 
             return  itemResponses;
         }
 
-        public async Task<SupplierStatementDto?> GetSupplierStatementAsync(int supplierId)
+        public async Task<(List<SupplierResponse> Items, int TotalCount)> GetSuppliersPagedAsync(string? search, int page, int pageSize)
+        {
+            var (suppliers, total) = await _supplierRepository.GetPagedAsync(search, page, pageSize);
+            var items = suppliers.Select(s => new SupplierResponse
+            {
+                ID = s.ID,
+                SupplierName = s.SupplierName,
+                Code = s.Code,
+                Phone = s.PhoneNumber
+            }).ToList();
+            return (items, total);
+        }
+
+        public async Task<SupplierStatementDto?> GetSupplierStatementAsync(
+            int supplierId,
+            string? status = null,
+            string? section = null,
+            int page = 1,
+            int pageSize = 10,
+            string? search = null)
         {
             var supplier = await _supplierRepository.GetByIdAsync(supplierId);
             if (supplier == null)
                 return null;
 
-            var invoices = await _supplierRepository.GetInvoicesBySupplierIdAsync(supplierId);
-            var returns = await _returnRepository.GetAllAsync(rmsSupplierId: supplierId);
+            int pSize = pageSize > 0 ? Math.Min(pageSize, 100) : 10;
+            int pNum = page > 0 ? page : 1;
 
-            var invoiceDtos = invoices.Select(inv => new SupplierInvoiceStatementDto
-            {
-                ID = inv.ID,
-                InvoiceNumber = inv.InvoiceNumber,
-                InvoiceDate = inv.InvoiceDate,
-                TotalAmount = inv.TotalAmount,
-                PaidAmount = inv.PaidAmount,
-                RemainingAmount = inv.RemainingAmount,
-                Status = inv.SupplierInvoiceStatus.ToString(),
-                PaymentType = inv.PaymentType.ToString(),
-                DueDate = inv.DueDate,
-                Items = inv.Items.Select(item => new SupplierInvoiceItemDto
-                {
-                    ID = item.ID,
-                    RMSItemID = item.RMSItemID,
-                    Quantity = item.Quantity,
-                    UnitPrice = item.UnitPrice,
-                    TotalPrice = item.TotalPrice
-                }).ToList(),
-                Payments = inv.Payments.Select(pay => new SupplierPaymentDto
-                {
-                    ID = pay.ID,
-                    Amount = pay.Amount,
-                    PaymentDate = pay.PaymentDate,
-                    PaymentMethod = pay.PaymentMethod
-                }).ToList()
-            }).ToList();
+            // Totals + counts come from SQL aggregates (no rows loaded)
+            var summary = await _supplierRepository.GetAccountSummaryAsync(supplierId);
 
-            var returnDtos = returns.Select(ret => new SupplierReturnStatementDto
-            {
-                ID = ret.ID,
-                ReturnNumber = ret.ReturnNumber,
-                ReturnDate = ret.ReturnDate,
-                WarehouseID = ret.WarehouseID,
-                WarehouseName = ret.Warehouse?.Name ?? string.Empty,
-                TotalAmount = ret.TotalAmount,
-                RefundedAmount = ret.RefundedAmount,
-                PendingRefund = ret.PendingRefund,
-                Status = ret.Status.ToString(),
-                SettlementType = ret.SettlementType.ToString(),
-                ItemsCount = ret.Items?.Count ?? 0,
-                Notes = ret.Notes
-            }).ToList();
+            // Balance owed to supplier = unpaid invoices - (confirmed returns - cash already refunded)
+            var totalRemaining = (summary.TotalInvoices - summary.TotalPaid)
+                                 - (summary.TotalReturns - summary.TotalRefunds);
 
-            var totalInvoices = invoiceDtos.Sum(i => i.TotalAmount);
-            var totalPaid = invoiceDtos.Sum(i => i.PaidAmount);
-
-            // Confirmed returns impact the supplier balance
-            var confirmedReturns = returns.Where(r => r.Status == SupplierReturnStatus.Confirmed).ToList();
-            var totalReturns = confirmedReturns.Sum(r => r.TotalAmount);
-            var totalRefunds = confirmedReturns.Sum(r => r.RefundedAmount);
-
-            // Net reduction on remaining debt to supplier:
-            // For CreditToAccount: decreases debt by TotalAmount
-            // For CashRefund: decreases debt by (TotalAmount - RefundedAmount) until cash is received
-            var returnDeduction = confirmedReturns.Sum(r =>
-                r.SettlementType == SupplierReturnSettlementType.CashRefund
-                    ? (r.TotalAmount - r.RefundedAmount)
-                    : r.TotalAmount
-            );
-
-            var totalRemaining = (totalInvoices - totalPaid) - returnDeduction;
-
-            return new SupplierStatementDto
+            var dto = new SupplierStatementDto
             {
                 SupplierId = supplier.ID,
                 SupplierName = supplier.SupplierName,
@@ -152,14 +116,89 @@ namespace ShopEx.Application.Services.RMS
                 AccountNumber = supplier.AccountNumber,
                 PhoneNumber = supplier.PhoneNumber,
                 EmailAddress = supplier.EmailAddress,
-                TotalInvoicesAmount = totalInvoices,
-                TotalPaidAmount = totalPaid,
-                TotalReturnsAmount = totalReturns,
-                TotalRefundsAmount = totalRefunds,
+                TotalInvoicesAmount = summary.TotalInvoices,
+                TotalPaidAmount = summary.TotalPaid,
+                TotalReturnsAmount = summary.TotalReturns,
+                TotalRefundsAmount = summary.TotalRefunds,
+                TotalPendingRefundsAmount = summary.TotalPendingRefunds,
                 TotalRemainingAmount = totalRemaining,
-                Invoices = invoiceDtos,
-                Returns = returnDtos
+                UnpaidCount = summary.UnpaidCount,
+                PartialCount = summary.PartialCount,
+                PaidCount = summary.PaidCount,
+                TotalInvoicesCount = summary.InvoicesCount,
+                ReturnsCount = summary.ReturnsCount,
+                InvoicesPageNumber = pNum,
+                InvoicesPageSize = pSize,
+                ReturnsPageNumber = pNum,
+                ReturnsPageSize = pSize
             };
+
+            // "summary" (or empty) section => header + totals only, no rows
+            if (string.Equals(section, "returns", StringComparison.OrdinalIgnoreCase))
+            {
+                var (returns, total) = await _supplierRepository.GetReturnsPageAsync(supplierId, search, pNum, pSize);
+                dto.ReturnsTotalCount = total;
+                dto.ReturnsTotalPages = Math.Max(1, (int)Math.Ceiling((double)total / pSize));
+                dto.Returns = returns.Select(ret => new SupplierReturnStatementDto
+                {
+                    ID = ret.ID,
+                    ReturnNumber = ret.ReturnNumber,
+                    ReturnDate = ret.ReturnDate,
+                    WarehouseID = ret.WarehouseID,
+                    WarehouseName = ret.Warehouse?.Name ?? string.Empty,
+                    TotalAmount = ret.TotalAmount,
+                    RefundedAmount = ret.RefundedAmount,
+                    PendingRefund = ret.PendingRefund,
+                    Status = ret.Status.ToString(),
+                    SettlementType = ret.SettlementType.ToString(),
+                    ItemsCount = ret.Items?.Count ?? 0,
+                    Notes = ret.Notes
+                }).ToList();
+            }
+            else if (string.Equals(section, "invoices", StringComparison.OrdinalIgnoreCase))
+            {
+                var bucket = (status ?? "unpaid").ToLowerInvariant();
+                if (bucket != "paid" && bucket != "partial" && bucket != "all") bucket = "unpaid";
+
+                var (invoices, total) = await _supplierRepository.GetInvoicesPageAsync(supplierId, bucket, search, pNum, pSize);
+                dto.InvoicesTotalCount = total;
+                dto.InvoicesTotalPages = Math.Max(1, (int)Math.Ceiling((double)total / pSize));
+
+                // Show readable item names in the expanded invoice row
+                var itemIds = invoices.SelectMany(i => i.Items).Select(i => i.RMSItemID);
+                var itemNames = await _itemRepository.GetByIdsAsync(itemIds);
+
+                dto.Invoices = invoices.Select(inv => new SupplierInvoiceStatementDto
+                {
+                    ID = inv.ID,
+                    InvoiceNumber = inv.InvoiceNumber,
+                    InvoiceDate = inv.InvoiceDate,
+                    TotalAmount = inv.TotalAmount,
+                    PaidAmount = inv.PaidAmount,
+                    RemainingAmount = inv.RemainingAmount,
+                    Status = inv.SupplierInvoiceStatus.ToString(),
+                    PaymentType = inv.PaymentType.ToString(),
+                    DueDate = inv.DueDate,
+                    Items = inv.Items.Select(item => new SupplierInvoiceItemDto
+                    {
+                        ID = item.ID,
+                        RMSItemID = item.RMSItemID,
+                        ItemDescription = itemNames.TryGetValue(item.RMSItemID, out var it) ? it.Description : null,
+                        Quantity = item.Quantity,
+                        UnitPrice = item.UnitPrice,
+                        TotalPrice = item.TotalPrice
+                    }).ToList(),
+                    Payments = inv.Payments.OrderByDescending(p => p.PaymentDate).Select(pay => new SupplierPaymentDto
+                    {
+                        ID = pay.ID,
+                        Amount = pay.Amount,
+                        PaymentDate = pay.PaymentDate,
+                        PaymentMethod = pay.PaymentMethod
+                    }).ToList()
+                }).ToList();
+            }
+
+            return dto;
         }
     }
 }

@@ -6,6 +6,7 @@ import {
   Supplier,
   SupplierItem,
   SupplierInvoice,
+  SupplierInvoicesPage,
   CreateInvoiceRequest,
   AddPaymentRequest,
   Worksheet,
@@ -13,7 +14,8 @@ import {
   OpenWorksheetWithPurchasesRequest,
   PurchaseLineDto,
   PagedResponse,
-  SupplierStatement
+  SupplierStatement,
+  StoreOption
 } from '../models/models';
 
 @Injectable({
@@ -23,6 +25,69 @@ export class ApiService {
   private readonly baseUrl = 'https://localhost:7122/api';
 
   constructor(private http: HttpClient) { }
+
+  // Stores / Branches from RMS Database
+  getStores(): Observable<StoreOption[]> {
+    return this.http.get<any[]>(`${this.baseUrl}/Stores`).pipe(
+      map(list => (list || []).map(s => ({
+        storeId: s.storeId || s.id,
+        id: s.storeId || s.id,
+        storeName: s.storeName || s.name || `فرع #${s.storeId || s.id}`,
+        name: s.storeName || s.name || `فرع #${s.storeId || s.id}`,
+        code: s.code,
+        city: s.city,
+        address: s.address,
+        phone: s.phone
+      })))
+    );
+  }
+
+  // Direct RMS Items Search & Retrieval (with real price & cost from DB)
+  searchItems(query: string = '', limit: number = 50): Observable<SupplierItem[]> {
+    let params = new HttpParams().set('limit', limit.toString());
+    if (query && query.trim()) {
+      params = params.set('query', query.trim());
+    }
+    return this.http.get<any[]>(`${this.baseUrl}/RMSItems/search`, { params }).pipe(
+      map(items => (items || []).map(i => ({
+        id: i.id || i.ID,
+        description: i.description || i.Description,
+        itemLookupCode: i.itemLookupCode || i.ItemLookupCode,
+        price: i.price ?? i.Price ?? 0,
+        cost: i.cost ?? i.Cost ?? 0,
+        quantity: i.quantity ?? i.Quantity ?? 0,
+        taxRate: 0
+      })))
+    );
+  }
+
+  getItemById(id: number): Observable<SupplierItem> {
+    return this.http.get<any>(`${this.baseUrl}/RMSItems/${id}`).pipe(
+      map(i => ({
+        id: i.id || i.ID,
+        description: i.description || i.Description,
+        itemLookupCode: i.itemLookupCode || i.ItemLookupCode,
+        price: i.price ?? i.Price ?? 0,
+        cost: i.cost ?? i.Cost ?? 0,
+        quantity: i.quantity ?? i.Quantity ?? 0,
+        taxRate: 0
+      }))
+    );
+  }
+
+  getItemByBarcode(barcode: string): Observable<SupplierItem> {
+    return this.http.get<any>(`${this.baseUrl}/RMSItems/barcode/${encodeURIComponent(barcode.trim())}`).pipe(
+      map(i => ({
+        id: i.id || i.ID,
+        description: i.description || i.Description,
+        itemLookupCode: i.itemLookupCode || i.ItemLookupCode,
+        price: i.price ?? i.Price ?? 0,
+        cost: i.cost ?? i.Cost ?? 0,
+        quantity: i.quantity ?? i.Quantity ?? 0,
+        taxRate: 0
+      }))
+    );
+  }
 
   // Suppliers with server-side pagination & search per page request
   getSuppliers(page: number = 1, pageSize: number = 10, search: string = ''): Observable<PagedResponse<Supplier>> {
@@ -93,13 +158,46 @@ export class ApiService {
     return this.http.get<SupplierItem[]>(`${this.baseUrl}/RMSSuppliers/${supplierId}/items`);
   }
 
-  getSupplierStatement(supplierId: number): Observable<SupplierStatement> {
-    return this.http.get<SupplierStatement>(`${this.baseUrl}/RMSSuppliers/${supplierId}/statement`);
+  getSupplierStatement(
+    supplierId: number,
+    status?: string,
+    section?: string,
+    page: number = 1,
+    pageSize: number = 10,
+    search?: string
+  ): Observable<SupplierStatement> {
+    let params = new HttpParams()
+      .set('page', page.toString())
+      .set('pageSize', pageSize.toString());
+    if (status) params = params.set('status', status);
+    if (section) params = params.set('section', section);
+    if (search && search.trim()) params = params.set('search', search.trim());
+    return this.http.get<SupplierStatement>(
+      `${this.baseUrl}/RMSSuppliers/${supplierId}/statement`,
+      { params }
+    );
   }
 
   // Invoices
   getInvoices(): Observable<SupplierInvoice[]> {
     return this.http.get<SupplierInvoice[]>(`${this.baseUrl}/SupplierInvoices`);
+  }
+
+  // Server-side paged + filtered invoices (search, status, supplier)
+  getInvoicesPaged(
+    page: number = 1,
+    pageSize: number = 10,
+    search: string = '',
+    status: string = '',
+    supplierId?: number
+  ): Observable<SupplierInvoicesPage> {
+    let params = new HttpParams()
+      .set('page', page.toString())
+      .set('pageSize', pageSize.toString());
+    if (search && search.trim()) params = params.set('search', search.trim());
+    if (status && status !== 'ALL') params = params.set('status', status);
+    if (supplierId) params = params.set('supplierId', supplierId.toString());
+    return this.http.get<SupplierInvoicesPage>(`${this.baseUrl}/SupplierInvoices`, { params });
   }
 
   getInvoiceById(id: number): Observable<SupplierInvoice> {
@@ -155,7 +253,11 @@ export class ApiService {
     return this.http.post<{ worksheetId: number; message: string }>(`${this.baseUrl}/RMSWorksheets/${worksheetId}/purchases`, items);
   }
 
-  approveWorksheet(worksheetId: number): Observable<{ worksheetId: number; status: number; message: string }> {
-    return this.http.post<{ worksheetId: number; status: number; message: string }>(`${this.baseUrl}/RMSWorksheets/${worksheetId}/approve`, {});
+  transferWorksheet(request: { title?: string; notes?: string; storeId: number; items: PurchaseLineDto[] }): Observable<{ worksheetId: number; status: number; message: string }> {
+    return this.http.post<{ worksheetId: number; status: number; message: string }>(`${this.baseUrl}/RMSWorksheets/transfer`, request);
+  }
+
+  approveWorksheet(worksheetId: number, destinationStoreId?: number | null): Observable<{ worksheetId: number; status: number; message: string }> {
+    return this.http.post<{ worksheetId: number; status: number; message: string }>(`${this.baseUrl}/RMSWorksheets/${worksheetId}/approve`, { destinationStoreId: destinationStoreId ?? null });
   }
 }

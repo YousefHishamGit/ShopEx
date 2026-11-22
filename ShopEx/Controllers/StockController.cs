@@ -20,15 +20,17 @@ namespace ShopEx.Controllers
             _stockService = stockService ?? throw new ArgumentNullException(nameof(stockService));
         }
 
-        // GET: api/Stock/balances?warehouseId=1&lowStockOnly=false
+        // GET: api/Stock/balances?warehouseId=1&search=&page=1&pageSize=20  (only items with quantity > 0)
         [HttpGet("balances")]
-        [ProducesResponseType(typeof(List<StockBalanceResponse>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(PagedStockBalanceResponse), StatusCodes.Status200OK)]
         public async Task<IActionResult> GetBalances(
             [FromQuery] int warehouseId,
-            [FromQuery] bool lowStockOnly,
-            CancellationToken ct)
+            [FromQuery] string? search,
+            CancellationToken ct,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20)
         {
-            var balances = await _stockService.GetBalancesAsync(warehouseId, lowStockOnly, ct);
+            var balances = await _stockService.GetBalancesAsync(warehouseId, search, page, pageSize, ct);
             return Ok(balances);
         }
 
@@ -47,17 +49,12 @@ namespace ShopEx.Controllers
             return Ok(balance);
         }
 
-        // GET: api/Stock/movements
+        // GET: api/Stock/movements?warehouseId=1  (latest 30 movements)
         [HttpGet("movements")]
         [ProducesResponseType(typeof(List<StockMovementResponse>), StatusCodes.Status200OK)]
-        public async Task<IActionResult> GetMovements(
-            [FromQuery] int? warehouseId,
-            [FromQuery] int? rmsItemId,
-            [FromQuery] DateTime? fromDate,
-            [FromQuery] DateTime? toDate,
-            CancellationToken ct)
+        public async Task<IActionResult> GetMovements([FromQuery] int? warehouseId, CancellationToken ct)
         {
-            var movements = await _stockService.GetMovementsAsync(warehouseId, rmsItemId, fromDate, toDate, ct);
+            var movements = await _stockService.GetRecentMovementsAsync(warehouseId, ct);
             return Ok(movements);
         }
 

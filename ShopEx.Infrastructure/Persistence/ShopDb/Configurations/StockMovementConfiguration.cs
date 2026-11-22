@@ -51,8 +51,7 @@ namespace ShopEx.Infrastructure.Persistence.ShopDb.Configurations
 
             // Indexes
             builder.HasIndex(x => new { x.RMSItemID, x.WarehouseID });
-            builder.HasIndex(x => x.MovementDate);
-            builder.HasIndex(x => new { x.ReferenceType, x.ReferenceID });
+            builder.HasIndex(x => x.MovementDate);            builder.HasIndex(x => new { x.ReferenceType, x.ReferenceID });
         }
     }
 }

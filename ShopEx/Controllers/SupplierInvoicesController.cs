@@ -23,8 +23,21 @@ namespace ShopEx.Controllers
         // GET: api/SupplierInvoices
         [HttpGet]
         [ProducesResponseType(typeof(List<SupplierInvoiceResponse>), StatusCodes.Status200OK)]
-        public async Task<IActionResult> GetAll(CancellationToken ct)
+        public async Task<IActionResult> GetAll(
+            [FromQuery] int? page,
+            [FromQuery] int? pageSize,
+            [FromQuery] string? search,
+            [FromQuery] string? status,
+            [FromQuery] int? supplierId,
+            CancellationToken ct)
         {
+            // Paged + filtered in SQL when paging params are supplied
+            if (page.HasValue || pageSize.HasValue)
+            {
+                var paged = await _invoiceService.GetPagedAsync(page ?? 1, pageSize ?? 10, search, status, supplierId, ct);
+                return Ok(paged);
+            }
+
             var invoices = await _invoiceService.GetAllAsync(ct);
             return Ok(invoices);
         }

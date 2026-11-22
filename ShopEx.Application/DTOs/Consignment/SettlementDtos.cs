@@ -34,6 +34,7 @@ namespace ShopEx.Application.DTOs.Consignment
         public int ID { get; set; }
         public int ConsignmentItemID { get; set; }
         public int RMSItemID { get; set; }
+        public string? ItemDescription { get; set; }
         public decimal QuantitySold { get; set; }
         public decimal QuantityReturned { get; set; }
         public decimal SoldValue { get; set; }

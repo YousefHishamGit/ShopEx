@@ -8,6 +8,7 @@ namespace ShopEx.Application.DTOs.ShopEx
     {
         public int ID { get; set; }
         public int RMSSupplierID { get; set; }
+        public string? RMSSupplierName { get; set; }
         public string InvoiceNumber { get; set; } = string.Empty;
         public DateTime InvoiceDate { get; set; }
         public decimal TotalAmount { get; set; }

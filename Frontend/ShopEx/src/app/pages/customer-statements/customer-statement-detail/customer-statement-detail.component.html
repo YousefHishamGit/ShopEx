@@ -1,4 +1,4 @@
-<div class="space-y-6">
+<div class="screen-only space-y-6">
   <!-- Top Navigation & Actions -->
   <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
     <div class="flex items-center gap-3">
@@ -300,7 +300,7 @@
 <!-- ========================================================== -->
 <div
   *ngIf="showInvoiceModal"
-  class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in"
+  class="screen-only fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in"
 >
   <div
     class="bg-light-surface rounded border border-outline shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden"
@@ -451,3 +451,73 @@
     </div>
   </div>
 </div>
+
+<!-- ==================================================== -->
+<!-- OFFICIAL PRINT: customer statement (A4) -->
+<!-- ==================================================== -->
+<app-print-sheet *ngIf="printMode === 'statement' && statement"
+  title="كشف حساب عميل"
+  [docNumber]="'حساب ' + (statement.accountNumber || statement.customerID)"
+  subtitle="كشف الفواتير المفتوحة على العميل"
+  [signatures]="['المحاسب', 'الاعتماد والختم']">
+
+  <div class="ps-row">
+    <div class="ps-box">
+      <div class="ps-box-title">بيانات العميل</div>
+      <div class="ps-box-body">
+        <div class="ps-kv"><span>الاسم:</span><strong>{{ statement.customerName || 'عميل بدون اسم' }}</strong></div>
+        <div class="ps-kv"><span>رقم الحساب:</span><strong class="ps-mono">{{ statement.accountNumber || statement.customerID }}</strong></div>
+        <div class="ps-kv" *ngIf="statement.phoneNumber"><span>الهاتف:</span><strong class="ps-mono">{{ statement.phoneNumber }}</strong></div>
+        <div class="ps-kv" *ngIf="statement.address"><span>العنوان:</span><strong>{{ statement.address }}</strong></div>
+      </div>
+    </div>
+    <div class="ps-box">
+      <div class="ps-box-title">ملخص الحساب</div>
+      <div class="ps-box-body">
+        <div class="ps-kv"><span>الرصيد الحالي:</span><strong class="ps-mono">{{ statement.accountBalance | number:'1.2-2' }} ج.م</strong></div>
+        <div class="ps-kv"><span>عدد الفواتير المعروضة:</span><strong>{{ filteredInvoices.length }}</strong></div>
+        <div class="ps-kv"><span>الفلترة:</span><strong>{{ minDaysOld ? ('متأخرة ' + minDaysOld + '+ يوم') : 'جميع الفواتير المفتوحة' }}</strong></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ps-h">الفواتير المفتوحة</div>
+  <table class="ps-table">
+    <thead>
+      <tr>
+        <th class="ps-c" style="width:28px">#</th>
+        <th>رقم الفاتورة</th>
+        <th>التاريخ</th>
+        <th>الفرع</th>
+        <th class="ps-c" style="width:60px">الأيام</th>
+        <th class="ps-n" style="width:90px">الإجمالي</th>
+        <th class="ps-n" style="width:90px">المسدد</th>
+        <th class="ps-n" style="width:90px">المتبقي</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let inv of filteredInvoices; let i = index">
+        <td class="ps-c">{{ i + 1 }}</td>
+        <td class="ps-mono">#{{ inv.invoiceID }}</td>
+        <td class="ps-mono">{{ inv.invoiceDate | date:'yyyy/MM/dd' }}</td>
+        <td>{{ inv.storeName || 'الفرع الرئيسي' }}</td>
+        <td class="ps-c">{{ inv.daysOld }}</td>
+        <td class="ps-n">{{ inv.totalAmount | number:'1.2-2' }}</td>
+        <td class="ps-n">{{ inv.deposit | number:'1.2-2' }}</td>
+        <td class="ps-n">{{ inv.remainingAmount | number:'1.2-2' }}</td>
+      </tr>
+      <tr *ngIf="filteredInvoices.length === 0"><td colspan="8" class="ps-c">لا توجد فواتير مفتوحة</td></tr>
+    </tbody>
+    <tfoot *ngIf="filteredInvoices.length > 0">
+      <tr>
+        <td colspan="5">الإجمالي</td>
+        <td class="ps-n">{{ filteredTotal | number:'1.2-2' }}</td>
+        <td class="ps-n">{{ filteredDeposit | number:'1.2-2' }}</td>
+        <td class="ps-n">{{ filteredRemaining | number:'1.2-2' }}</td>
+      </tr>
+    </tfoot>
+  </table>
+</app-print-sheet>
+
+<!-- Official print of the opened invoice -->
+<app-customer-invoice-print *ngIf="printMode === 'invoice' && showInvoiceModal && selectedInvoiceDetail" [invoice]="selectedInvoiceDetail"></app-customer-invoice-print>

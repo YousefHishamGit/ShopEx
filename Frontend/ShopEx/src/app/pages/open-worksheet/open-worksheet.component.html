@@ -1,164 +1,97 @@
-<div class="max-w-6xl mx-auto space-y-6">
-  <!-- Page Header -->
-  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-outline">
-    <div>
-      <div class="flex items-center gap-2">
-        <span class="material-symbols-outlined text-primary text-[28px]">assignment_turned_in</span>
-        <h1 class="font-headline text-headline-lg text-light-on-surface tracking-tight font-bold text-2xl">
-          إنشاء Worksheet (Purchase Orders)
-        </h1>
-      </div>
-      <p class="text-body-md text-light-on-surface-variant text-sm mt-1">
-        قم بإدخال بنود أوامر الشراء واعتمادها مباشرة (Approve) لتحديث مخزون وحركات RMS.
-      </p>
-    </div>
+<div class="max-w-4xl mx-auto space-y-6" dir="rtl">
+  <div class="pb-2 border-b border-outline">
     <div class="flex items-center gap-2">
-      <button (click)="resetForm()" type="button" class="px-3.5 py-2 bg-light-surface border border-outline rounded text-sm text-light-on-surface-variant hover:bg-light-surface-variant transition-colors flex items-center gap-1.5 shadow-sm">
-        <span class="material-symbols-outlined text-[18px]">restart_alt</span>
-        <span>إعادة تعيين النموذج</span>
-      </button>
+      <span class="material-symbols-outlined text-primary text-[28px]">local_shipping</span>
+      <h1 class="font-headline text-slate-900 tracking-tight font-bold text-2xl">تحويل أصناف إلى فرع (Worksheet)</h1>
     </div>
+    <p class="text-slate-500 text-sm mt-1">اختر الفرع، ثم أضف الأصناف من المخزن، ثم اعتمد. يُرسل الأمر إلى RMS بحالة
+      معتمد (2).</p>
   </div>
 
-  <!-- Success Notification -->
-  <div *ngIf="successMessage" class="p-4 rounded-xl bg-green-50 text-green-800 border-2 border-green-300 flex items-center gap-3 text-sm shadow-sm animate-bounce-short">
-    <div class="w-9 h-9 rounded-full bg-green-600 text-white flex items-center justify-center shrink-0">
-      <span class="material-symbols-outlined text-[22px]">verified</span>
+  <div *ngIf="successMessage"
+    class="p-4 rounded-xl bg-green-50 text-green-800 border-2 border-green-300 flex items-center justify-between text-sm">
+    <div class="flex items-center gap-2">
+      <span class="material-symbols-outlined text-green-600">verified</span>
+      <span class="font-medium">{{ successMessage }}</span>
     </div>
+    <button (click)="successMessage = ''" class="text-green-700 p-1"><span
+        class="material-symbols-outlined text-[18px]">close</span></button>
+  </div>
+  <div *ngIf="errorMessage"
+    class="p-4 rounded-xl bg-red-50 text-red-700 border border-red-200 flex items-center justify-between text-sm">
+    <div class="flex items-center gap-2">
+      <span class="material-symbols-outlined text-red-600">error</span>
+      <span class="font-medium">{{ errorMessage }}</span>
+    </div>
+    <button (click)="errorMessage = ''" class="text-red-700 p-1"><span
+        class="material-symbols-outlined text-[18px]">close</span></button>
+  </div>
+
+  <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-6">
+    <!-- Step 1: Branch -->
     <div>
-      <div class="font-bold text-base text-green-900">عملية ناجحة!</div>
-      <div class="font-medium text-green-700">{{ successMessage }}</div>
+      <label class="block text-sm font-bold text-slate-900 mb-1.5">
+        <span
+          class="inline-flex w-6 h-6 rounded-full bg-primary text-white text-xs items-center justify-center ml-1">1</span>
+        الفرع المستلم <span class="text-red-500">*</span>
+      </label>
+      <select [(ngModel)]="storeId"
+        class="w-full px-9 py-3 bg-slate-50 border border-slate-300 rounded-xl text-base font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">
+        <option [ngValue]="null" disabled> — اختر الفرع — </option>
+        <option *ngFor="let s of stores" [ngValue]="s.storeId">{{ s.storeName }}</option>
+      </select>
     </div>
-  </div>
 
-  <!-- Error Notification -->
-  <div *ngIf="errorMessage" class="p-4 rounded-xl bg-error-container text-on-error-container border border-error/30 flex items-center gap-3 text-sm shadow-sm">
-    <span class="material-symbols-outlined text-error text-[24px]">error</span>
-    <span class="font-medium">{{ errorMessage }}</span>
-  </div>
-
-  <!-- Main Card Form Container -->
-  <div class="bg-light-surface rounded-xl border border-outline shadow-sm overflow-hidden space-y-6 p-6">
-    <!-- Header Details: Title, Notes, Supplier helper -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-      <div>
-        <label class="block text-xs font-bold text-light-on-surface mb-1">
-          عنوان الـ Worksheet <span class="text-red-500">*</span>
+    <!-- Step 2: Items -->
+    <div [class.opacity-50]="!storeId" [class.pointer-events-none]="!storeId" class="space-y-3">
+      <div class="flex items-center justify-between">
+        <label class="text-sm font-bold text-slate-900">
+          <span
+            class="inline-flex w-6 h-6 rounded-full bg-primary text-white text-xs items-center justify-center ml-1">2</span>
+          الأصناف من المخزن
+          <span class="text-xs font-normal text-slate-500 mr-2">({{ filledLines.length }} صنف | {{ totalQty }}
+            قطعة)</span>
         </label>
-        <input [(ngModel)]="title" type="text" placeholder="مثال: أمر شراء توريدات شهرية"
-               class="w-full px-3.5 py-2.5 bg-light-surface-variant border border-outline rounded-lg text-sm text-light-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">
-      </div>
-
-      <div>
-        <label class="block text-xs font-bold text-light-on-surface mb-1">
-          تسهيل اختيار المنتجات (اختر مورد لعرض منتجاته):
-        </label>
-        <div class="flex items-center gap-2">
-          <select [(ngModel)]="selectedSupplierId" (ngModelChange)="onSupplierChange()"
-                  class="w-full px-3.5 py-2.5 bg-light-surface-variant border border-outline rounded-lg text-sm text-light-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">
-            <option [ngValue]="null">-- اختيار مورد اختياري لتحميل قائمة منتجاته --</option>
-            <option *ngFor="let s of suppliers" [ngValue]="s.id">
-              #{{ s.id }} - {{ s.supplierName }} ({{ s.code }})
-            </option>
-          </select>
-          <span *ngIf="loadingItems" class="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin shrink-0"></span>
-        </div>
-      </div>
-    </div>
-
-    <div>
-      <label class="block text-xs font-bold text-light-on-surface mb-1">ملاحظات إضافية</label>
-      <input [(ngModel)]="notes" type="text" placeholder="أي ملاحظات تخص أوامر الشراء أو التوريد..."
-             class="w-full px-3.5 py-2.5 bg-light-surface-variant border border-outline rounded-lg text-sm text-light-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">
-    </div>
-
-    <!-- PURCHASE ITEMS SECTION -->
-    <div class="border border-outline rounded-xl overflow-hidden bg-white shadow-sm">
-      <div class="p-4 bg-light-surface-variant border-b border-outline flex items-center justify-between">
-        <div class="flex items-center gap-2">
-          <span class="material-symbols-outlined text-primary text-[20px]">shopping_cart</span>
-          <span class="font-bold text-sm text-light-on-surface">بنود أوامر الشراء (Purchase Lines)</span>
-          <span class="text-xs px-2 py-0.5 rounded bg-blue-100 text-primary font-bold">
-            {{ items.length }} بند
-          </span>
-        </div>
-        <button (click)="addItemRow()" type="button" 
-                class="px-3 py-1.5 bg-white border border-outline hover:bg-slate-50 text-xs text-primary font-bold rounded-lg flex items-center gap-1 shadow-sm transition-colors">
-          <span class="material-symbols-outlined text-[16px]">add_circle</span>
-          <span>+ إضافة بند شراء جديد</span>
+        <button type="button" (click)="addLine()"
+          class="px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-100 text-xs text-primary font-bold rounded-lg flex items-center gap-1">
+          <span class="material-symbols-outlined text-[16px]">add_circle</span><span>إضافة صنف</span>
         </button>
       </div>
+      <p *ngIf="!storeId" class="text-xs text-amber-700">اختر الفرع أولًا لتفعيل إضافة الأصناف.</p>
+      <p *ngIf="loadingStock" class="text-xs text-primary">جاري تحميل أرصدة المخزن...</p>
 
-      <div class="overflow-x-auto">
-        <table class="w-full text-left text-sm border-collapse">
-          <thead class="bg-slate-50 text-xs text-light-on-surface-variant font-semibold border-b border-outline">
+      <div class="border border-slate-200 rounded-xl overflow-hidden">
+        <table class="w-full text-right text-sm border-collapse">
+          <thead class="bg-slate-50 text-xs text-slate-500 font-semibold border-b border-slate-200">
             <tr>
               <th class="px-3 py-3 w-10 text-center">#</th>
-              <th class="px-4 py-3">المنتج / الصنف <span class="text-red-500">*</span></th>
-              <th class="px-3 py-3 w-28 text-center">الكمية <span class="text-red-500">*</span></th>
-              <th class="px-3 py-3 w-32 text-right">سعر الشراء (ج.م) <span class="text-red-500">*</span></th>
-              <th class="px-3 py-3 w-24 text-center">رقم الفرع (Store)</th>
-              <th class="px-3 py-3 w-24 text-center">الضريبة %</th>
-              <th class="px-4 py-3 w-32 text-right">إجمالي البند</th>
-              <th class="px-2 py-3 w-12 text-center">حذف</th>
+              <th class="px-4 py-3">الصنف</th>
+              <th class="px-3 py-3 w-24 text-center">المتاح</th>
+              <th class="px-3 py-3 w-28 text-center">الكمية</th>
+              <th class="px-2 py-3 w-12"></th>
             </tr>
           </thead>
-          <tbody class="divide-y divide-outline">
-            <tr *ngFor="let line of items; let idx = index" class="hover:bg-slate-50/50">
-              <td class="px-3 py-3 text-center font-mono text-xs text-slate-400 font-bold">{{ idx + 1 }}</td>
-              
-              <!-- Product Select / Item ID -->
+          <tbody class="divide-y divide-slate-100">
+            <tr *ngFor="let l of lines; let i = index">
+              <td class="px-3 py-3 text-center text-xs font-mono text-slate-400 font-bold">{{ i + 1 }}</td>
               <td class="px-4 py-3">
-                <div *ngIf="supplierItems.length > 0" class="space-y-1">
-                  <select [ngModel]="line.itemId" (ngModelChange)="onItemSelect(idx, $event)"
-                          class="w-full px-3 py-1.5 bg-light-surface-variant border border-outline rounded text-sm text-light-on-surface">
-                    <option [ngValue]="0" disabled>-- اختر منتج --</option>
-                    <option *ngFor="let it of supplierItems" [ngValue]="it.id">
-                      #{{ it.id }} - {{ it.description }} (سعر: {{ it.cost || it.price || 0 }})
-                    </option>
-                  </select>
-                </div>
-                <div *ngIf="supplierItems.length === 0" class="grid grid-cols-1 md:grid-cols-2 gap-2">
-                  <input [(ngModel)]="line.itemId" type="number" min="1" placeholder="Item ID (RMS) *"
-                         class="px-3 py-1.5 bg-light-surface-variant border border-outline rounded text-sm font-mono text-slate-800">
-                  <input [(ngModel)]="line.description" type="text" placeholder="وصف المنتج (اختياري)"
-                         class="px-3 py-1.5 bg-light-surface-variant border border-outline rounded text-sm text-slate-700">
-                </div>
+                <app-tabbed-select [items]="selectableFor(i)" [selectedId]="l.itemId || null"
+                  placeholder="اختر صنفًا من المخزن..." title="أصناف المخزن" defaultIcon="inventory_2" [pageSize]="10"
+                  (select)="onItemSelect(i, $event)" (clear)="onItemClear(i)">
+                </app-tabbed-select>
               </td>
-
-              <!-- Quantity -->
+              <td class="px-3 py-3 text-center font-mono font-bold text-slate-700">{{ l.itemId ? l.available : '—' }}
+              </td>
               <td class="px-3 py-3">
-                <input [(ngModel)]="line.qty" type="number" min="1" step="1"
-                       class="w-full px-2 py-1.5 bg-light-surface-variant border border-outline rounded text-sm font-mono text-center font-bold">
+                <input [(ngModel)]="l.qty" type="number" min="1" [max]="l.available" step="1" [disabled]="!l.itemId"
+                  [class.border-red-400]="overStock(l)" [class.bg-red-50]="overStock(l)"
+                  class="w-full px-2 py-2 bg-slate-50 border border-slate-300 rounded-lg text-center font-mono font-bold focus:outline-none focus:border-primary disabled:opacity-40">
+                <span *ngIf="overStock(l)" class="text-[10px] text-red-600 block text-center mt-0.5">أكبر من
+                  المتاح</span>
               </td>
-
-              <!-- Price -->
-              <td class="px-3 py-3">
-                <input [(ngModel)]="line.price" type="number" min="0" step="0.01"
-                       class="w-full px-2 py-1.5 bg-light-surface-variant border border-outline rounded text-sm font-mono text-right font-medium">
-              </td>
-
-              <!-- Store ID -->
-              <td class="px-3 py-3">
-                <input [(ngModel)]="line.storeId" type="number" min="1"
-                       class="w-full px-2 py-1.5 bg-light-surface-variant border border-outline rounded text-sm font-mono text-center text-slate-600">
-              </td>
-
-              <!-- Tax Rate -->
-              <td class="px-3 py-3">
-                <input [(ngModel)]="line.taxRate" type="number" min="0" step="0.5"
-                       class="w-full px-2 py-1.5 bg-light-surface-variant border border-outline rounded text-sm font-mono text-center text-slate-600">
-              </td>
-
-              <!-- Line Total -->
-              <td class="px-4 py-3 text-right font-mono font-bold text-sm text-primary">
-                {{ ((line.qty || 0) * (line.price || 0) * (1 + ((line.taxRate || 0)/100))) | number:'1.2-2' }}
-              </td>
-
-              <!-- Remove -->
               <td class="px-2 py-3 text-center">
-                <button (click)="removeItemRow(idx)" [disabled]="items.length === 1"
-                        class="p-1 text-slate-400 hover:text-red-600 disabled:opacity-20 transition-colors">
+                <button type="button" (click)="removeLine(i)"
+                  class="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg" title="حذف">
                   <span class="material-symbols-outlined text-[18px]">delete</span>
                 </button>
               </td>
@@ -167,49 +100,22 @@
         </table>
       </div>
 
-      <!-- Add Row & Totals Bar -->
-      <div class="p-4 bg-slate-50 border-t border-outline flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <button (click)="addItemRow()" type="button" class="text-xs text-primary font-bold flex items-center gap-1 hover:underline">
-          <span class="material-symbols-outlined text-[16px]">add_circle</span>
-          <span>+ إضافة بند شراء جديد</span>
-        </button>
-
-        <div class="flex items-center gap-6 text-sm">
-          <div class="text-light-on-surface-variant">
-            إجمالي القطع: <span class="font-bold text-light-on-surface font-mono">{{ totalItemsCount }}</span>
-          </div>
-          <div class="text-light-on-surface">
-            إجمالي قيمة الـ Worksheet:
-            <span class="text-lg font-black text-primary font-mono ml-2">
-              {{ totalAmount | number:'1.2-2' }} ج.م
-            </span>
-          </div>
-        </div>
-      </div>
+      <input [(ngModel)]="notes" type="text" placeholder="ملاحظات (اختياري)"
+        class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:outline-none focus:border-primary">
     </div>
 
-    <!-- BOTTOM ACTION BAR: APPROVE & SUBMIT -->
-    <div class="pt-4 border-t border-outline flex flex-col sm:flex-row items-center justify-between gap-4">
-      <button (click)="resetForm()" type="button" class="text-xs text-slate-500 hover:text-slate-800 flex items-center gap-1">
-        <span class="material-symbols-outlined text-[16px]">clear</span>
-        <span>إلغاء وتفريغ الحقول</span>
-      </button>
-
-      <div class="flex items-center gap-3">
-        <!-- Optional Save Draft -->
-        <button (click)="saveDraft()" [disabled]="submitting"
-                class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 rounded-lg text-sm font-semibold transition-colors disabled:opacity-50">
-          حفظ كمسودة (بدون اعتماد)
-        </button>
-
-        <!-- Main Approve Action -->
-        <button (click)="approveAndSubmitWorksheet()" [disabled]="submitting"
-                class="px-6 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-bold flex items-center gap-2 shadow-md hover:shadow-lg disabled:opacity-50 transition-all">
-          <span *ngIf="submitting" class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-          <span class="material-symbols-outlined text-[20px]">check_circle</span>
-          <span>اعتماد الـ Worksheet (Approve)</span>
-        </button>
+    <!-- Approve -->
+    <div class="pt-4 border-t border-slate-200 flex items-center justify-between gap-4">
+      <div class="text-sm text-slate-600" *ngIf="storeName && filledLines.length">
+        تحويل <strong class="font-mono">{{ totalQty }}</strong> قطعة إلى <strong>{{ storeName }}</strong>
       </div>
+      <button (click)="approve()" [disabled]="submitting || !canSubmit"
+        class="mr-auto px-8 py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl text-sm font-bold flex items-center gap-2 shadow-md disabled:opacity-50 transition-all">
+        <span *ngIf="submitting"
+          class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+        <span *ngIf="!submitting" class="material-symbols-outlined text-[20px]">check_circle</span>
+        <span>{{ submitting ? 'جاري الاعتماد...' : 'اعتماد (Approve)' }}</span>
+      </button>
     </div>
   </div>
 </div>

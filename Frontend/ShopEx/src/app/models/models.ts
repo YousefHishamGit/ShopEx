@@ -13,7 +13,7 @@ export interface Supplier {
   accountNumber?: string;
   taxNumber?: string;
   contactName?: string;
-  phoneNumber?: string;
+  phone?: string;
   emailAddress?: string;
   address1?: string;
   city?: string;
@@ -34,10 +34,22 @@ export interface SupplierInvoiceItem {
   id: number;
   rmsItemID: number;
   itemDescription?: string;
+  itemLookupCode?: string;
   quantity: number;
   unitPrice: number;
   taxRate?: number;
   totalPrice: number;
+}
+
+export interface SupplierInvoicesPage {
+  items: SupplierInvoice[];
+  totalCount: number;
+  pageNumber: number;
+  pageSize: number;
+  totalPages: number;
+  totalAmount: number;
+  totalPaid: number;
+  totalRemaining: number;
 }
 
 export interface SupplierPayment {
@@ -79,6 +91,7 @@ export interface SupplierPaymentStatement {
 export interface SupplierInvoiceItemStatement {
   id: number;
   rmsItemID: number;
+  itemDescription?: string;
   quantity: number;
   unitPrice: number;
   totalPrice: number;
@@ -125,9 +138,30 @@ export interface SupplierStatement {
   totalPaidAmount: number;
   totalReturnsAmount?: number;
   totalRefundsAmount?: number;
+  totalPendingRefundsAmount?: number;
   totalRemainingAmount: number;
+
+  // Counts (always returned from server)
+  unpaidCount: number;
+  partialCount: number;
+  paidCount: number;
+  totalInvoicesCount: number;
+
+  // Invoice pagination metadata
+  invoicesPageNumber: number;
+  invoicesPageSize: number;
+  invoicesTotalPages: number;
+  invoicesTotalCount: number;
+
+  // Returns metadata
+  returnsCount: number;
+  returnsPageNumber: number;
+  returnsPageSize: number;
+  returnsTotalPages: number;
+  returnsTotalCount: number;
+
   invoices: SupplierInvoiceStatement[];
-  returns?: SupplierReturnStatement[];
+  returns: SupplierReturnStatement[];
 }
 
 export interface CreateInvoiceItemRequest {
@@ -345,6 +379,10 @@ export interface StockBalance {
   warehouseID: number;
   warehouseName: string;
   rmsItemID: number;
+  itemDescription?: string;
+  itemLookupCode?: string;
+  retailPrice?: number;
+  cost?: number;
   quantityOnHand: number;
   averageCost: number;
   reorderLevel?: number;
@@ -353,11 +391,21 @@ export interface StockBalance {
   isLowStock: boolean;
 }
 
+export interface PagedStockBalances {
+  items: StockBalance[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+}
+
 export interface StockMovement {
   id: number;
   warehouseID: number;
   warehouseName: string;
   rmsItemID: number;
+  itemDescription?: string;
+  isIncoming: boolean;
   movementType: number;
   movementTypeName: string;
   quantity: number;
@@ -468,6 +516,7 @@ export interface CreateSupplierReturnRequest {
   returnDate?: string;
   settlementType: SupplierReturnSettlementType;
   notes?: string;
+  confirmImmediately?: boolean;
   items: CreateSupplierReturnItemRequest[];
 }
 
@@ -515,6 +564,8 @@ export interface ConsignmentItem {
   id: number;
   consignmentID: number;
   rmsItemID: number;
+  itemDescription?: string;
+  itemLookupCode?: string;
   quantityIssued: number;
   unitPrice: number;
   unitCost: number;
@@ -531,6 +582,7 @@ export interface ConsignmentSettlementItem {
   id: number;
   consignmentItemID: number;
   rmsItemID: number;
+  itemDescription?: string;
   quantitySold: number;
   quantityReturned: number;
   soldValue: number;
@@ -561,6 +613,8 @@ export interface Consignment {
   dealerID: number;
   dealerName: string;
   dealerPhone: string;
+  warehouseID?: number;
+  warehouseName?: string;
   issueDate: string;
   agreedDays?: number;
   dueDate: string;
@@ -727,7 +781,25 @@ export enum BalanceType {
 
 export interface StoreOption {
   id: number;
+  storeId: number;
   name: string;
+  storeName: string;
+  code?: string;
+  city?: string;
+  address?: string;
+  phone?: string;
+}
+
+export interface RMSItem {
+  id: number;
+  description: string;
+  itemLookupCode?: string;
+  price?: number;
+  priceA?: number;
+  cost?: number;
+  lastCost?: number;
+  quantity?: number;
+  supplierID?: number;
 }
 
 export interface ChargeBalanceRequest {
@@ -804,7 +876,7 @@ export interface CloseStoreBalanceRequest {
 
 export interface BalanceTransactionItem {
   id: number;
-  transactionType: string;
+  transactionType: 'Charge' | 'Closure';
   storeId: number;
   storeName?: string;
   balanceType: BalanceType;
@@ -862,7 +934,8 @@ export interface CreateExpenseRequest {
 }
 
 export interface UpdateExpenseRequest {
-  categoryId: number;
+  categoryId?: number;
+  categoryName?: string;
   storeId?: number;
   amount: number;
   expenseDate: string;
@@ -897,9 +970,21 @@ export interface ExpenseByCategorySummaryDto {
   percentage: number;
 }
 
+export interface ExpenseFilters {
+  storeId?: number;
+  categoryId?: number;
+  fromDate?: string;
+  toDate?: string;
+  paymentMethod?: number;
+  search?: string;
+}
+
 export interface ExpenseSummaryDto {
   totalAmount: number;
   totalCount: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
   items: ExpenseResponse[];
   categorySummaries: ExpenseByCategorySummaryDto[];
 }

@@ -10,7 +10,8 @@ namespace ShopEx.Application.interfaces.RMS.Service
         Task<int> OpenWorksheetAsync(OpenWorksheetDto dto, CancellationToken cancellationToken = default);
         Task AddPurchasesAsync(int worksheetId, List<PurchaseLineDto> items, CancellationToken cancellationToken = default);
         Task<int> OpenWorksheetWithPurchasesAsync(OpenWorksheetDto dto, List<PurchaseLineDto> items, CancellationToken cancellationToken = default);
-        Task ApproveWorksheetAsync(int worksheetId, CancellationToken cancellationToken = default);
+        Task<int> CreateApprovedTransferAsync(TransferWorksheetRequest request, CancellationToken cancellationToken = default);
+        Task ApproveWorksheetAsync(int worksheetId, int? destinationStoreId = null, CancellationToken cancellationToken = default);
         Task<WorksheetResponse?> GetByIdAsync(int worksheetId, CancellationToken cancellationToken = default);
         Task<List<WorksheetResponse>> GetAllAsync(CancellationToken cancellationToken = default);
     }

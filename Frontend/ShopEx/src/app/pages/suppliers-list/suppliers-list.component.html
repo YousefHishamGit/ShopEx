@@ -6,21 +6,9 @@
         <span class="material-symbols-outlined text-primary text-[28px]">storefront</span>
         <h1 class="font-headline text-headline-lg text-light-on-surface tracking-tight font-bold text-2xl">الموردين</h1>
       </div>
-      <p class="text-body-md text-light-on-surface-variant text-sm mt-1">
-        قائمة الموردين من RMS مع دعم التصفح السريع (Pagination عبر السيرفر) للوصول لكشف الحساب والفواتير.
-      </p>
+
     </div>
-    <div class="flex items-center gap-3">
-      <button (click)="fetchSuppliers(currentPage)"
-        class="px-3.5 py-2 text-light-on-surface-variant bg-light-surface border border-outline rounded hover:bg-light-surface-variant text-body-sm font-medium flex items-center gap-1.5 shadow-sm transition-colors">
-        <span class="material-symbols-outlined text-[18px]">sync</span>
-        <span>تحديث</span>
-      </button>
-      <!-- <a routerLink="/worksheets" class="px-4 py-2 bg-primary text-on-primary rounded text-body-sm font-semibold flex items-center gap-2 shadow hover:bg-blue-700 transition-colors">
-        <span class="material-symbols-outlined text-[18px]">post_add</span>
-        <span>إنشاء Worksheet</span>
-      </a> -->
-    </div>
+
   </div>
 
   <!-- Error notification -->
@@ -45,7 +33,7 @@
 
       <div class="flex items-center gap-4 text-body-sm text-light-on-surface-variant text-sm">
         <div class="flex items-center gap-2">
-
+          <span class="text-sm text-light-on-surface"> عرض في الصفحة</span>
           <div class="relative inline-flex items-center">
             <select [(ngModel)]="pageSize" (change)="onPageSizeChange()"
               class="appearance-none !bg-none bg-light-surface border border-outline rounded-md py-1 pr-3 pl-8 text-sm text-light-on-surface focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer">
@@ -61,7 +49,7 @@
               </svg>
             </div>
           </div>
-          <span class="text-sm text-light-on-surface"> : عرض في الصفحة</span>
+
         </div>
         <div class="border-r border-outline h-4"></div>
         <div class="flex items-center gap-1.5 text-xs text-primary bg-primary/5 px-2.5 py-1 rounded-full font-medium">
@@ -99,72 +87,79 @@
     </div>
 
     <!-- Data Table -->
-    <div *ngIf="!loading && suppliers.length > 0" class="overflow-x-auto">
-      <table class="w-full text-left border-collapse">
+    <div *ngIf="!loading && suppliers.length > 0" class="overflow-x-auto rounded-lg border border-outline-variant">
+      <table class="w-full text-start border-collapse">
         <thead class="bg-light-surface-variant border-b border-outline">
           <tr>
-            <th scope="col" class="px-6 py-3.5 font-title text-title-md text-light-on-surface font-semibold w-24">ID
+            <th scope="col" class="px-6 py-3.5 font-title text-title-md text-light-on-surface font-semibold text-start">
+              المورد
             </th>
-            <th scope="col" class="px-6 py-3.5 font-title text-title-md text-light-on-surface font-semibold">المورد</th>
-            <th scope="col" class="px-6 py-3.5 font-title text-title-md text-light-on-surface font-semibold">كود المورد
+            <th scope="col"
+              class="px-6 py-3.5 font-title text-title-md text-light-on-surface font-semibold whitespace-nowrap text-start">
+              كود المورد
             </th>
-            <th scope="col" class="px-6 py-3.5 font-title text-title-md text-light-on-surface font-semibold">رقم الحساب
+            <th scope="col" class="px-6 py-3.5 font-title text-title-md text-light-on-surface font-semibold text-start">
+              بيانات التواصل <!-- تم تعديل العنوان ليطابق المحتوى -->
             </th>
-            <th scope="col" class="px-6 py-3.5 font-title text-title-md text-light-on-surface font-semibold">جهة الاتصال
-              / الهاتف</th>
-            <th scope="col" class="px-6 py-3.5 text-right font-title text-title-md text-light-on-surface font-semibold">
-              الإجراءات</th>
+            <th scope="col"
+              class="px-6 py-3.5 text-end font-title text-title-md text-light-on-surface font-semibold whitespace-nowrap">
+              الإجراءات
+            </th>
           </tr>
         </thead>
+
         <tbody class="divide-y divide-outline-variant text-body-md text-light-on-surface">
           <tr *ngFor="let s of suppliers" (click)="viewSupplierStatement(s.id)"
-            class="hover:bg-primary/5 transition-colors cursor-pointer group">
-            <td class="px-6 py-3.5 font-mono text-sm text-light-on-surface-variant font-medium">#{{ s.id }}</td>
+            class="hover:bg-primary/5 transition-colors cursor-pointer group align-middle">
+
+            <!-- المورد -->
             <td class="px-6 py-3.5 font-medium text-light-on-surface">
               <div class="flex items-center gap-3">
                 <span
-                  class="w-8 h-8 rounded-lg bg-blue-100 text-primary flex items-center justify-center font-bold text-sm shadow-sm group-hover:bg-primary group-hover:text-white transition-colors">
+                  class="w-9 h-9 shrink-0 rounded-lg bg-blue-100 text-primary flex items-center justify-center font-bold text-sm shadow-sm group-hover:bg-primary group-hover:text-white transition-colors">
                   {{ s.supplierName ? s.supplierName.charAt(0) : 'S' }}
                 </span>
-                <div>
+                <div class="min-w-0">
                   <div
                     class="font-bold text-light-on-surface group-hover:text-primary transition-colors flex items-center gap-1.5">
-                    <span>{{ s.supplierName }}</span>
+                    <span class="truncate">{{ s.supplierName }}</span>
                     <span
-                      class="material-symbols-outlined text-[16px] opacity-0 group-hover:opacity-100 transition-opacity">arrow_forward</span>
+                      class="material-symbols-outlined text-[16px] opacity-0 group-hover:opacity-100 transition-opacity rtl:rotate-180">
+                      arrow_forward
+                    </span>
                   </div>
-                  <div class="text-xs text-light-on-surface-variant font-normal">RMS Supplier #{{ s.id }}</div>
+                  <div class="text-xs text-light-on-surface-variant font-normal mt-0.5">
+                    Supplier ID #{{ s.id }}
+                  </div>
                 </div>
               </div>
             </td>
-            <td class="px-6 py-3.5 font-mono text-sm">
+
+            <!-- كود المورد -->
+            <td class="px-6 py-3.5 font-mono text-sm whitespace-nowrap">
               <span
-                class="px-2 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-700 text-xs font-semibold">
+                class="px-2.5 py-1 rounded-md bg-slate-100 border border-slate-200 text-slate-700 text-xs font-semibold inline-block">
                 {{ s.code || '—' }}
               </span>
             </td>
-            <td class="px-6 py-3.5 font-mono text-sm text-light-on-surface-variant">{{ s.accountNumber || '—' }}</td>
+
+            <!-- بيانات التواصل / رقم الحساب -->
             <td class="px-6 py-3.5 text-sm text-light-on-surface-variant">
-              <div>{{ s.contactName || '—' }}</div>
-              <div class="text-xs text-slate-500">{{ s.phoneNumber || s.emailAddress || '' }}</div>
+              <div class="font-medium text-light-on-surface">{{ s.phone || '—' }}</div>
             </td>
-            <td class="px-6 py-3.5 text-right" (click)="$event.stopPropagation()">
+
+            <!-- الإجراءات -->
+            <td class="px-6 py-3.5 text-end whitespace-nowrap" (click)="$event.stopPropagation()">
               <div class="flex items-center justify-end gap-2">
                 <a [routerLink]="['/suppliers', s.id]"
-                  class="px-3 py-1.5 bg-primary text-white hover:bg-blue-700 rounded text-xs font-semibold inline-flex items-center gap-1 shadow-sm transition-all"
+                  class="px-3.5 py-2 bg-primary text-white hover:bg-blue-700 rounded-md text-xs font-semibold inline-flex items-center gap-1.5 shadow-sm transition-all"
                   title="كشف حساب المورد وفواتيره">
-                  <span class="material-symbols-outlined text-[15px]">account_balance_wallet</span>
+                  <span class="material-symbols-outlined text-[16px]">account_balance_wallet</span>
                   <span>كشف الحساب</span>
-                </a>
-
-                <a [routerLink]="['/supplier-returns/new']" [queryParams]="{ supplierId: s.id }"
-                  class="px-2.5 py-1.5 bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-300 rounded text-xs font-semibold inline-flex items-center gap-1 transition-all"
-                  title="إنشاء مرتجع لهذا المورد">
-                  <span class="material-symbols-outlined text-[15px]">assignment_return</span>
-                  <span>مرتجع</span>
                 </a>
               </div>
             </td>
+
           </tr>
         </tbody>
       </table>

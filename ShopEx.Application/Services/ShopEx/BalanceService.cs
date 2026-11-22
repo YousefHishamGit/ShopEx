@@ -13,6 +13,11 @@ namespace ShopEx.Application.Services.ShopEx
 {
     public class BalanceService : IBalanceService
     {
+        /// <summary>أقصى عدد حركات يعرضها سجل التحويلات</summary>
+        public const int LedgerLimit = 30;
+
+        private const int MaxNotesLength = 500;
+
         private readonly IBalanceRepository _balanceRepo;
         private readonly IUnitOfWork _unitOfWork;
 
@@ -32,6 +37,8 @@ namespace ShopEx.Application.Services.ShopEx
             if (request.StoreId <= 0)
                 throw new ArgumentException("يجب تحديد الفرع بصورة صحيحة.", nameof(request.StoreId));
 
+            ValidateBalanceType(request.BalanceType);
+
             if (request.Amount <= 0)
                 throw new ArgumentException("يجب أن يكون المبلغ المشحون أكبر من الصفر.", nameof(request.Amount));
 
@@ -39,9 +46,9 @@ namespace ShopEx.Application.Services.ShopEx
             {
                 StoreId = request.StoreId,
                 BalanceType = request.BalanceType,
-                Amount = request.Amount,
-                ChargedAt = request.ChargedAt ?? DateTime.UtcNow,
-                Notes = request.Notes?.Trim()
+                Amount = Math.Round(request.Amount, 2),
+                ChargedAt = request.ChargedAt ?? DateTime.Now,
+                Notes = NormalizeNotes(request.Notes)
             };
 
             await _balanceRepo.AddChargeAsync(balance, ct);
@@ -62,34 +69,34 @@ namespace ShopEx.Application.Services.ShopEx
             if (balance == null)
                 throw new KeyNotFoundException($"شحنة الرصيد برقم {balanceId} غير موجودة.");
 
-            var currentUsed = balance.Closures.Sum(c => c.AmountUsed);
-            var remaining = balance.Amount - currentUsed;
+            var amount = Math.Round(request.AmountUsed, 2);
+            BalanceClosure? closure = null;
 
-            if (request.AmountUsed > remaining)
+            await _unitOfWork.ExecuteInTransactionAsync(async () =>
             {
-                throw new InvalidOperationException(
-                    $"المبلغ المراد تقفيله ({request.AmountUsed:N2}) أكبر من الرصيد المتبقي المتاح ({remaining:N2}).");
-            }
+                // قفل على الفرع/الوسيلة ثم إعادة حساب المتبقي لمنع التقفيل المتزامن من تجاوز الرصيد
+                await _balanceRepo.AcquireStoreLockAsync(balance.StoreId, balance.BalanceType, ct);
 
-            var closure = new BalanceClosure
-            {
-                BalanceId = balanceId,
-                AmountUsed = request.AmountUsed,
-                ClosedAt = request.ClosedAt ?? DateTime.UtcNow,
-                Notes = request.Notes?.Trim()
-            };
+                var remaining = balance.Amount - await _balanceRepo.GetUsedAmountAsync(balanceId, ct);
+                if (amount > remaining)
+                {
+                    throw new InvalidOperationException(
+                        $"المبلغ المراد تقفيله ({amount:N2}) أكبر من الرصيد المتبقي المتاح ({remaining:N2}).");
+                }
 
-            await _balanceRepo.AddClosureAsync(closure, ct);
-            await _unitOfWork.SaveChangesAsync(ct);
+                closure = new BalanceClosure
+                {
+                    BalanceId = balanceId,
+                    AmountUsed = amount,
+                    ClosedAt = request.ClosedAt ?? DateTime.Now,
+                    Notes = NormalizeNotes(request.Notes)
+                };
 
-            return new BalanceClosureResponse
-            {
-                Id = closure.Id,
-                BalanceId = closure.BalanceId,
-                AmountUsed = closure.AmountUsed,
-                ClosedAt = closure.ClosedAt,
-                Notes = closure.Notes
-            };
+                await _balanceRepo.AddClosureAsync(closure, ct);
+                await _unitOfWork.SaveChangesAsync(ct);
+            }, ct);
+
+            return MapClosure(closure!);
         }
 
         public async Task<List<BalanceSummaryResponse>> GetAllAsync(
@@ -99,48 +106,22 @@ namespace ShopEx.Application.Services.ShopEx
             DateTime? toDate = null,
             CancellationToken ct = default)
         {
-            var charges = await _balanceRepo.GetChargesAsync(storeId, balanceType, fromDate, toDate, ct);
-
-            return charges.Select(b =>
-            {
-                var used = b.Closures.Sum(c => c.AmountUsed);
-                return new BalanceSummaryResponse
-                {
-                    Id = b.Id,
-                    StoreId = b.StoreId,
-                    BalanceType = b.BalanceType,
-                    BalanceTypeName = GetBalanceTypeName(b.BalanceType),
-                    Amount = b.Amount,
-                    ChargedAt = b.ChargedAt,
-                    Notes = b.Notes,
-                    TotalUsedAmount = used,
-                    RemainingAmount = b.Amount - used,
-                    ClosuresCount = b.Closures.Count
-                };
-            }).ToList();
+            var list = await _balanceRepo.GetChargeSummariesAsync(storeId, balanceType, fromDate, toDate, ct);
+            foreach (var item in list)
+                item.BalanceTypeName = GetBalanceTypeName(item.BalanceType);
+            return list;
         }
 
         public async Task<BalanceResponse?> GetByIdAsync(int id, CancellationToken ct = default)
         {
             var balance = await _balanceRepo.GetChargeByIdAsync(id, ct);
-            if (balance == null)
-                return null;
-
-            return MapToResponse(balance);
+            return balance == null ? null : MapToResponse(balance);
         }
 
         public async Task<List<BalanceClosureResponse>> GetClosuresAsync(int balanceId, CancellationToken ct = default)
         {
             var closures = await _balanceRepo.GetClosuresByBalanceIdAsync(balanceId, ct);
-
-            return closures.Select(c => new BalanceClosureResponse
-            {
-                Id = c.Id,
-                BalanceId = c.BalanceId,
-                AmountUsed = c.AmountUsed,
-                ClosedAt = c.ClosedAt,
-                Notes = c.Notes
-            }).ToList();
+            return closures.Select(MapClosure).ToList();
         }
 
         public async Task<List<StoreBalanceGroupDto>> GetGroupedBalancesAsync(
@@ -148,34 +129,10 @@ namespace ShopEx.Application.Services.ShopEx
             BalanceType? balanceType = null,
             CancellationToken ct = default)
         {
-            var charges = await _balanceRepo.GetChargesAsync(storeId, balanceType, null, null, ct);
-
-            var grouped = charges
-                .GroupBy(b => new { b.StoreId, b.BalanceType })
-                .Select(g =>
-                {
-                    var totalCharged = g.Sum(b => b.Amount);
-                    var totalUsed = g.SelectMany(b => b.Closures).Sum(c => c.AmountUsed);
-                    var closures = g.SelectMany(b => b.Closures).ToList();
-
-                    return new StoreBalanceGroupDto
-                    {
-                        StoreId = g.Key.StoreId,
-                        BalanceType = g.Key.BalanceType,
-                        BalanceTypeName = GetBalanceTypeName(g.Key.BalanceType),
-                        TotalCharged = totalCharged,
-                        TotalUsed = totalUsed,
-                        ChargesCount = g.Count(),
-                        ClosuresCount = closures.Count,
-                        LastChargedAt = g.Max(b => (DateTime?)b.ChargedAt),
-                        LastClosedAt = closures.Any() ? closures.Max(c => (DateTime?)c.ClosedAt) : null
-                    };
-                })
-                .OrderBy(x => x.StoreId)
-                .ThenBy(x => x.BalanceType)
-                .ToList();
-
-            return grouped;
+            var groups = await _balanceRepo.GetGroupedAsync(storeId, balanceType, ct);
+            foreach (var g in groups)
+                g.BalanceTypeName = GetBalanceTypeName(g.BalanceType);
+            return groups;
         }
 
         public async Task<List<BalanceClosureResponse>> CloseByStoreAsync(
@@ -188,62 +145,59 @@ namespace ShopEx.Application.Services.ShopEx
             if (request.StoreId <= 0)
                 throw new ArgumentException("يجب تحديد الفرع بصورة صحيحة.", nameof(request.StoreId));
 
+            ValidateBalanceType(request.BalanceType);
+
             if (request.AmountUsed <= 0)
                 throw new ArgumentException("يجب أن يكون مبلغ الاستهلاك أكبر من الصفر.", nameof(request.AmountUsed));
 
-            var charges = await _balanceRepo.GetChargesAsync(request.StoreId, request.BalanceType, null, null, ct);
+            var amount = Math.Round(request.AmountUsed, 2);
+            var closedAt = request.ClosedAt ?? DateTime.Now;
+            var notes = NormalizeNotes(request.Notes);
+            var created = new List<BalanceClosure>();
 
-            var openCharges = charges
-                .Select(b => new
-                {
-                    Balance = b,
-                    Remaining = b.Amount - b.Closures.Sum(c => c.AmountUsed)
-                })
-                .Where(x => x.Remaining > 0)
-                .OrderBy(x => x.Balance.ChargedAt)
-                .ToList();
-
-            var totalAvailable = openCharges.Sum(x => x.Remaining);
-
-            if (request.AmountUsed > totalAvailable)
+            await _unitOfWork.ExecuteInTransactionAsync(async () =>
             {
-                throw new InvalidOperationException(
-                    $"المبلغ المراد تقفيله ({request.AmountUsed:N2}) يتجاوز إجمالي الرصيد المتاح للفرع ({totalAvailable:N2}) في هذه الوسيلة.");
-            }
+                // القفل أولاً ثم قراءة المتبقي، حتى لا يتجاوز تقفيلان متزامنان الرصيد المتاح
+                await _balanceRepo.AcquireStoreLockAsync(request.StoreId, request.BalanceType, ct);
 
-            var remainingToAllocate = request.AmountUsed;
-            var createdClosures = new List<BalanceClosureResponse>();
+                var openCharges = await _balanceRepo.GetOpenChargesAsync(request.StoreId, request.BalanceType, ct);
+                var totalAvailable = openCharges.Sum(x => x.Remaining);
 
-            foreach (var item in openCharges)
-            {
-                if (remainingToAllocate <= 0) break;
-
-                var allocate = Math.Min(remainingToAllocate, item.Remaining);
-                var closure = new BalanceClosure
+                if (amount > totalAvailable)
                 {
-                    BalanceId = item.Balance.Id,
-                    AmountUsed = allocate,
-                    ClosedAt = request.ClosedAt ?? DateTime.UtcNow,
-                    Notes = request.Notes?.Trim()
-                };
+                    throw new InvalidOperationException(
+                        $"المبلغ المراد تقفيله ({amount:N2}) يتجاوز إجمالي الرصيد المتاح للفرع ({totalAvailable:N2}) في هذه الوسيلة.");
+                }
 
-                await _balanceRepo.AddClosureAsync(closure, ct);
-                remainingToAllocate -= allocate;
-
-                createdClosures.Add(new BalanceClosureResponse
+                // توزيع المبلغ على الشحنات الأقدم أولاً (FIFO)
+                var toAllocate = amount;
+                foreach (var charge in openCharges)
                 {
-                    Id = closure.Id,
-                    BalanceId = closure.BalanceId,
-                    AmountUsed = closure.AmountUsed,
-                    ClosedAt = closure.ClosedAt,
-                    Notes = closure.Notes
-                });
-            }
+                    if (toAllocate <= 0) break;
 
-            await _unitOfWork.SaveChangesAsync(ct);
-            return createdClosures;
+                    var allocate = Math.Min(toAllocate, charge.Remaining);
+                    var closure = new BalanceClosure
+                    {
+                        BalanceId = charge.Id,
+                        AmountUsed = allocate,
+                        ClosedAt = closedAt,
+                        Notes = notes
+                    };
+
+                    await _balanceRepo.AddClosureAsync(closure, ct);
+                    created.Add(closure);
+                    toAllocate -= allocate;
+                }
+
+                await _unitOfWork.SaveChangesAsync(ct);
+            }, ct);
+
+            return created.Select(MapClosure).ToList();
         }
 
+        /// <summary>
+        /// آخر <see cref="LedgerLimit"/> حركة فقط (شحن وتقفيل) مرتبة من الأحدث للأقدم.
+        /// </summary>
         public async Task<List<BalanceTransactionItemDto>> GetLedgerAsync(
             int? storeId = null,
             BalanceType? balanceType = null,
@@ -251,60 +205,45 @@ namespace ShopEx.Application.Services.ShopEx
             DateTime? toDate = null,
             CancellationToken ct = default)
         {
-            var charges = await _balanceRepo.GetChargesAsync(storeId, balanceType, null, null, ct);
-            var transactions = new List<BalanceTransactionItemDto>();
+            var items = await _balanceRepo.GetLatestTransactionsAsync(
+                storeId, balanceType, fromDate, toDate, LedgerLimit, ct);
 
-            foreach (var b in charges)
-            {
-                // شحنة الرصيد
-                transactions.Add(new BalanceTransactionItemDto
-                {
-                    Id = b.Id,
-                    TransactionType = "شحن رصيد (+)",
-                    StoreId = b.StoreId,
-                    BalanceType = b.BalanceType,
-                    BalanceTypeName = GetBalanceTypeName(b.BalanceType),
-                    Amount = b.Amount,
-                    TransactionDate = b.ChargedAt,
-                    Notes = b.Notes,
-                    BalanceId = b.Id
-                });
+            foreach (var t in items)
+                t.BalanceTypeName = GetBalanceTypeName(t.BalanceType);
 
-                // تقفيلاتها
-                foreach (var c in b.Closures)
-                {
-                    transactions.Add(new BalanceTransactionItemDto
-                    {
-                        Id = c.Id,
-                        TransactionType = "تقفيل يومي (-)",
-                        StoreId = b.StoreId,
-                        BalanceType = b.BalanceType,
-                        BalanceTypeName = GetBalanceTypeName(b.BalanceType),
-                        Amount = c.AmountUsed,
-                        TransactionDate = c.ClosedAt,
-                        Notes = c.Notes,
-                        BalanceId = b.Id
-                    });
-                }
-            }
-
-            // تصفية التاريخ
-            var query = transactions.AsEnumerable();
-            if (fromDate.HasValue)
-                query = query.Where(t => t.TransactionDate >= fromDate.Value);
-            if (toDate.HasValue)
-                query = query.Where(t => t.TransactionDate <= toDate.Value);
-
-            return query.OrderByDescending(t => t.TransactionDate).ToList();
+            return items;
         }
 
         // ================================================================
         // Helper Mappings
         // ================================================================
 
+        private static void ValidateBalanceType(BalanceType type)
+        {
+            if (!Enum.IsDefined(typeof(BalanceType), type))
+                throw new ArgumentException("وسيلة الدفع غير صحيحة.", nameof(type));
+        }
+
+        private static string? NormalizeNotes(string? notes)
+        {
+            var trimmed = notes?.Trim();
+            if (string.IsNullOrEmpty(trimmed)) return null;
+            return trimmed.Length > MaxNotesLength ? trimmed[..MaxNotesLength] : trimmed;
+        }
+
+        private static BalanceClosureResponse MapClosure(BalanceClosure c) => new()
+        {
+            Id = c.Id,
+            BalanceId = c.BalanceId,
+            AmountUsed = c.AmountUsed,
+            ClosedAt = c.ClosedAt,
+            Notes = c.Notes
+        };
+
         private static BalanceResponse MapToResponse(Balance balance)
         {
-            var used = balance.Closures?.Sum(c => c.AmountUsed) ?? 0;
+            var closures = balance.Closures ?? new List<BalanceClosure>();
+            var used = closures.Sum(c => c.AmountUsed);
             return new BalanceResponse
             {
                 Id = balance.Id,
@@ -316,14 +255,7 @@ namespace ShopEx.Application.Services.ShopEx
                 Notes = balance.Notes,
                 TotalUsedAmount = used,
                 RemainingAmount = balance.Amount - used,
-                Closures = balance.Closures?.Select(c => new BalanceClosureResponse
-                {
-                    Id = c.Id,
-                    BalanceId = c.BalanceId,
-                    AmountUsed = c.AmountUsed,
-                    ClosedAt = c.ClosedAt,
-                    Notes = c.Notes
-                }).OrderByDescending(c => c.ClosedAt).ToList() ?? new List<BalanceClosureResponse>()
+                Closures = closures.OrderByDescending(c => c.ClosedAt).Select(MapClosure).ToList()
             };
         }
 

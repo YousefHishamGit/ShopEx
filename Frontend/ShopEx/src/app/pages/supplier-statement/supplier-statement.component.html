@@ -1,33 +1,30 @@
-<div class="max-w-7xl mx-auto space-y-6">
+<div class="max-w-7xl mx-auto space-y-6" dir="rtl">
   <!-- Top Navigation & Supplier Header -->
-  <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-outline">
+  <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-slate-200">
     <div class="flex items-center gap-3">
       <a routerLink="/suppliers"
-        class="w-10 h-10 rounded-full bg-light-surface border border-outline flex items-center justify-center text-light-on-surface-variant hover:text-primary hover:bg-light-surface-variant transition-colors shadow-sm"
+        class="w-10 h-10 rounded-full bg-white border border-slate-300 flex items-center justify-center text-slate-600 hover:text-primary hover:bg-slate-50 transition-colors shadow-sm"
         title="العودة لقائمة الموردين">
-        <span class="material-symbols-outlined text-[20px]">arrow_back</span>
+        <span class="material-symbols-outlined text-[20px]">arrow_forward</span>
       </a>
       <div>
         <div class="flex items-center gap-2">
-          <h1 class="font-headline text-headline-lg text-light-on-surface tracking-tight font-bold text-2xl">
+          <h1 class="font-headline text-headline-lg text-slate-900 tracking-tight font-bold text-2xl">
             {{ statement?.supplierName || 'تفاصيل المورد' }}
           </h1>
-          <span *ngIf="statement?.code" class="px-2 py-0.5 rounded bg-blue-100 text-primary text-xs font-semibold">
+          <span *ngIf="statement?.code"
+            class="px-2 py-0.5 rounded-full bg-blue-100 text-primary text-xs font-bold font-mono">
             {{ statement?.code }}
           </span>
         </div>
-        <div class="flex flex-wrap items-center gap-4 text-xs text-light-on-surface-variant mt-1">
-          <span class="flex items-center gap-1 font-mono">
-            <span class="material-symbols-outlined text-[15px]">tag</span>
-            <span>رقم المورد: #{{ supplierId }}</span>
-          </span>
-          <span *ngIf="statement?.accountNumber" class="flex items-center gap-1">
+        <div class="flex flex-wrap items-center gap-4 text-xs text-slate-500 mt-1">
+          <span *ngIf="statement?.accountNumber" class="flex items-center gap-1 font-mono">
             <span class="material-symbols-outlined text-[15px]">badge</span>
             <span>رقم الحساب: {{ statement?.accountNumber }}</span>
           </span>
           <span *ngIf="statement?.phoneNumber" class="flex items-center gap-1">
             <span class="material-symbols-outlined text-[15px]">call</span>
-            <span>{{ statement?.phoneNumber }}</span>
+            <span class="font-mono">{{ statement?.phoneNumber }}</span>
           </span>
           <span *ngIf="statement?.emailAddress" class="flex items-center gap-1">
             <span class="material-symbols-outlined text-[15px]">mail</span>
@@ -39,425 +36,555 @@
 
     <!-- Header Actions -->
     <div class="flex flex-wrap items-center gap-3">
-      <button (click)="fetchStatement()"
-        class="px-3.5 py-2 bg-light-surface border border-outline rounded text-sm text-light-on-surface-variant hover:bg-light-surface-variant transition-colors flex items-center gap-1.5 shadow-sm">
-        <span class="material-symbols-outlined text-[18px]">sync</span>
-        <span>تحديث كشف الحساب</span>
-      </button>
+
 
       <!-- Return Button for this Supplier -->
-      <a [routerLink]="['/supplier-returns/new']" [queryParams]="{ supplierId: supplierId }"
-        class="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded text-sm font-semibold flex items-center gap-2 shadow transition-all">
-        <span class="material-symbols-outlined text-[18px]">assignment_return</span>
-        <span>+ عمل مرتجع للمورد</span>
-      </a>
+      <button (click)="toggleCreateReturn()" [class.bg-slate-700]="showCreateReturnForm"
+        [class.bg-red-600]="!showCreateReturnForm"
+        class="px-4 py-2 text-white rounded-xl text-sm font-bold flex items-center gap-2 shadow-sm hover:opacity-90 transition-all">
+        <span class="material-symbols-outlined text-[18px]">
+          {{ showCreateReturnForm ? 'close' : 'assignment_return' }}
+        </span>
+        <span>{{ showCreateReturnForm ? 'إلغاء المرتجع' : '+ عمل مرتجع للمورد' }}</span>
+      </button>
 
       <!-- Invoice Button for this Supplier -->
       <button (click)="toggleCreateInvoice()" [class.bg-slate-700]="showCreateInvoiceForm"
         [class.bg-primary]="!showCreateInvoiceForm"
-        class="px-4 py-2 text-white rounded text-sm font-semibold flex items-center gap-2 shadow hover:opacity-90 transition-all">
+        class="px-4 py-2 text-white rounded-xl text-sm font-bold flex items-center gap-2 shadow-sm hover:opacity-90 transition-all">
         <span class="material-symbols-outlined text-[18px]">
           {{ showCreateInvoiceForm ? 'close' : 'add_circle' }}
         </span>
-        <span>{{ showCreateInvoiceForm ? 'إلغاء الفاتورة' : '+ إنشاء فاتورة جديدة' }}</span>
+        <span>{{ showCreateInvoiceForm ? 'إلغاء النموذج' : '+ إنشاء فاتورة جديدة' }}</span>
       </button>
     </div>
   </div>
 
   <!-- Success & Error Alerts -->
   <div *ngIf="successMessage"
-    class="p-4 rounded-lg bg-green-50 text-green-800 border border-green-200 flex items-center gap-2 text-sm shadow-sm">
+    class="p-4 rounded-xl bg-green-50 text-green-800 border border-green-200 flex items-center gap-2 text-sm shadow-sm">
     <span class="material-symbols-outlined text-green-600">check_circle</span>
     <span class="font-medium">{{ successMessage }}</span>
   </div>
   <div *ngIf="errorMessage"
-    class="p-4 rounded-lg bg-error-container text-on-error-container border border-error/20 flex items-center gap-2 text-sm shadow-sm">
-    <span class="material-symbols-outlined text-error">error</span>
+    class="p-4 rounded-xl bg-red-50 text-red-700 border border-red-200 flex items-center gap-2 text-sm shadow-sm">
+    <span class="material-symbols-outlined text-red-600">error</span>
     <span>{{ errorMessage }}</span>
   </div>
 
   <!-- Loading State -->
-  <div *ngIf="loading" class="p-10 text-center space-y-4">
+  <div *ngIf="loading" class="p-12 text-center space-y-4">
     <div class="w-8 h-8 border-3 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
-    <p class="text-sm text-light-on-surface-variant">جاري تحميل كشف الحساب والبيانات المالية للمورد...</p>
+    <p class="text-sm text-slate-500 font-semibold">جاري تحميل كشف الحساب والبيانات المالية للمورد...</p>
   </div>
 
   <div *ngIf="!loading && statement" class="space-y-6">
-    <!-- 1. FINANCIAL SUMMARY STATS (كشف حساب المورد: الفواتير، المدفوع، المرتجع، والصافي المستحق) -->
+    <!-- 1. FINANCIAL SUMMARY STATS -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      <!-- Total Invoices (فلوس كام) -->
-      <div class="bg-light-surface rounded-xl border border-outline p-5 shadow-sm relative overflow-hidden">
+      <!-- Total Invoices -->
+      <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm relative overflow-hidden">
         <div class="flex items-center justify-between mb-2">
-          <span class="text-xs font-bold text-light-on-surface-variant tracking-wider uppercase">إجمالي الفواتير</span>
-          <div class="w-9 h-9 rounded-lg bg-blue-50 text-primary flex items-center justify-center">
+          <span class="text-xs font-bold text-slate-500 uppercase">إجمالي الفواتير</span>
+          <div class="w-9 h-9 rounded-xl bg-blue-50 text-primary flex items-center justify-center">
             <span class="material-symbols-outlined text-[20px]">receipt</span>
           </div>
         </div>
-        <div class="text-2xl font-black text-light-on-surface tracking-tight">
+        <div class="text-2xl font-black text-slate-900 tracking-tight font-mono">
           {{ (statement.totalInvoicesAmount || 0) | number:'1.2-2' }} <span
-            class="text-sm font-semibold text-slate-500">ج.م</span>
+            class="text-sm font-normal text-slate-500">ج.م</span>
         </div>
-        <div class="text-xs text-light-on-surface-variant mt-2 flex items-center gap-1 font-medium">
+        <div class="text-xs text-slate-500 mt-2 flex items-center gap-1 font-medium">
           <span class="material-symbols-outlined text-[15px] text-blue-500">info</span>
-          <span>{{ statement.invoices.length || 0 }} فاتورة مسجلة</span>
+          <span>اجمالي الفواتير </span>
         </div>
       </div>
 
-      <!-- Total Paid (دفعنا كام) -->
-      <div class="bg-light-surface rounded-xl border border-outline p-5 shadow-sm relative overflow-hidden">
+      <!-- Total Paid -->
+      <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm relative overflow-hidden">
         <div class="flex items-center justify-between mb-2">
-          <span class="text-xs font-bold text-green-700 tracking-wider uppercase">إجمالي المدفوع</span>
-          <div class="w-9 h-9 rounded-lg bg-green-50 text-green-600 flex items-center justify-center">
+          <span class="text-xs font-bold text-emerald-700 uppercase">إجمالي المدفوع</span>
+          <div class="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
             <span class="material-symbols-outlined text-[20px]">payments</span>
           </div>
         </div>
-        <div class="text-2xl font-black text-green-700 tracking-tight">
+        <div class="text-2xl font-black text-emerald-700 tracking-tight font-mono">
           {{ (statement.totalPaidAmount || 0) | number:'1.2-2' }} <span
-            class="text-sm font-semibold text-green-600">ج.م</span>
+            class="text-sm font-normal text-emerald-600">ج.م</span>
         </div>
-        <div class="text-xs text-green-600 mt-2 flex items-center gap-1 font-medium">
+        <div class="text-xs text-emerald-600 mt-2 flex items-center gap-1 font-medium">
           <span class="material-symbols-outlined text-[15px]">check_circle</span>
           <span>سُدد من إجمالي المستحقات</span>
         </div>
       </div>
 
-      <!-- Total Returns (المرتجع) -->
-      <div class="bg-light-surface rounded-xl border border-outline p-5 shadow-sm relative overflow-hidden">
+      <!-- Total Returns & Refunds -->
+      <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm relative overflow-hidden">
         <div class="flex items-center justify-between mb-2">
-          <span class="text-xs font-bold text-amber-700 tracking-wider uppercase">إجمالي المرتجعات</span>
-          <div class="w-9 h-9 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
+          <span class="text-xs font-bold text-amber-700 uppercase">إجمالي المرتجعات</span>
+          <div class="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
             <span class="material-symbols-outlined text-[20px]">assignment_return</span>
           </div>
         </div>
-        <div class="text-2xl font-black text-amber-700 tracking-tight">
+        <div class="text-2xl font-black text-amber-700 tracking-tight font-mono">
           {{ (statement.totalReturnsAmount || 0) | number:'1.2-2' }} <span
-            class="text-sm font-semibold text-amber-700">ج.م</span>
+            class="text-sm font-normal text-amber-700">ج.م</span>
         </div>
-        <div class="text-xs text-amber-600 mt-2 flex items-center gap-1 font-medium">
-          <span class="material-symbols-outlined text-[15px]">trending_down</span>
-          <span>{{ (statement.returns?.length || 0) }} مرتجع (يخصم من الحساب)</span>
+
+        <div class="pt-2.5 mt-2.5 border-t border-slate-100 flex items-center justify-between text-xs">
+          <div class="flex items-center gap-1 font-semibold text-emerald-700">
+            <span class="material-symbols-outlined text-[15px]">arrow_downward</span>
+            <span>مسترد: {{ (statement.totalRefundsAmount || 0) | number:'1.2-2' }} ج.م</span>
+          </div>
+          <div class="flex items-center gap-1 font-semibold text-amber-800">
+            <span class="material-symbols-outlined text-[15px]">pending</span>
+            <span>متبقي: {{ ((statement.totalReturnsAmount || 0) - (statement.totalRefundsAmount || 0)) | number:'1.2-2'
+              }} ج.م</span>
+          </div>
         </div>
       </div>
 
-      <!-- Remaining Balance (صافي رصيد المورد بعد خصم المرتجع) -->
-      <div class="bg-light-surface rounded-xl border border-outline p-5 shadow-sm relative overflow-hidden">
+      <!-- Remaining Balance -->
+      <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm relative overflow-hidden">
         <div class="flex items-center justify-between mb-2">
-          <span class="text-xs font-bold text-red-700 tracking-wider uppercase">صافي المتبقي للمورد</span>
-          <div class="w-9 h-9 rounded-lg bg-red-50 text-red-600 flex items-center justify-center">
+          <span class="text-xs font-bold text-rose-700 uppercase">صافي المتبقي للمورد</span>
+          <div class="w-9 h-9 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center">
             <span class="material-symbols-outlined text-[20px]">account_balance</span>
           </div>
         </div>
-        <div class="text-2xl font-black text-red-700 tracking-tight">
+        <div class="text-2xl font-black text-rose-700 tracking-tight font-mono">
           {{ (statement.totalRemainingAmount || 0) | number:'1.2-2' }} <span
-            class="text-sm font-semibold text-red-600">ج.م</span>
+            class="text-sm font-normal text-rose-600">ج.م</span>
         </div>
-        <div class="text-xs text-red-600 mt-2 flex items-center gap-1 font-medium">
+        <div class="text-xs text-rose-600 mt-2 flex items-center gap-1 font-medium">
           <span class="material-symbols-outlined text-[15px]">pending_actions</span>
           <span>الصافي (فواتير - سداد - مرتجع)</span>
         </div>
       </div>
     </div>
 
-    <!-- 2. CREATE NEW INVOICE FORM (إنشاء فاتورة جديدة للمورد مع Select المنتج والكمية والدفع) -->
+    <!-- 2. CREATE NEW INVOICE FORM (Collapsible) -->
     <div *ngIf="showCreateInvoiceForm"
-      class="bg-light-surface rounded-xl border-2 border-primary/30 p-6 shadow-md transition-all space-y-6">
-      <div class="flex items-center justify-between border-b border-outline pb-4">
+      class="bg-white rounded-2xl border-2 border-primary/30 p-6 shadow-md transition-all space-y-6">
+      <div class="flex items-center justify-between border-b border-slate-200 pb-4">
         <div>
           <div class="flex items-center gap-2">
             <span class="material-symbols-outlined text-primary text-[22px]">post_add</span>
-            <h2 class="text-lg font-bold text-light-on-surface">إنشاء فاتورة توريد جديدة</h2>
+            <h2 class="text-lg font-bold text-slate-900">إنشاء فاتورة توريد جديدة</h2>
           </div>
-          <p class="text-xs text-light-on-surface-variant mt-0.5">
-            المورد: <span class="font-semibold text-primary">{{ statement.supplierName }} (#{{ supplierId }})</span>
+          <p class="text-xs text-slate-500 mt-0.5">
+            المورد: <span class="font-bold text-primary">{{ statement.supplierName }} (#{{ supplierId }})</span>
           </p>
         </div>
-        <button (click)="toggleCreateInvoice()" class="text-light-on-surface-variant hover:text-light-on-surface">
+        <button (click)="toggleCreateInvoice()" class="text-slate-400 hover:text-slate-700">
           <span class="material-symbols-outlined">close</span>
         </button>
       </div>
 
       <div *ngIf="invoiceError"
-        class="p-3 rounded bg-error-container text-on-error-container text-xs flex items-center gap-2">
+        class="p-3.5 rounded-xl bg-red-50 text-red-700 border border-red-200 text-xs flex items-center gap-2 font-medium">
         <span class="material-symbols-outlined text-sm">error</span>
         <span>{{ invoiceError }}</span>
       </div>
 
-      <!-- Header Fields: Invoice No, Date, Payment Type, Credit Days, Due Date -->
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <!-- <div>
-          <label class="block text-xs font-semibold text-light-on-surface mb-1">
-            رقم الفاتورة <span class="text-red-500">*</span>
-          </label>
-          <div class="flex items-center gap-1">
-            <input [(ngModel)]="newInvoiceNumber" type="text" placeholder="مثال: INV-1002"
-              class="w-full px-3 py-2 bg-light-surface-variant border border-outline rounded text-sm text-light-on-surface font-mono focus:outline-none focus:ring-1 focus:ring-primary">
-            <button (click)="generateInvoiceNumber()" type="button"
-              class="p-2 bg-slate-100 hover:bg-slate-200 rounded border border-outline text-slate-600"
-              title="توليد رقم تلقائي">
-              <span class="material-symbols-outlined text-[18px]">autorenew</span>
-            </button>
-          </div>
-        </div> -->
+      <!-- Header Fields: Invoice No, Date, Payment Type, Credit Days -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
 
-        <!-- <div>
-          <label class="block text-xs font-semibold text-light-on-surface mb-1">
-            تاريخ الفاتورة
-          </label>
-          <input [(ngModel)]="newInvoiceDate" (ngModelChange)="calculateDueDate()" type="date"
-            class="w-full px-3 py-2 bg-light-surface-variant border border-outline rounded text-sm text-light-on-surface focus:outline-none focus:ring-1 focus:ring-primary">
-        </div> -->
 
         <div>
-          <label class="block text-xs font-semibold text-light-on-surface mb-1">
+          <label class="block text-xs font-bold text-slate-800 mb-1.5">
             نوع الدفع <span class="text-red-500">*</span>
           </label>
           <select [(ngModel)]="newPaymentType" (ngModelChange)="onPaymentTypeChange()"
-            class="w-full px-3 py-2 bg-light-surface-variant border border-outline rounded text-sm text-light-on-surface focus:outline-none focus:ring-1 focus:ring-primary">
-            <option [ngValue]="1">نقدي (Cash) - مسددة بالكامل</option>
-            <option [ngValue]="2">آجل (Credit) - آجل / دفعات</option>
+            class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm text-slate-800 focus:outline-none focus:border-primary">
+            <option [ngValue]="1">نقدي (Cash) - مسددة بالكامل فورياً</option>
+            <option [ngValue]="2">آجل (Credit) - سداد آجل / دفعات</option>
           </select>
         </div>
+      </div>
 
-        <!-- Conditional Credit Fields -->
-        <div *ngIf="newPaymentType === 2">
-          <label class="block text-xs font-semibold text-light-on-surface mb-1">
-            فترة الأجل (أيام)
-          </label>
+      <!-- Credit Options -->
+      <div *ngIf="newPaymentType === 2" class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+        <div>
+          <label class="block text-xs font-bold text-slate-800 mb-1.5">فترة الأجل (أيام)</label>
           <input [(ngModel)]="newCreditDays" (ngModelChange)="calculateDueDate()" type="number" min="1"
-            class="w-full px-3 py-2 bg-light-surface-variant border border-outline rounded text-sm text-light-on-surface focus:outline-none focus:ring-1 focus:ring-primary">
-        </div>
-      </div>
-
-      <!-- Cash Payment Notice Banner -->
-      <div *ngIf="newPaymentType === 1"
-        class="p-3.5 bg-green-50 border border-green-200 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-green-900">
-        <div class="flex items-center gap-2.5">
-          <span class="material-symbols-outlined text-green-600 text-[22px]">check_circle</span>
-          <div>
-            <div class="font-bold text-sm text-green-950">دفع نقدي فوري (خالصة بالكامل)</div>
-            <div class="text-green-700">سيتم سداد كامل إجمالي الفاتورة تلقائياً بقيمة <strong>{{ computedTotal |
-                number:'1.2-2' }} ج.م</strong> والمتبقي سيكون 0 ج.م.</div>
-          </div>
-        </div>
-        <div
-          class="text-left sm:text-right bg-white/70 sm:bg-transparent p-2 sm:p-0 rounded border sm:border-0 border-green-200">
-          <span class="text-[11px] text-green-700 block font-semibold">إجمالي السداد النقدي:</span>
-          <span class="font-black font-mono text-base text-green-800">{{ computedTotal | number:'1.2-2' }} ج.م</span>
-        </div>
-      </div>
-
-      <!-- Secondary Fields: Due Date (Credit), Initial Payment, Payment Method -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <!-- <div *ngIf="newPaymentType === 2">
-          <label class="block text-xs font-semibold text-light-on-surface mb-1">
-            تاريخ الاستحقاق المحسوب
-          </label>
-          <input [(ngModel)]="newDueDate" type="date"
-            class="w-full px-3 py-2 bg-light-surface-variant border border-outline rounded text-sm text-light-on-surface font-mono">
-        </div> -->
-
-        <!-- Initial Payment for Credit -->
-        <div *ngIf="newPaymentType === 2">
-          <label class="block text-xs font-semibold text-light-on-surface mb-1">
-            دفعة مقدمة مسددة (ج.م)
-          </label>
-          <input [(ngModel)]="newInitialPayment" type="number" min="0" placeholder="0"
-            class="w-full px-3 py-2 bg-light-surface-variant border border-outline rounded text-sm text-light-on-surface font-mono focus:outline-none focus:ring-1 focus:ring-primary">
-        </div>
-
-        <!-- Display full payment for Cash -->
-        <div *ngIf="newPaymentType === 1">
-          <label class="block text-xs font-semibold text-light-on-surface mb-1">
-            المبلغ المسدد نقداً (إجمالي الفاتورة)
-          </label>
-          <div
-            class="w-full px-3 py-2 bg-green-50 border border-green-200 rounded text-sm text-green-800 font-mono font-bold flex items-center justify-between">
-            <span>{{ computedTotal | number:'1.2-2' }} ج.م</span>
-            <span class="text-[11px] text-green-600 font-normal">مدفوعة بالكامل ✓</span>
-          </div>
+            class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm text-slate-800 font-mono focus:outline-none focus:border-primary">
         </div>
 
         <div>
-          <label class="block text-xs font-semibold text-light-on-surface mb-1">
-            طريقة السداد
-          </label>
-          <select [(ngModel)]="newInitialPaymentMethod"
-            class="w-full px-3 py-2 bg-light-surface-variant border border-outline rounded text-sm text-light-on-surface">
-            <option value="Cash">نقداً (Cash)</option>
-            <option value="Card">بطاقة (Card)</option>
-            <option value="BankTransfer">تحويل بنكي (Bank Transfer)</option>
-            <option value="Check">شيك (Check)</option>
-          </select>
+          <label class="block text-xs font-bold text-slate-800 mb-1.5">دفعة مقدمة عند الاستلام (اختياري)</label>
+          <input [(ngModel)]="newInitialPayment" type="number" min="0" step="0.01" placeholder="0.00"
+            class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm text-slate-800 font-mono focus:outline-none focus:border-primary">
         </div>
       </div>
 
-      <div>
-        <label class="block text-xs font-semibold text-light-on-surface mb-1">ملاحظات الفاتورة</label>
-        <input [(ngModel)]="newNotes" type="text" placeholder="أي تفاصيل أو ملاحظات خاصة بالفاتورة..."
-          class="w-full px-3 py-2 bg-light-surface-variant border border-outline rounded text-sm text-light-on-surface focus:outline-none focus:ring-1 focus:ring-primary">
+      <!-- Cash Notice Banner -->
+      <div *ngIf="newPaymentType === 1"
+        class="p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between text-xs text-emerald-900">
+        <div class="flex items-center gap-2">
+          <span class="material-symbols-outlined text-emerald-600 text-[20px]">check_circle</span>
+          <span><strong>سداد نقدي فوري:</strong> سيتم سداد الفاتورة بالكامل تلقائياً ({{ computedTotal | number:'1.2-2'
+            }} ج.م) وسيكون المتبقي 0.</span>
+        </div>
+        <span class="font-black font-mono text-base text-emerald-800">{{ computedTotal | number:'1.2-2' }} ج.م</span>
       </div>
 
-      <!-- INVOICE ITEMS TABLE WITH PRODUCT SELECT -->
-      <div class="border border-outline rounded-lg overflow-hidden bg-light-surface">
-        <div class="p-3 bg-light-surface-variant border-b border-outline flex items-center justify-between">
-          <div class="flex items-center gap-2">
-            <span class="material-symbols-outlined text-[18px] text-primary">inventory_2</span>
-            <span class="font-bold text-sm text-light-on-surface">بنود ومنتجات الفاتورة</span>
-          </div>
-          <button (click)="addItemRow()" type="button"
-            class="px-2.5 py-1 bg-white border border-outline hover:bg-slate-50 text-xs text-primary font-semibold rounded flex items-center gap-1 shadow-sm">
-            <span class="material-symbols-outlined text-[16px]">add</span>
-            <span>+ إضافة منتج آخر</span>
-          </button>
-        </div>
 
-        <div class="overflow-x-auto">
-          <table class="w-full text-left text-sm">
-            <thead class="bg-slate-50 border-b border-outline text-xs text-light-on-surface-variant font-semibold">
-              <tr>
-                <th class="px-3 py-2 w-12 text-center">#</th>
-                <th class="px-4 py-2">اختر المنتج / الصنف <span class="text-red-500">*</span></th>
-                <th class="px-3 py-2 w-32">الكمية <span class="text-red-500">*</span></th>
-                <th class="px-3 py-2 w-36">سعر الوحدة (ج.م) <span class="text-red-500">*</span></th>
-                <th class="px-4 py-2 w-36 text-right">الإجمالي</th>
-                <th class="px-2 py-2 w-12 text-center">حذف</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-outline">
-              <tr *ngFor="let item of invoiceItems; let idx = index" class="hover:bg-slate-50/50">
-                <td class="px-3 py-2 text-center font-mono text-xs text-slate-400">{{ idx + 1 }}</td>
-                <td class="px-4 py-2">
-                  <!-- Product Select Dropdown -->
-                  <div class="space-y-1">
-                    <select [ngModel]="item.rmsItemID" (ngModelChange)="onProductSelect(idx, $event)"
-                      class="w-full px-3 py-2 bg-light-surface-variant border border-outline rounded text-sm text-light-on-surface focus:outline-none focus:ring-1 focus:ring-primary">
-                      <option [ngValue]="0" disabled>-- اختر منتج من قائمة المورد ({{ supplierItems.length }} منتج) --
-                      </option>
-                      <option *ngFor="let p of supplierItems" [ngValue]="p.id">
-                        #{{ p.id }} - {{ p.description }} (سعر التكلفة: {{ (p.cost || p.price || 0) | number:'1.2-2' }})
-                      </option>
-                    </select>
-                    <!-- Fallback manual ID if needed -->
-                    <div *ngIf="supplierItems.length === 0 && !loadingItems" class="text-xs text-amber-600">
-                      لا توجد منتجات مسجلة لهذا المورد في RMS، يمكنك إدخال RMS Item ID يدوياً:
-                      <input [(ngModel)]="item.rmsItemID" type="number" placeholder="RMS Item ID"
-                        class="w-32 px-2 py-1 border rounded text-xs mt-1">
-                    </div>
-                  </div>
-                </td>
-                <td class="px-3 py-2">
-                  <input [(ngModel)]="item.quantity" (ngModelChange)="onLineItemChange()" type="number" min="1" step="1"
-                    class="w-full px-3 py-2 bg-light-surface-variant border border-outline rounded text-sm font-mono text-center focus:outline-none focus:ring-1 focus:ring-primary">
-                </td>
-                <td class="px-3 py-2">
-                  <input [(ngModel)]="item.unitPrice" (ngModelChange)="onLineItemChange()" type="number" min="0"
-                    step="0.01"
-                    class="w-full px-3 py-2 bg-light-surface-variant border border-outline rounded text-sm font-mono text-right focus:outline-none focus:ring-1 focus:ring-primary">
-                </td>
-                <td class="px-4 py-2 text-right font-mono font-bold text-sm text-primary">
-                  {{ (item.quantity * item.unitPrice) | number:'1.2-2' }}
-                </td>
-                <td class="px-2 py-2 text-center">
-                  <button (click)="removeItemRow(idx)" [disabled]="invoiceItems.length === 1"
-                    class="p-1 text-slate-400 hover:text-red-500 disabled:opacity-20 transition-colors">
-                    <span class="material-symbols-outlined text-[18px]">delete</span>
-                  </button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <div
-          class="p-4 bg-slate-50 border-t border-outline flex flex-col sm:flex-row items-center justify-between gap-4">
+      <!-- Items Table in Create Invoice Form -->
+      <div class="border border-slate-200 rounded-xl overflow-hidden bg-white">
+        <div class="p-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+          <span class="text-xs font-bold text-slate-800">أصناف الفاتورة</span>
           <button (click)="addItemRow()" type="button"
-            class="text-xs text-primary font-semibold flex items-center gap-1 hover:underline">
+            class="text-xs text-primary font-bold hover:underline flex items-center gap-1">
             <span class="material-symbols-outlined text-[16px]">add_circle</span>
-            <span>+ إضافة سطر بند آخر</span>
+            <span>+ إضافة بند</span>
           </button>
-          <div class="flex items-center gap-6">
-            <div class="text-sm text-light-on-surface">
-              إجمالي الفاتورة المحسوب:
-              <span class="text-lg font-black text-primary font-mono ml-2">
-                {{ computedTotal | number:'1.2-2' }} ج.م
-              </span>
-            </div>
-            <button (click)="submitNewInvoice()" [disabled]="creatingInvoice"
-              class="px-5 py-2.5 bg-primary text-white rounded-lg text-sm font-bold flex items-center gap-2 shadow hover:bg-blue-700 disabled:opacity-50 transition-all">
-              <span *ngIf="creatingInvoice"
-                class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-              <span class="material-symbols-outlined text-[18px]">check</span>
-              <span>حفظ الفاتورة وإضافتها لكشف الحساب</span>
-            </button>
+        </div>
+
+        <table class="w-full text-right text-sm">
+          <thead class="bg-slate-50 text-xs text-slate-500 font-semibold border-b border-slate-200">
+            <tr>
+              <th class="px-3 py-2 w-10 text-center">#</th>
+              <th class="px-4 py-2 min-w-[260px]">الصنف (اختيار بالتبويبات والصفحات) *</th>
+              <th class="px-3 py-2 w-28 text-center">الكمية *</th>
+              <th class="px-3 py-2 w-32 text-left">سعر الوحدة (ج.م)</th>
+              <th class="px-4 py-2 w-32 text-left">الإجمالي</th>
+              <th class="px-2 py-2 w-12 text-center">حذف</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            <tr *ngFor="let item of invoiceItems; let idx = index" class="hover:bg-slate-50/50">
+              <td class="px-3 py-2 text-center text-xs text-slate-400 font-mono font-bold">{{ idx + 1 }}</td>
+              <td class="px-4 py-2">
+                <div *ngIf="supplierItems.length > 0">
+                  <app-tabbed-select [items]="selectableProducts" [selectedId]="item.rmsItemID"
+                    placeholder="اضغط لاختيار الصنف..." title="أصناف المورد المتاحة" defaultIcon="inventory_2"
+                    [pageSize]="10" (select)="onTabbedProductSelect(idx, $event)" (clear)="onTabbedProductClear(idx)">
+                  </app-tabbed-select>
+                </div>
+                <div *ngIf="supplierItems.length === 0">
+                  <input [(ngModel)]="item.rmsItemID" type="number" min="1" placeholder="RMS Item ID *"
+                    class="w-full px-3 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-sm font-mono">
+                </div>
+              </td>
+              <td class="px-3 py-2">
+                <input [(ngModel)]="item.quantity" (ngModelChange)="onLineItemChange()" type="number" min="1"
+                  class="w-full px-2 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-sm font-mono text-center font-bold text-slate-800">
+              </td>
+              <td class="px-3 py-2 text-left">
+                <span class="font-mono font-bold text-slate-800">
+                  {{ (item.unitPrice || 0) | number:'1.2-2' }} ج.م
+                </span>
+              </td>
+              <td class="px-4 py-2 text-left font-mono font-bold text-primary">
+                {{ ((item.quantity || 0) * (item.unitPrice || 0)) | number:'1.2-2' }} ج.م
+              </td>
+              <td class="px-2 py-2 text-center">
+                <button (click)="removeItemRow(idx)" [disabled]="invoiceItems.length === 1"
+                  class="p-1 text-slate-400 hover:text-red-500 disabled:opacity-20 transition-colors">
+                  <span class="material-symbols-outlined text-[18px]">delete</span>
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
+          <div class="text-sm text-slate-800 font-medium">
+            إجمالي الفاتورة المحسوب:
+            <span class="text-xl font-black text-primary font-mono mr-2">{{ computedTotal | number:'1.2-2' }} ج.م</span>
           </div>
+          <button (click)="submitNewInvoice()" [disabled]="creatingInvoice"
+            class="px-6 py-2.5 bg-primary text-white rounded-xl text-sm font-bold flex items-center gap-2 shadow hover:bg-blue-700 disabled:opacity-50 transition-all">
+            <span *ngIf="creatingInvoice"
+              class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+            <span class="material-symbols-outlined text-[18px]">check</span>
+            <span>حفظ الفاتورة وإضافتها لكشف الحساب</span>
+          </button>
         </div>
       </div>
     </div>
 
-    <!-- 3. INVOICES STATEMENT TABLE (جدول فواتير المورد وكشف حسابه بالتفصيل) -->
-    <div class="bg-light-surface rounded-xl border border-outline shadow-sm overflow-hidden">
-      <div
-        class="p-4 border-b border-outline bg-light-surface flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div class="flex items-center gap-2">
-          <span class="material-symbols-outlined text-primary text-[20px]">receipt_long</span>
-          <h3 class="font-bold text-base text-light-on-surface">كشف حساب الفواتير</h3>
-          <span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-xs font-semibold">
-            {{ statement.invoices.length || 0 }} فاتورة
-          </span>
+    <!-- 3. CREATE NEW RETURN FORM (Collapsible) -->
+    <div *ngIf="showCreateReturnForm"
+      class="bg-white rounded-2xl border-2 border-red-500/30 p-6 shadow-md transition-all space-y-6">
+      <div class="flex items-center justify-between border-b border-slate-200 pb-4">
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-red-600 text-[22px]">assignment_return</span>
+            <h2 class="text-lg font-bold text-slate-900">إنشاء مرتجع مورد جديد</h2>
+          </div>
+          <p class="text-xs text-slate-500 mt-0.5">
+            المورد: <span class="font-bold text-red-600">{{ statement.supplierName }} (#{{ supplierId }})</span>
+            — يتم تأكيد المرتجع وخصم الأصناف من المخزن فور الحفظ
+          </p>
         </div>
-        <div class="text-xs text-light-on-surface-variant flex items-center gap-2">
-          <span class="w-2.5 h-2.5 rounded-full bg-green-500"></span> <span>خالصة</span>
-          <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span> <span>جزئية</span>
-          <span class="w-2.5 h-2.5 rounded-full bg-red-500"></span> <span>غير مدفوعة</span>
-        </div>
-      </div>
-
-      <!-- Empty State -->
-      <div *ngIf="!statement.invoices || statement.invoices.length === 0" class="py-16 text-center">
-        <div
-          class="w-14 h-14 mx-auto mb-2 rounded-full bg-light-surface-variant flex items-center justify-center text-slate-400">
-          <span class="material-symbols-outlined text-[30px]">receipt</span>
-        </div>
-        <h4 class="font-bold text-light-on-surface text-sm mb-1">لا توجد فواتير مسجلة لهذا المورد بعد</h4>
-        <p class="text-xs text-light-on-surface-variant mb-4">اضغط على زر "إنشاء فاتورة جديدة" لإضافة أول فاتورة وكشف
-          حساب للمورد.</p>
-        <button (click)="toggleCreateInvoice()" class="px-4 py-1.5 bg-primary text-white rounded text-xs font-semibold">
-          + إنشاء أول فاتورة
+        <button (click)="toggleCreateReturn()" class="text-slate-400 hover:text-slate-700">
+          <span class="material-symbols-outlined">close</span>
         </button>
       </div>
 
+      <div *ngIf="returnError"
+        class="p-3.5 rounded-xl bg-red-50 text-red-700 border border-red-200 text-xs flex items-center gap-2 font-medium">
+        <span class="material-symbols-outlined text-sm">error</span>
+        <span>{{ returnError }}</span>
+      </div>
+
+
+
+      <!-- Notes Field -->
+      <div>
+        <label class="block text-xs font-bold text-slate-800 mb-1.5">ملاحظات / سبب المرتجع العام</label>
+        <input [(ngModel)]="returnNotes" type="text" placeholder="ملاحظات أو سبب الإرجاع للمورد..."
+          class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm text-slate-800 focus:outline-none focus:border-red-500">
+      </div>
+
+
+
+
+      <!-- Items Table in Create Return Form -->
+      <div class="border border-slate-200 rounded-xl overflow-hidden bg-white">
+        <div class="p-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+          <span class="text-xs font-bold text-slate-800">أصناف المرتجع (المتوفرة بالمخزن فقط)</span>
+          <button (click)="addReturnItemRow()" type="button"
+            class="text-xs text-red-600 font-bold hover:underline flex items-center gap-1">
+            <span class="material-symbols-outlined text-[16px]">add_circle</span>
+            <span>+ إضافة صنف مرتجع</span>
+          </button>
+        </div>
+
+        <table class="w-full text-right text-sm">
+          <thead class="bg-slate-50 text-xs text-slate-500 font-semibold border-b border-slate-200">
+            <tr>
+              <th class="px-3 py-2 w-10 text-center">#</th>
+              <th class="px-4 py-2 min-w-[240px]">الصنف (المتوفر برصيد في المخزن) *</th>
+              <th class="px-3 py-2 w-32 text-center">الكمية *</th>
+              <th class="px-3 py-2 w-32 text-left">سعر الوحدة (ج.م)</th>
+              <th class="px-3 py-2 w-44">سبب إرجاع الصنف</th>
+              <th class="px-4 py-2 w-32 text-left">الإجمالي</th>
+              <th class="px-2 py-2 w-12 text-center">حذف</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            <tr *ngFor="let item of returnItems; let idx = index" class="hover:bg-slate-50/50">
+              <td class="px-3 py-2 text-center text-xs text-slate-400 font-mono font-bold">{{ idx + 1 }}</td>
+              <td class="px-4 py-2">
+                <div *ngIf="selectableReturnProducts.length > 0">
+                  <app-tabbed-select [items]="selectableReturnProducts" [selectedId]="item.rmsItemID"
+                    placeholder="اضغط لاختيار صنف متوفر بالمخزن..." title="أصناف المورد المتوفرة بالمخزن فقط"
+                    defaultIcon="inventory_2" [pageSize]="10" (select)="onTabbedReturnProductSelect(idx, $event)"
+                    (clear)="onTabbedReturnProductClear(idx)">
+                  </app-tabbed-select>
+                </div>
+                <div *ngIf="selectableReturnProducts.length === 0" class="text-xs text-slate-400 py-1 font-medium">
+                  لا توجد أصناف متوفرة بالمخزن لهذا المورد
+                </div>
+              </td>
+              <td class="px-3 py-2">
+                <input [(ngModel)]="item.quantity" type="number" min="1" [max]="item.maxQuantity || 999999"
+                  class="w-full px-2 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-sm font-mono text-center font-bold text-slate-800">
+                <span *ngIf="item.maxQuantity"
+                  class="text-[10px] text-emerald-700 font-bold block text-center mt-0.5 font-mono">
+                  (متاح: {{ item.maxQuantity }})
+                </span>
+              </td>
+              <td class="px-3 py-2 text-left">
+                <span class="font-mono font-bold text-slate-800">
+                  {{ (item.unitPrice || 0) | number:'1.2-2' }} ج.م
+                </span>
+              </td>
+              <td class="px-3 py-2">
+                <input [(ngModel)]="item.reason" type="text" placeholder="سبب الإرجاع (اختياري)"
+                  class="w-full px-2 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs text-slate-800">
+              </td>
+              <td class="px-4 py-2 text-left font-mono font-bold text-red-600">
+                {{ ((item.quantity || 0) * (item.unitPrice || 0)) | number:'1.2-2' }} ج.م
+              </td>
+              <td class="px-2 py-2 text-center">
+                <button (click)="removeReturnItemRow(idx)" [disabled]="returnItems.length === 1"
+                  class="p-1 text-slate-400 hover:text-red-500 disabled:opacity-20 transition-colors">
+                  <span class="material-symbols-outlined text-[18px]">delete</span>
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
+          <div class="text-sm text-slate-800 font-medium">
+            إجمالي المرتجع المحسوب:
+            <span class="text-xl font-black text-red-600 font-mono mr-2">{{ computedReturnTotal | number:'1.2-2' }}
+              ج.م</span>
+          </div>
+          <button (click)="submitNewReturn()" [disabled]="creatingReturn"
+            class="px-6 py-2.5 bg-red-600 text-white rounded-xl text-sm font-bold flex items-center gap-2 shadow hover:bg-red-700 disabled:opacity-50 transition-all">
+            <span *ngIf="creatingReturn"
+              class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+            <span class="material-symbols-outlined text-[18px]">check</span>
+            <span>تأكيد المرتجع وخصمه من المخزن</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MAIN SEGMENT TABS BAR (فصل الفواتير عن المرتجع بأزرار مستقلة) -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2">
+      <!-- Section Buttons -->
+      <div class="flex items-center gap-3">
+        <!-- Invoices Tab Button -->
+        <button type="button" (click)="setSection('invoices')"
+          [ngClass]="activeSection === 'invoices' ? 'bg-primary text-white shadow-md' : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'"
+          class="px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition-all">
+          <span class="material-symbols-outlined text-[20px]">receipt_long</span>
+          <span>فواتير المورد</span>
+          <span [ngClass]="activeSection === 'invoices' ? 'bg-white/25 text-white' : 'bg-slate-100 text-slate-700'"
+            class="px-2 py-0.5 rounded-full text-xs font-mono font-bold mr-1">
+            {{ totalInvoicesCount }}
+          </span>
+        </button>
+
+        <!-- Returns Tab Button -->
+        <button type="button" (click)="setSection('returns')"
+          [ngClass]="activeSection === 'returns' ? 'bg-red-600 text-white shadow-md' : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'"
+          class="px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition-all">
+          <span class="material-symbols-outlined text-[20px]">assignment_return</span>
+          <span>مرتجعات المورد</span>
+          <span [ngClass]="activeSection === 'returns' ? 'bg-white/25 text-white' : 'bg-slate-100 text-slate-700'"
+            class="px-2 py-0.5 rounded-full text-xs font-mono font-bold mr-1">
+            {{ returnsCount }}
+          </span>
+        </button>
+      </div>
+
+      <!-- Quick Action / Summary Indicator -->
+      <div *ngIf="activeSection === 'invoices'" class="text-xs text-slate-500 flex items-center gap-2">
+        <span>إجمالي الفواتير: <strong class="text-slate-900 font-mono text-sm">{{ totalInvoicesCount }}</strong></span>
+        <span>•</span>
+        <span>متبقي مطلوب سداده: <strong class="text-rose-700 font-mono text-sm">{{ (statement.totalRemainingAmount ||
+            0) | number:'1.2-2' }} ج.م</strong></span>
+      </div>
+
+      <div *ngIf="activeSection === 'returns'" class="text-xs text-slate-500 flex flex-wrap items-center gap-3">
+        <span>إجمالي المرتجعات: <strong class="text-slate-900 font-mono text-sm">{{ (statement.totalReturnsAmount || 0)
+            | number:'1.2-2' }} ج.م</strong></span>
+        <span>•</span>
+        <span>المسترد نقداً من المورد: <strong class="text-emerald-700 font-mono text-sm">{{
+            (statement.totalRefundsAmount || 0) | number:'1.2-2' }} ج.م</strong></span>
+        <span>•</span>
+        <span>المتبقي طرف المورد: <strong class="text-amber-700 font-mono text-sm">{{ ((statement.totalReturnsAmount ||
+            0) - (statement.totalRefundsAmount || 0)) | number:'1.2-2' }} ج.م</strong></span>
+      </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- SECTION A: INVOICES (الفواتير مع الـ 3 فلاتر و Pagination) -->
+    <!-- ========================================== -->
+    <div *ngIf="activeSection === 'invoices'"
+      class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden space-y-0">
+
+      <!-- Toolbar: 3 Strictly Defined Filter Buttons (No 'All') + Search Bar -->
+      <div
+        class="p-4 bg-slate-50 border-b border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
+
+        <!-- 3 FILTER BUTTONS (غير مدفوعة، مدفوعة جزئياً، مدفوعة بالكامل) - بدون خيار "الكل" -->
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="text-xs font-bold text-slate-500 ml-1">تصفية الفواتير:</span>
+
+          <!-- 1. غير مدفوعة (Unpaid) -->
+          <button type="button" (click)="setInvoiceFilter('unpaid')"
+            [ngClass]="invoiceFilter === 'unpaid' ? 'bg-rose-600 text-white shadow-sm ring-2 ring-rose-200' : 'bg-white text-rose-800 hover:bg-rose-50 border border-rose-200'"
+            class="px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all">
+            <span class="w-2 h-2 rounded-full"
+              [ngClass]="invoiceFilter === 'unpaid' ? 'bg-white' : 'bg-rose-600'"></span>
+            <span>غير مدفوعة</span>
+            <span [ngClass]="invoiceFilter === 'unpaid' ? 'bg-white/25 text-white' : 'bg-rose-100 text-rose-800'"
+              class="px-2 py-0.5 rounded-full text-[11px] font-mono font-bold mr-1">
+              {{ unpaidCount }}
+            </span>
+          </button>
+
+          <!-- 2. مدفوعة جزئياً (Partial) -->
+          <button type="button" (click)="setInvoiceFilter('partial')"
+            [ngClass]="invoiceFilter === 'partial' ? 'bg-purple-600 text-white shadow-sm ring-2 ring-purple-200' : 'bg-white text-purple-800 hover:bg-purple-50 border border-purple-200'"
+            class="px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all">
+            <span class="w-2 h-2 rounded-full"
+              [ngClass]="invoiceFilter === 'partial' ? 'bg-white' : 'bg-amber-600'"></span>
+            <span>مدفوعة جزئياً</span>
+            <span [ngClass]="invoiceFilter === 'partial' ? 'bg-white/25 text-white' : 'bg-purple-100 text-purple-800'"
+              class="px-2 py-0.5 rounded-full text-[11px] font-mono font-bold mr-1">
+              {{ partialCount }}
+            </span>
+          </button>
+
+          <!-- 3. مدفوعة بالكامل (Paid) -->
+          <button type="button" (click)="setInvoiceFilter('paid')"
+            [ngClass]="invoiceFilter === 'paid' ? 'bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-200' : 'bg-white text-emerald-800 hover:bg-emerald-50 border border-emerald-200'"
+            class="px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all">
+            <span class="w-2 h-2 rounded-full"
+              [ngClass]="invoiceFilter === 'paid' ? 'bg-white' : 'bg-emerald-600'"></span>
+            <span>مدفوعة بالكامل</span>
+            <span [ngClass]="invoiceFilter === 'paid' ? 'bg-white/25 text-white' : 'bg-emerald-100 text-emerald-800'"
+              class="px-2 py-0.5 rounded-full text-[11px] font-mono font-bold mr-1">
+              {{ paidCount }}
+            </span>
+          </button>
+        </div>
+
+        <!-- Invoices Search Bar -->
+        <div class="relative w-full md:w-72">
+          <span class="material-symbols-outlined absolute right-3 top-2.5 text-slate-400 text-[18px]">search</span>
+          <input [(ngModel)]="invoiceSearch" type="search" (ngModelChange)="onInvoiceSearchChange()"
+            class="w-full pr-9 pl-3 py-1.5 bg-white border border-slate-300 rounded-xl text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-primary">
+        </div>
+      </div>
+
+      <div *ngIf="loadingRows" class="h-0.5 w-full bg-primary/60 animate-pulse"></div>
+
+      <!-- Empty State for Current Invoices Filter -->
+      <div *ngIf="!loading && !loadingRows && statement && statement.invoices.length === 0" class="py-16 text-center">
+        <div class="w-14 h-14 mx-auto mb-3 rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
+          <span class="material-symbols-outlined text-[30px]">receipt</span>
+        </div>
+        <h4 class="font-bold text-slate-800 text-sm mb-1">
+          لا توجد فواتير بحالة ({{ invoiceFilter === 'unpaid' ? 'غير مدفوعة' : (invoiceFilter === 'partial' ? 'مدفوعة
+          جزئياً' : 'مدفوعة بالكامل') }})
+        </h4>
+        <p class="text-xs text-slate-500 max-w-sm mx-auto">
+          يمكنك الضغط على أحد أزرار الفلاتر الأخرى بالأعلى للاطلاع على بقية الفواتير.
+        </p>
+      </div>
+
       <!-- Invoices List Table -->
-      <div *ngIf="statement.invoices && statement.invoices.length > 0" class="overflow-x-auto">
-        <table class="w-full text-left border-collapse text-sm">
-          <thead
-            class="bg-light-surface-variant border-b border-outline text-xs text-light-on-surface-variant font-semibold">
+      <div *ngIf="statement && statement.invoices.length > 0" class="overflow-x-auto">
+        <table class="w-full text-right border-collapse text-sm">
+          <thead class="bg-slate-50 border-b border-slate-200 text-xs text-slate-500 font-semibold">
             <tr>
               <th class="px-4 py-3.5 w-12 text-center"></th>
               <th class="px-4 py-3.5">رقم الفاتورة</th>
               <th class="px-4 py-3.5">التاريخ</th>
-              <th class="px-4 py-3.5">طريقة الدفع</th>
-              <th class="px-4 py-3.5 text-right">إجمالي الفاتورة</th>
-              <th class="px-4 py-3.5 text-right text-green-700">المدفوع</th>
-              <th class="px-4 py-3.5 text-right text-amber-700">المتبقي</th>
-              <th class="px-4 py-3.5 text-center">الحالة</th>
-              <th class="px-4 py-3.5 text-right">الإجراء</th>
+
+              <th class="px-4 py-3.5 text-left">إجمالي الفاتورة</th>
+              <th class="px-4 py-3.5 text-left text-emerald-700">المسدد</th>
+              @if (invoiceFilter !== 'paid') {
+              <th class="px-4 py-3.5 text-left text-rose-700">المتبقي</th>
+              }
+              <th class="px-4 py-3.5 text-left">الإجراءات</th>
             </tr>
           </thead>
-          <tbody class="divide-y divide-outline">
+          <tbody class="divide-y divide-slate-100">
             <ng-container *ngFor="let inv of statement.invoices">
-              <tr (click)="viewInvoice(inv.id)" class="hover:bg-primary/5 transition-colors cursor-pointer group">
+              <tr (click)="viewInvoice(inv.id)" class="hover:bg-slate-50/60 transition-colors cursor-pointer group">
                 <!-- Expand Toggle -->
                 <td class="px-4 py-3.5 text-center" (click)="$event.stopPropagation()">
                   <button (click)="toggleExpandInvoice(inv.id, $event)"
-                    class="text-slate-400 hover:text-primary transition-colors">
-                    <span class="material-symbols-outlined text-[18px]">
+                    class="text-slate-400 hover:text-primary transition-colors p-1 rounded-lg">
+                    <span class="material-symbols-outlined text-[20px]">
                       {{ expandedInvoiceId === inv.id ? 'expand_less' : 'expand_more' }}
                     </span>
                   </button>
                 </td>
 
                 <!-- Invoice Number -->
-                <td class="px-4 py-3.5 font-mono font-bold text-light-on-surface">
+                <td class="px-4 py-3.5 font-mono font-bold text-slate-900">
                   <a [routerLink]="['/invoices', inv.id]" (click)="$event.stopPropagation()"
                     class="inline-flex items-center gap-1.5 text-primary group-hover:underline font-bold">
                     <span class="material-symbols-outlined text-[16px]">receipt_long</span>
@@ -466,69 +593,48 @@
                 </td>
 
                 <!-- Date & Due Date -->
-                <td class="px-4 py-3.5 text-xs text-light-on-surface-variant">
-                  <div>{{ inv.invoiceDate | date:'yyyy/MM/dd' }}</div>
-                  <div *ngIf="inv.dueDate" class="text-[11px] text-amber-700 font-medium">استحقاق: {{ inv.dueDate |
-                    date:'yyyy/MM/dd' }}</div>
+                <td class="px-4 py-3.5 text-xs text-slate-500">
+                  <div class="font-mono">{{ inv.invoiceDate | date:'yyyy/MM/dd' }}</div>
+                  <div *ngIf="inv.dueDate" class="text-[11px] text-amber-700 font-semibold font-mono">
+                    استحقاق: {{ inv.dueDate | date:'yyyy/MM/dd' }}
+                  </div>
                 </td>
 
-                <!-- Payment Type -->
-                <td class="px-4 py-3.5 text-xs">
-                  <span [class.bg-blue-50]="inv.paymentType === 'Cash' || inv.paymentType === '1'"
-                    [class.text-blue-700]="inv.paymentType === 'Cash' || inv.paymentType === '1'"
-                    [class.bg-purple-50]="inv.paymentType === 'Credit' || inv.paymentType === '2'"
-                    [class.text-purple-700]="inv.paymentType === 'Credit' || inv.paymentType === '2'"
-                    class="px-2 py-0.5 rounded border text-[11px] font-semibold">
-                    {{ (inv.paymentType === 'Cash' || inv.paymentType === '1') ? 'نقدي' : 'آجل' }}
-                  </span>
-                </td>
+
 
                 <!-- Total Amount -->
-                <td class="px-4 py-3.5 text-right font-mono font-bold text-light-on-surface">
+                <td class="px-4 py-3.5 text-left font-mono font-bold text-slate-900">
                   {{ inv.totalAmount | number:'1.2-2' }} <span class="text-xs font-normal text-slate-400">ج.م</span>
                 </td>
 
                 <!-- Paid Amount -->
-                <td class="px-4 py-3.5 text-right font-mono font-semibold text-green-700">
+                <td class="px-4 py-3.5 text-left font-mono font-bold text-emerald-700">
                   {{ inv.paidAmount | number:'1.2-2' }} <span class="text-xs font-normal text-slate-400">ج.م</span>
                 </td>
 
                 <!-- Remaining Amount -->
-                <td class="px-4 py-3.5 text-right font-mono font-bold" [class.text-amber-700]="inv.remainingAmount > 0"
+                @if (invoiceFilter !== 'paid') {
+                <td class="px-4 py-3.5 text-left font-mono font-bold" [class.text-rose-700]="inv.remainingAmount > 0"
                   [class.text-slate-400]="inv.remainingAmount === 0">
                   {{ inv.remainingAmount | number:'1.2-2' }} <span class="text-xs font-normal text-slate-400">ج.م</span>
-                </td>
+                </td>}
 
-                <!-- Status Badge -->
-                <td class="px-4 py-3.5 text-center">
-                  <span *ngIf="inv.remainingAmount === 0"
-                    class="px-2 py-0.5 rounded-full bg-green-100 text-green-800 text-xs font-bold inline-flex items-center gap-1">
-                    <span class="w-1.5 h-1.5 rounded-full bg-green-600"></span> مدفوعة بالكامل
-                  </span>
-                  <span *ngIf="inv.remainingAmount > 0 && inv.paidAmount > 0"
-                    class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-xs font-bold inline-flex items-center gap-1">
-                    <span class="w-1.5 h-1.5 rounded-full bg-amber-600"></span> مدفوعة جزئياً
-                  </span>
-                  <span *ngIf="inv.paidAmount === 0"
-                    class="px-2 py-0.5 rounded-full bg-red-100 text-red-800 text-xs font-bold inline-flex items-center gap-1">
-                    <span class="w-1.5 h-1.5 rounded-full bg-red-600"></span> غير مدفوعة
-                  </span>
-                </td>
 
-                <!-- Actions: View & Print + Payment -->
-                <td class="px-4 py-3.5 text-right" (click)="$event.stopPropagation()">
+
+                <!-- Actions -->
+                <td class="px-4 py-3.5 text-left" (click)="$event.stopPropagation()">
                   <div class="flex items-center justify-end gap-2">
                     <a [routerLink]="['/invoices', inv.id]"
-                      class="px-2.5 py-1 bg-slate-800 hover:bg-slate-900 text-white rounded text-xs font-semibold inline-flex items-center gap-1 shadow-sm transition-all"
+                      class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-xs font-bold inline-flex items-center gap-1 shadow-sm transition-all"
                       title="عرض تفاصيل الفاتورة وأمر الطباعة">
-                      <span class="material-symbols-outlined text-[14px]">print</span>
+                      <span class="material-symbols-outlined text-[15px]">print</span>
                       <span>عرض وطباعة</span>
                     </a>
 
                     <button *ngIf="inv.remainingAmount > 0" (click)="openPaymentModal(inv)"
-                      class="px-2.5 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-xs font-semibold inline-flex items-center gap-1 shadow-sm transition-colors"
+                      class="px-2.5 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-bold inline-flex items-center gap-1 shadow-sm transition-colors"
                       title="تسجيل دفعة">
-                      <span class="material-symbols-outlined text-[14px]">add</span>
+                      <span class="material-symbols-outlined text-[15px]">add_card</span>
                       <span>دفعة</span>
                     </button>
                   </div>
@@ -536,31 +642,34 @@
               </tr>
 
               <!-- EXPANDED ROW: DETAILS & LINE ITEMS -->
-              <tr *ngIf="expandedInvoiceId === inv.id" class="bg-slate-50/70">
+              <tr *ngIf="expandedInvoiceId === inv.id" class="bg-slate-50/80">
                 <td colspan="9" class="px-8 py-4">
                   <div class="space-y-4">
                     <!-- Line Items Breakdown -->
                     <div>
-                      <h5 class="text-xs font-bold text-light-on-surface mb-2 flex items-center gap-1">
+                      <h5 class="text-xs font-bold text-slate-800 mb-2 flex items-center gap-1">
                         <span class="material-symbols-outlined text-[16px] text-primary">category</span>
                         <span>أصناف الفاتورة ({{ inv.items.length || 0 }} صنف):</span>
                       </h5>
-                      <div class="border border-outline rounded bg-white overflow-hidden">
-                        <table class="w-full text-left text-xs">
-                          <thead class="bg-slate-100 text-slate-600 font-semibold border-b border-outline">
+                      <div class="border border-slate-200 rounded-xl bg-white overflow-hidden shadow-sm">
+                        <table class="w-full text-right text-xs">
+                          <thead class="bg-slate-100 text-slate-600 font-semibold border-b border-slate-200">
                             <tr>
-                              <th class="px-3 py-1.5">RMS Item ID</th>
-                              <th class="px-3 py-1.5 text-center">الكمية</th>
-                              <th class="px-3 py-1.5 text-right">سعر الوحدة</th>
-                              <th class="px-3 py-1.5 text-right">إجمالي البند</th>
+                              <th class="px-4 py-2">الصنف</th>
+                              <th class="px-4 py-2 text-center">الكمية</th>
+                              <th class="px-4 py-2 text-left">سعر الوحدة</th>
+                              <th class="px-4 py-2 text-left">إجمالي البند</th>
                             </tr>
                           </thead>
-                          <tbody class="divide-y divide-outline">
+                          <tbody class="divide-y divide-slate-100">
                             <tr *ngFor="let it of inv.items">
-                              <td class="px-3 py-1.5 font-mono">Item #{{ it.rmsItemID }}</td>
-                              <td class="px-3 py-1.5 text-center font-mono font-semibold">{{ it.quantity }}</td>
-                              <td class="px-3 py-1.5 text-right font-mono">{{ it.unitPrice | number:'1.2-2' }} ج.م</td>
-                              <td class="px-3 py-1.5 text-right font-mono font-bold text-primary">{{ it.totalPrice |
+                              <td class="px-4 py-2 font-semibold text-slate-800">{{ it.itemDescription ||
+                                getItemName(it.rmsItemID) }} <span class="font-mono text-slate-400 font-normal">#{{
+                                  it.rmsItemID }}</span></td>
+                              <td class="px-4 py-2 text-center font-mono font-bold">{{ it.quantity }}</td>
+                              <td class="px-4 py-2 text-left font-mono font-bold">{{ it.unitPrice | number:'1.2-2' }}
+                                ج.م</td>
+                              <td class="px-4 py-2 text-left font-mono font-black text-primary">{{ it.totalPrice |
                                 number:'1.2-2' }} ج.م</td>
                             </tr>
                           </tbody>
@@ -570,26 +679,26 @@
 
                     <!-- Payments History Breakdown -->
                     <div *ngIf="inv.payments && inv.payments.length > 0">
-                      <h5 class="text-xs font-bold text-green-800 mb-2 flex items-center gap-1">
-                        <span class="material-symbols-outlined text-[16px] text-green-600">history_edu</span>
+                      <h5 class="text-xs font-bold text-emerald-800 mb-2 flex items-center gap-1">
+                        <span class="material-symbols-outlined text-[16px] text-emerald-600">history_edu</span>
                         <span>سجل الدفعات المسددة على هذه الفاتورة:</span>
                       </h5>
-                      <div class="border border-green-200 rounded bg-green-50/30 overflow-hidden">
-                        <table class="w-full text-left text-xs">
-                          <thead class="bg-green-100 text-green-900 font-semibold border-b border-green-200">
+                      <div class="border border-emerald-200 rounded-xl bg-emerald-50/30 overflow-hidden shadow-sm">
+                        <table class="w-full text-right text-xs">
+                          <thead class="bg-emerald-100 text-emerald-900 font-semibold border-b border-emerald-200">
                             <tr>
-                              <th class="px-3 py-1.5">رقم الدفعة</th>
-                              <th class="px-3 py-1.5">تاريخ الدفع</th>
-                              <th class="px-3 py-1.5">طريقة الدفع</th>
-                              <th class="px-3 py-1.5 text-right">المبلغ المسدد</th>
+                              <th class="px-4 py-2">رقم الدفعة</th>
+                              <th class="px-4 py-2">تاريخ الدفع</th>
+                              <th class="px-4 py-2">طريقة الدفع</th>
+                              <th class="px-4 py-2 text-left">المبلغ المسدد</th>
                             </tr>
                           </thead>
-                          <tbody class="divide-y divide-green-100">
+                          <tbody class="divide-y divide-emerald-100">
                             <tr *ngFor="let pay of inv.payments">
-                              <td class="px-3 py-1.5 font-mono">#{{ pay.id }}</td>
-                              <td class="px-3 py-1.5">{{ pay.paymentDate | date:'yyyy/MM/dd HH:mm' }}</td>
-                              <td class="px-3 py-1.5 font-medium">{{ pay.paymentMethod || 'نقداً' }}</td>
-                              <td class="px-3 py-1.5 text-right font-mono font-bold text-green-700">
+                              <td class="px-4 py-2 font-mono font-bold">#{{ pay.id }}</td>
+                              <td class="px-4 py-2 font-mono">{{ pay.paymentDate | date:'yyyy/MM/dd, h:mm a' }}</td>
+                              <td class="px-4 py-2 font-semibold">{{ pay.paymentMethod || 'نقداً' }}</td>
+                              <td class="px-4 py-2 text-left font-mono font-black text-emerald-700">
                                 {{ pay.amount | number:'1.2-2' }} ج.م
                               </td>
                             </tr>
@@ -597,6 +706,7 @@
                         </table>
                       </div>
                     </div>
+
                   </div>
                 </td>
               </tr>
@@ -604,135 +714,365 @@
           </tbody>
         </table>
       </div>
+
+      <!-- INVOICES PAGINATION CONTROLS -->
+      <div *ngIf="statement && statement.invoices.length > 0"
+        class="p-4 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3">
+
+        <div class="text-xs text-slate-600 font-medium">
+          عرض <strong class="text-slate-900 font-mono">{{ (invoicePage - 1) * invoicePageSize + 1 }}</strong> إلى
+          <strong class="text-slate-900 font-mono">{{ invoicePage * invoicePageSize > invoiceTotalCount ?
+            invoiceTotalCount : (invoicePage * invoicePageSize) }}</strong>
+          من إجمالي <strong class="text-slate-900 font-mono">{{ invoiceTotalCount }}</strong> فاتورة
+          (صفحة <strong class="font-mono">{{ invoicePage }}</strong> من <strong class="font-mono">{{ invoiceTotalPages
+            }}</strong>)
+        </div>
+
+        <div class="flex items-center gap-1">
+          <!-- First -->
+          <button type="button" (click)="setInvoicePage(1)" [disabled]="invoicePage === 1"
+            class="p-1.5 rounded-lg text-slate-500 hover:bg-slate-200 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+            title="الصفحة الأولى">
+            <span class="material-symbols-outlined text-[18px]">first_page</span>
+          </button>
+
+          <!-- Previous -->
+          <button type="button" (click)="setInvoicePage(invoicePage - 1)" [disabled]="invoicePage === 1"
+            class="px-2.5 py-1.5 rounded-lg text-slate-600 hover:bg-slate-200 disabled:opacity-30 disabled:pointer-events-none text-xs font-bold flex items-center gap-1 transition-colors">
+            <span class="material-symbols-outlined text-[16px]">chevron_right</span>
+            <span>السابق</span>
+          </button>
+
+          <!-- Number buttons -->
+          <div class="flex items-center gap-1 mx-1">
+            <button *ngFor="let p of visibleInvoicePages" type="button" (click)="setInvoicePage(p)"
+              [class.bg-primary]="p === invoicePage" [class.text-white]="p === invoicePage"
+              [class.font-bold]="p === invoicePage"
+              class="w-7 h-7 rounded-lg text-xs font-mono transition-colors flex items-center justify-center hover:bg-slate-200 text-slate-700">
+              {{ p }}
+            </button>
+          </div>
+
+          <!-- Next -->
+          <button type="button" (click)="setInvoicePage(invoicePage + 1)" [disabled]="invoicePage === invoiceTotalPages"
+            class="px-2.5 py-1.5 rounded-lg text-slate-600 hover:bg-slate-200 disabled:opacity-30 disabled:pointer-events-none text-xs font-bold flex items-center gap-1 transition-colors">
+            <span>التالي</span>
+            <span class="material-symbols-outlined text-[16px]">chevron_left</span>
+          </button>
+
+          <!-- Last -->
+          <button type="button" (click)="setInvoicePage(invoiceTotalPages)"
+            [disabled]="invoicePage === invoiceTotalPages"
+            class="p-1.5 rounded-lg text-slate-500 hover:bg-slate-200 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+            title="الصفحة الأخيرة">
+            <span class="material-symbols-outlined text-[18px]">last_page</span>
+          </button>
+        </div>
+      </div>
     </div>
 
-    <!-- 4. RETURNS STATEMENT TABLE (جدول مرتجعات المورد المسجلة) -->
-    <div class="bg-light-surface rounded-xl border border-outline shadow-sm overflow-hidden">
-      <div class="p-4 border-b border-outline bg-light-surface flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <!-- ========================================== -->
+    <!-- SECTION B: RETURNS (المرتجع في قسم مستقل بزر مخصص) -->
+    <!-- ========================================== -->
+    <div *ngIf="activeSection === 'returns'"
+      class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden space-y-0">
+
+      <div class="p-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
         <div class="flex items-center gap-2">
-          <span class="material-symbols-outlined text-amber-600 text-[20px]">assignment_return</span>
-          <h3 class="font-bold text-base text-light-on-surface">سجل مرتجعات المورد</h3>
-          <span class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-xs font-semibold">
-            {{ (statement.returns?.length || 0) }} مرتجع
+          <span class="material-symbols-outlined text-amber-600 text-[22px]">assignment_return</span>
+          <h3 class="font-bold text-base text-slate-900">سجل مرتجعات المورد</h3>
+          <span class="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 text-xs font-bold font-mono">
+            {{ returnsCount }} مرتجع
           </span>
         </div>
-        <a [routerLink]="['/supplier-returns/new']" [queryParams]="{ supplierId: supplierId }"
-           class="text-xs font-semibold text-primary hover:underline flex items-center gap-1">
-          <span class="material-symbols-outlined text-[16px]">add_circle</span>
-          <span>+ إنشاء مرتجع جديد لهذا المورد</span>
-        </a>
       </div>
 
-      <!-- Empty State -->
-      <div *ngIf="!statement.returns || statement.returns.length === 0" class="py-12 text-center">
-        <div class="w-12 h-12 mx-auto mb-2 rounded-full bg-light-surface-variant flex items-center justify-center text-slate-400">
-          <span class="material-symbols-outlined text-[26px]">assignment_return</span>
+      <div *ngIf="loadingRows" class="h-0.5 w-full bg-primary/60 animate-pulse"></div>
+
+      <!-- Empty State for Returns -->
+      <div *ngIf="!loading && !loadingRows && (!statement?.returns || statement.returns.length === 0)"
+        class="py-16 text-center">
+        <div class="w-14 h-14 mx-auto mb-3 rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
+          <span class="material-symbols-outlined text-[30px]">assignment_return</span>
         </div>
-        <h4 class="font-bold text-light-on-surface text-sm mb-1">لا توجد مرتجعات مسجلة لهذا المورد</h4>
-        <p class="text-xs text-light-on-surface-variant mb-3">يمكنك عمل مرتجع بضاعة لخصم قيمتها من رصيد هذا المورد في كشف الحساب.</p>
-        <a [routerLink]="['/supplier-returns/new']" [queryParams]="{ supplierId: supplierId }"
-           class="px-4 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded text-xs font-semibold inline-flex items-center gap-1">
-          + عمل أول مرتجع لهذا المورد
-        </a>
+        <h4 class="font-bold text-slate-800 text-sm mb-1">لا توجد مرتجعات مسجلة لهذا المورد</h4>
+        <p class="text-xs text-slate-500 mb-4 max-w-sm mx-auto">
+          يمكنك تسجيل مرتجع بضاعة لخصم قيمتها تلقائياً من رصيد هذا المورد في كشف الحساب.
+        </p>
+        <button (click)="toggleCreateReturn()"
+          class="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold inline-flex items-center gap-1 shadow-sm">
+          <span class="material-symbols-outlined text-[16px]">add</span>
+          <span>عمل أول مرتجع لهذا المورد</span>
+        </button>
       </div>
 
       <!-- Returns Table -->
-      <div *ngIf="statement.returns && statement.returns.length > 0" class="overflow-x-auto">
+      <div *ngIf="statement?.returns && statement.returns.length > 0" class="overflow-x-auto">
         <table class="w-full text-right border-collapse text-sm">
-          <thead class="bg-light-surface-variant border-b border-outline text-xs text-light-on-surface-variant font-semibold">
+          <thead class="bg-slate-50 border-b border-slate-200 text-xs text-slate-500 font-semibold">
             <tr>
-              <th class="px-4 py-3">رقم المرتجع</th>
-              <th class="px-4 py-3">التاريخ</th>
-              <th class="px-4 py-3">المخزن</th>
-              <th class="px-4 py-3">نوع التسوية</th>
-              <th class="px-4 py-3 text-left">قيمة المرتجع</th>
-              <th class="px-4 py-3 text-left text-green-700">المسترد نقداً</th>
-              <th class="px-4 py-3 text-left text-amber-700">المعلق للاسترداد</th>
-              <th class="px-4 py-3 text-center">الحالة</th>
-              <th class="px-4 py-3 text-center">الإجراء</th>
+              <th class="px-4 py-3.5">رقم المرتجع</th>
+              <th class="px-4 py-3.5">التاريخ</th>
+              <th class="px-4 py-3.5 text-left">قيمة المرتجع</th>
+              <th class="px-4 py-3.5 text-left text-emerald-700">المسترد نقداً</th>
+              <th class="px-4 py-3.5 text-left text-amber-700">المعلق للاسترداد</th>
+
+              <th class="px-4 py-3.5 text-left">الإجراء</th>
             </tr>
           </thead>
-          <tbody class="divide-y divide-outline">
-            <tr *ngFor="let ret of statement.returns" class="hover:bg-amber-50/30 transition-colors">
-              <td class="px-4 py-3 font-mono font-bold text-primary">
-                <a [routerLink]="['/supplier-returns', ret.id]" class="hover:underline">{{ ret.returnNumber }}</a>
-              </td>
-              <td class="px-4 py-3 text-xs text-light-on-surface-variant">{{ ret.returnDate | date:'yyyy-MM-dd' }}</td>
-              <td class="px-4 py-3">{{ ret.warehouseName }}</td>
-              <td class="px-4 py-3 text-xs">
-                <span class="px-2 py-0.5 rounded bg-gray-100 text-gray-800">{{ ret.settlementType }}</span>
-              </td>
-              <td class="px-4 py-3 font-bold text-amber-800 text-left">{{ ret.totalAmount | number:'1.2-2' }} ج.م</td>
-              <td class="px-4 py-3 font-medium text-green-700 text-left">{{ ret.refundedAmount | number:'1.2-2' }} ج.م</td>
-              <td class="px-4 py-3 font-medium text-slate-600 text-left">{{ ret.pendingRefund | number:'1.2-2' }} ج.م</td>
-              <td class="px-4 py-3 text-center">
-                <span [ngClass]="{
-                  'bg-amber-100 text-amber-800 border-amber-200': ret.status === 'Draft',
-                  'bg-green-100 text-green-800 border-green-200': ret.status === 'Confirmed',
-                  'bg-gray-100 text-gray-700 border-gray-300': ret.status === 'Cancelled'
-                }" class="px-2.5 py-0.5 rounded-full text-xs font-medium border">
-                  {{ ret.status === 'Draft' ? 'مسودة' : (ret.status === 'Confirmed' ? 'مؤكد' : 'ملغي') }}
-                </span>
-              </td>
-              <td class="px-4 py-3 text-center">
-                <a [routerLink]="['/supplier-returns', ret.id]"
-                   class="px-2.5 py-1 rounded bg-primary/10 text-primary hover:bg-primary/20 text-xs font-semibold transition-colors">
-                  تفاصيل المرتجع
-                </a>
-              </td>
-            </tr>
+          <tbody class="divide-y divide-slate-100">
+            <ng-container *ngFor="let ret of statement.returns">
+              <tr class="hover:bg-slate-50/60 transition-colors cursor-pointer" (click)="toggleExpandReturn(ret.id)">
+                <td class="px-4 py-3.5 font-mono font-bold text-primary flex items-center gap-1.5">
+                  <span class="material-symbols-outlined text-[18px] text-slate-400">
+                    {{ expandedReturnId === ret.id ? 'expand_less' : 'expand_more' }}
+                  </span>
+                  <span>{{ ret.returnNumber }}</span>
+                </td>
+                <td class="px-4 py-3.5 text-xs text-slate-500 font-mono">{{ ret.returnDate | date:'yyyy/MM/dd' }}</td>
+
+                <td class="px-4 py-3.5 font-black font-mono text-amber-700 text-left">{{ ret.totalAmount |
+                  number:'1.2-2' }} ج.م</td>
+                <td class="px-4 py-3.5 font-bold font-mono text-emerald-700 text-left">{{ ret.refundedAmount |
+                  number:'1.2-2' }} ج.م</td>
+                <td class="px-4 py-3.5 font-bold font-mono text-slate-600 text-left">{{ ret.pendingRefund |
+                  number:'1.2-2' }} ج.م</td>
+
+                <td class="px-4 py-3.5 text-left" (click)="$event.stopPropagation()">
+                  <div class="flex items-center justify-end gap-1.5">
+                    <button type="button" (click)="toggleExpandReturn(ret.id)"
+                      class="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold inline-flex items-center gap-1 transition-colors">
+                      <span class="material-symbols-outlined text-[15px]">{{ expandedReturnId === ret.id ? 'expand_less'
+                        : 'visibility' }}</span>
+                      <span>{{ expandedReturnId === ret.id ? 'إخفاء' : 'الأصناف' }}</span>
+                    </button>
+
+                    <!-- Add Refund Button (تسجيل استرداد نقدية من المورد) -->
+                    <button *ngIf="ret.status !== 'Cancelled' && (ret.totalAmount - ret.refundedAmount) > 0"
+                      type="button" (click)="openRefundModal(ret)"
+                      class="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold inline-flex items-center gap-1 shadow-sm transition-all"
+                      title="تسجيل استرداد نقدية من المورد لهذا المرتجع">
+                      <span class="material-symbols-outlined text-[15px]">payments</span>
+                      <span>استرداد</span>
+                    </button>
+
+                    <button *ngIf="ret.status === 'Draft'" type="button" (click)="confirmReturn(ret)"
+                      [disabled]="confirmingReturnId === ret.id"
+                      class="px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold inline-flex items-center gap-1 shadow-sm transition-all"
+                      title="تأكيد المرتجع وخصم الأصناف من المخزن فورياً">
+                      <span *ngIf="confirmingReturnId === ret.id"
+                        class="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                      <span class="material-symbols-outlined text-[15px]">check_circle</span>
+                      <span>تأكيد</span>
+                    </button>
+
+                    <button *ngIf="ret.status === 'Draft'" type="button" (click)="cancelReturn(ret)"
+                      [disabled]="cancellingReturnId === ret.id"
+                      class="px-2 py-1.5 bg-slate-100 hover:bg-red-50 text-slate-500 hover:text-red-600 rounded-lg text-xs font-bold inline-flex items-center gap-1 transition-colors"
+                      title="إلغاء المرتجع">
+                      <span class="material-symbols-outlined text-[15px]">close</span>
+                      <span>إلغاء</span>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+
+              <!-- EXPANDED ROW: RETURN DETAILS & ITEMS -->
+              <tr *ngIf="expandedReturnId === ret.id" class="bg-amber-50/40">
+                <td colspan="9" class="px-8 py-4">
+                  <div *ngIf="loadingReturnDetails"
+                    class="py-4 text-center text-xs text-slate-500 flex items-center justify-center gap-2">
+                    <span
+                      class="w-4 h-4 border-2 border-amber-600 border-t-transparent rounded-full animate-spin"></span>
+                    <span>جاري تحميل تفاصيل وأصناف المرتجع...</span>
+                  </div>
+
+                  <div *ngIf="!loadingReturnDetails && expandedReturnData" class="space-y-4">
+                    <!-- Return Notes if any -->
+                    <div *ngIf="expandedReturnData.notes"
+                      class="text-xs text-slate-600 bg-white p-3 rounded-xl border border-slate-200">
+                      <strong class="text-slate-800">ملاحظات / سبب المرتجع: </strong>{{ expandedReturnData.notes }}
+                    </div>
+
+                    <!-- Return Items Breakdown -->
+                    <div>
+                      <h5 class="text-xs font-bold text-slate-800 mb-2 flex items-center gap-1">
+                        <span class="material-symbols-outlined text-[16px] text-amber-600">inventory_2</span>
+                        <span>أصناف المرتجع ({{ expandedReturnData.items.length || 0 }} صنف):</span>
+                      </h5>
+                      <div class="border border-slate-200 rounded-xl bg-white overflow-hidden shadow-sm">
+                        <table class="w-full text-right text-xs">
+                          <thead class="bg-slate-100 text-slate-600 font-semibold border-b border-slate-200">
+                            <tr>
+                              <th class="px-4 py-2">كود الصنف</th>
+                              <th class="px-4 py-2">اسم الصنف</th>
+                              <th class="px-4 py-2 text-center">الكمية المرتجعة</th>
+                              <th class="px-4 py-2 text-left">سعر الوحدة</th>
+                              <th class="px-4 py-2 text-left">إجمالي البند</th>
+                              <th class="px-4 py-2">سبب الإرجاع</th>
+                            </tr>
+                          </thead>
+                          <tbody class="divide-y divide-slate-100">
+                            <tr *ngFor="let it of expandedReturnData.items">
+                              <td class="px-4 py-2 font-mono font-bold text-slate-700">#{{ it.rmsItemID }}</td>
+                              <td class="px-4 py-2 font-medium text-slate-800">{{ getItemName(it.rmsItemID) }}</td>
+                              <td class="px-4 py-2 text-center font-mono font-bold text-red-600">{{ it.quantity }}</td>
+                              <td class="px-4 py-2 text-left font-mono font-bold">{{ it.unitPrice | number:'1.2-2' }}
+                                ج.م</td>
+                              <td class="px-4 py-2 text-left font-mono font-black text-amber-700">{{ (it.totalPrice ||
+                                (it.quantity * it.unitPrice)) | number:'1.2-2' }} ج.م</td>
+                              <td class="px-4 py-2 text-slate-500">{{ it.reason || '—' }}</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    <!-- Refunds History Breakdown (سجل المبالغ المستردة من المورد) -->
+                    <ng-container *ngIf="expandedReturnData">
+                      <div *ngIf="expandedReturnData.refunds && expandedReturnData.refunds.length > 0">
+                        <h5 class="text-xs font-bold text-emerald-800 mb-2 flex items-center gap-1">
+                          <span class="material-symbols-outlined text-[16px] text-emerald-600">history_edu</span>
+                          <span>سجل المبالغ المستردة من المورد على هذا المرتجع:</span>
+                        </h5>
+                        <div class="border border-emerald-200 rounded-xl bg-emerald-50/30 overflow-hidden shadow-sm">
+                          <table class="w-full text-right text-xs">
+                            <thead class="bg-emerald-100 text-emerald-900 font-semibold border-b border-emerald-200">
+                              <tr>
+                                <th class="px-4 py-2">رقم الاسترداد</th>
+                                <th class="px-4 py-2">تاريخ الاسترداد</th>
+                                <th class="px-4 py-2">طريقة الاسترداد</th>
+                                <th class="px-4 py-2 text-left">المبلغ المسترد</th>
+                                <th class="px-4 py-2">ملاحظات</th>
+                              </tr>
+                            </thead>
+                            <tbody class="divide-y divide-emerald-100">
+                              <tr *ngFor="let ref of expandedReturnData.refunds">
+                                <td class="px-4 py-2 font-mono font-bold">#{{ ref.id }}</td>
+                                <td class="px-4 py-2 font-mono">{{ ref.refundDate | date:'yyyy/MM/dd, h:mm a' }}</td>
+                                <td class="px-4 py-2 font-semibold">{{ ref.paymentMethod || 'نقداً' }}</td>
+                                <td class="px-4 py-2 text-left font-mono font-black text-emerald-700">
+                                  {{ ref.amount | number:'1.2-2' }} ج.م
+                                </td>
+                                <td class="px-4 py-2 text-slate-500">{{ ref.notes || '—' }}</td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </ng-container>
+                  </div>
+                </td>
+              </tr>
+            </ng-container>
           </tbody>
         </table>
       </div>
+
+      <!-- RETURNS PAGINATION CONTROLS -->
+      <div *ngIf="statement?.returns && statement.returns.length > 0"
+        class="p-4 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3">
+
+        <div class="text-xs text-slate-600 font-medium">
+          عرض <strong class="text-slate-900 font-mono">{{ (returnPage - 1) * returnPageSize + 1 }}</strong> إلى
+          <strong class="text-slate-900 font-mono">{{ returnPage * returnPageSize > returnTotalCount ? returnTotalCount
+            : (returnPage * returnPageSize) }}</strong>
+          من إجمالي <strong class="text-slate-900 font-mono">{{ returnTotalCount }}</strong> مرتجع
+          (صفحة <strong class="font-mono">{{ returnPage }}</strong> من <strong class="font-mono">{{ returnTotalPages
+            }}</strong>)
+        </div>
+
+        <div class="flex items-center gap-1">
+          <!-- First -->
+          <button type="button" (click)="setReturnPage(1)" [disabled]="returnPage === 1"
+            class="p-1.5 rounded-lg text-slate-500 hover:bg-slate-200 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+            title="الصفحة الأولى">
+            <span class="material-symbols-outlined text-[18px]">first_page</span>
+          </button>
+
+          <!-- Previous -->
+          <button type="button" (click)="setReturnPage(returnPage - 1)" [disabled]="returnPage === 1"
+            class="px-2.5 py-1.5 rounded-lg text-slate-600 hover:bg-slate-200 disabled:opacity-30 disabled:pointer-events-none text-xs font-bold flex items-center gap-1 transition-colors">
+            <span class="material-symbols-outlined text-[16px]">chevron_right</span>
+            <span>السابق</span>
+          </button>
+
+          <!-- Number buttons -->
+          <div class="flex items-center gap-1 mx-1">
+            <button *ngFor="let p of visibleReturnPages" type="button" (click)="setReturnPage(p)"
+              [class.bg-amber-600]="p === returnPage" [class.text-white]="p === returnPage"
+              [class.font-bold]="p === returnPage"
+              class="w-7 h-7 rounded-lg text-xs font-mono transition-colors flex items-center justify-center hover:bg-slate-200 text-slate-700">
+              {{ p }}
+            </button>
+          </div>
+
+          <!-- Next -->
+          <button type="button" (click)="setReturnPage(returnPage + 1)" [disabled]="returnPage === returnTotalPages"
+            class="px-2.5 py-1.5 rounded-lg text-slate-600 hover:bg-slate-200 disabled:opacity-30 disabled:pointer-events-none text-xs font-bold flex items-center gap-1 transition-colors">
+            <span>التالي</span>
+            <span class="material-symbols-outlined text-[16px]">chevron_left</span>
+          </button>
+
+          <!-- Last -->
+          <button type="button" (click)="setReturnPage(returnTotalPages)" [disabled]="returnPage === returnTotalPages"
+            class="p-1.5 rounded-lg text-slate-500 hover:bg-slate-200 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+            title="الصفحة الأخيرة">
+            <span class="material-symbols-outlined text-[18px]">last_page</span>
+          </button>
+        </div>
+      </div>
     </div>
+
   </div>
 
   <!-- QUICK PAYMENT MODAL DIALOG -->
-  <div *ngIf="showPaymentModal" class="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-    <div class="bg-white rounded-xl border border-outline shadow-xl max-w-md w-full p-6 space-y-4">
-      <div class="flex items-center justify-between border-b border-outline pb-3">
-        <h3 class="font-bold text-base text-light-on-surface flex items-center gap-2">
-          <span class="material-symbols-outlined text-green-600">add_card</span>
+  <div *ngIf="showPaymentModal"
+    class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-md w-full p-6 space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-200 pb-3">
+        <h3 class="font-bold text-base text-slate-900 flex items-center gap-2">
+          <span class="material-symbols-outlined text-emerald-600">add_card</span>
           <span>تسجيل دفعة على فاتورة</span>
         </h3>
-        <button (click)="closePaymentModal()" class="text-slate-400 hover:text-slate-600">
+        <button (click)="closePaymentModal()" class="text-slate-400 hover:text-slate-700">
           <span class="material-symbols-outlined">close</span>
         </button>
       </div>
 
-      <div class="text-xs text-light-on-surface-variant space-y-1 bg-slate-50 p-3 rounded border border-outline">
-        <div>رقم الفاتورة: <span class="font-bold text-slate-800 font-mono">{{ selectedInvoice?.invoiceNumber }}</span>
+      <div class="text-xs text-slate-600 space-y-1 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+        <div>رقم الفاتورة: <span class="font-bold text-slate-900 font-mono">{{ selectedInvoice?.invoiceNumber }}</span>
         </div>
-        <div>المتبقي المستحق: <span class="font-bold text-amber-700 font-mono">{{ selectedInvoice?.remainingAmount |
-            number:'1.2-2' }} ج.م</span></div>
+        <div>المتبقي المستحق: <span class="font-bold text-rose-700 font-mono text-sm">{{
+            selectedInvoice?.remainingAmount | number:'1.2-2' }} ج.م</span></div>
       </div>
 
       <div class="space-y-3">
         <div>
-          <label class="block text-xs font-semibold text-light-on-surface mb-1">المبلغ المراد سداده (ج.م)</label>
+          <label class="block text-xs font-bold text-slate-800 mb-1.5">المبلغ المراد سداده (ج.م) *</label>
           <input [(ngModel)]="paymentAmount" type="number" min="0.01" [max]="selectedInvoice?.remainingAmount || 999999"
-            class="w-full px-3 py-2 bg-light-surface-variant border border-outline rounded text-sm font-mono font-bold text-slate-800 focus:outline-none focus:ring-1 focus:ring-primary">
+            class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm font-mono font-bold text-slate-800 focus:outline-none focus:border-primary">
         </div>
 
         <div>
-          <label class="block text-xs font-semibold text-light-on-surface mb-1">طريقة السداد</label>
+          <label class="block text-xs font-bold text-slate-800 mb-1.5">طريقة السداد</label>
           <select [(ngModel)]="paymentMethod"
-            class="w-full px-3 py-2 bg-light-surface-variant border border-outline rounded text-sm text-light-on-surface">
+            class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm text-slate-800 focus:outline-none focus:border-primary">
             <option value="Cash">نقداً (Cash)</option>
             <option value="BankTransfer">تحويل بنكي (Bank Transfer)</option>
-            <option value="Card">بطاقة (Card)</option>
-            <option value="Check">شيك (Check)</option>
+            <option value="Card">بطاقة بنكية (Card)</option>
+            <option value="Check">شيك بنكي (Check)</option>
           </select>
         </div>
       </div>
 
-      <div class="flex items-center justify-end gap-3 pt-3 border-t border-outline">
+      <div class="flex items-center justify-end gap-3 pt-3 border-t border-slate-200">
         <button (click)="closePaymentModal()" type="button"
-          class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded">
+          class="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors">
           إلغاء
         </button>
         <button (click)="submitPayment()" [disabled]="processingPayment || paymentAmount <= 0"
-          class="px-5 py-2 bg-green-600 text-white rounded text-xs font-bold hover:bg-green-700 disabled:opacity-50 flex items-center gap-1.5 shadow">
+          class="px-5 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-1.5 shadow transition-all">
           <span *ngIf="processingPayment"
             class="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
           <span>تأكيد تسجيل الدفعة</span>
@@ -740,4 +1080,76 @@
       </div>
     </div>
   </div>
+
+  <!-- QUICK REFUND MODAL DIALOG -->
+  <div *ngIf="showRefundModal"
+    class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-md w-full p-6 space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-200 pb-3">
+        <h3 class="font-bold text-base text-slate-900 flex items-center gap-2">
+          <span class="material-symbols-outlined text-emerald-600">payments</span>
+          <span>تسجيل استرداد نقدية من المورد</span>
+        </h3>
+        <button (click)="closeRefundModal()" class="text-slate-400 hover:text-slate-700">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+
+      <div class="text-xs text-slate-600 space-y-1 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+        <div>رقم المرتجع: <span class="font-bold text-slate-900 font-mono">{{ selectedReturnForRefund?.returnNumber
+            }}</span></div>
+        <div>إجمالي المرتجع: <span class="font-bold text-amber-700 font-mono text-sm">{{
+            selectedReturnForRefund?.totalAmount | number:'1.2-2' }} ج.م</span></div>
+        <div>المسترد حتى الآن: <span class="font-bold text-emerald-700 font-mono text-sm">{{
+            selectedReturnForRefund?.refundedAmount | number:'1.2-2' }} ج.م</span></div>
+        <div>المتبقي للاسترداد: <span class="font-bold text-rose-700 font-mono text-sm">{{
+            selectedReturnForRefund?.pendingRefund | number:'1.2-2' }} ج.م</span></div>
+      </div>
+
+      <div class="space-y-3">
+        <div>
+          <label class="block text-xs font-bold text-slate-800 mb-1.5">المبلغ المسترد من المورد (ج.م) *</label>
+          <input [(ngModel)]="refundAmount" type="number" min="0.01"
+            class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm font-mono font-bold text-slate-800 focus:outline-none focus:border-emerald-500">
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-800 mb-1.5">تاريخ الاسترداد</label>
+          <input [(ngModel)]="refundDate" type="date"
+            class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm font-mono focus:outline-none focus:border-emerald-500">
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-800 mb-1.5">طريقة الاسترداد</label>
+          <select [(ngModel)]="refundPaymentMethod"
+            class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm text-slate-800 focus:outline-none focus:border-emerald-500">
+            <option value="Cash">نقداً (Cash)</option>
+            <option value="BankTransfer">تحويل بنكي (Bank Transfer)</option>
+            <option value="Card">بطاقة بنكية (Card)</option>
+            <option value="Check">شيك بنكي (Check)</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-800 mb-1.5">ملاحظات</label>
+          <input [(ngModel)]="refundNotes" type="text" placeholder="ملاحظات الاسترداد..."
+            class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm text-slate-800 focus:outline-none focus:border-emerald-500">
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end gap-3 pt-3 border-t border-slate-200">
+        <button (click)="closeRefundModal()" type="button"
+          class="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors">
+          إلغاء
+        </button>
+        <button (click)="submitRefund()" [disabled]="processingRefund || refundAmount <= 0"
+          class="px-5 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-1.5 shadow transition-all">
+          <span *ngIf="processingRefund"
+            class="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+          <span>تأكيد تسجيل الاسترداد</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
 </div>

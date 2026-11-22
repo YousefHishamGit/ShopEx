@@ -1,7 +1,8 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable } from 'rxjs';
-import { Warehouse, StockBalance, StockMovement, StockAdjustmentRequest } from '../models/models';
+import { EMPTY, Observable } from 'rxjs';
+import { expand, reduce } from 'rxjs/operators';
+import { Warehouse, StockBalance, PagedStockBalances, StockMovement, StockAdjustmentRequest } from '../models/models';
 
 @Injectable({
   providedIn: 'root'
@@ -28,24 +29,32 @@ export class StockService {
     return this.http.put<Warehouse>(`${this.baseUrl}/Warehouses/${id}`, request);
   }
 
-  getBalances(warehouseId: number, lowStockOnly: boolean = false): Observable<StockBalance[]> {
-    const params = new HttpParams()
+  getBalances(warehouseId: number, page: number = 1, pageSize: number = 20, search: string = ''): Observable<PagedStockBalances> {
+    let params = new HttpParams()
       .set('warehouseId', warehouseId.toString())
-      .set('lowStockOnly', lowStockOnly.toString());
-    return this.http.get<StockBalance[]>(`${this.baseUrl}/Stock/balances`, { params });
+      .set('page', page.toString())
+      .set('pageSize', pageSize.toString());
+    if (search) params = params.set('search', search);
+    return this.http.get<PagedStockBalances>(`${this.baseUrl}/Stock/balances`, { params });
+  }
+
+  /** All in-stock rows for pickers/lookups (fetches every page, 100 per request). */
+  getAllBalances(warehouseId: number): Observable<StockBalance[]> {
+    const pageSize = 100;
+    return this.getBalances(warehouseId, 1, pageSize).pipe(
+      expand(res => res.page < res.totalPages ? this.getBalances(warehouseId, res.page + 1, pageSize) : EMPTY),
+      reduce((all, res) => all.concat(res.items), [] as StockBalance[])
+    );
   }
 
   getItemBalance(warehouseId: number, rmsItemId: number): Observable<StockBalance> {
     return this.http.get<StockBalance>(`${this.baseUrl}/Stock/balances/${warehouseId}/${rmsItemId}`);
   }
 
-  getMovements(warehouseId?: number, rmsItemId?: number, fromDate?: string, toDate?: string): Observable<StockMovement[]> {
+  /** Latest 30 movements for the warehouse. */
+  getMovements(warehouseId?: number): Observable<StockMovement[]> {
     let params = new HttpParams();
     if (warehouseId) params = params.set('warehouseId', warehouseId.toString());
-    if (rmsItemId) params = params.set('rmsItemId', rmsItemId.toString());
-    if (fromDate) params = params.set('fromDate', fromDate);
-    if (toDate) params = params.set('toDate', toDate);
-
     return this.http.get<StockMovement[]>(`${this.baseUrl}/Stock/movements`, { params });
   }
 

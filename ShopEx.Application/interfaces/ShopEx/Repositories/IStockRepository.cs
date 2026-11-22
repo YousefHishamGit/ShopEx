@@ -9,9 +9,11 @@ namespace ShopEx.Application.interfaces.ShopEx.Repositories
     public interface IStockRepository
     {
         Task<StockBalance?> GetBalanceAsync(int warehouseId, int rmsItemId, CancellationToken ct = default);
-        Task<List<StockBalance>> GetBalancesByWarehouseAsync(int warehouseId, bool lowStockOnly = false, CancellationToken ct = default);
+        /// <summary>Balances with QuantityOnHand &gt; 0, paged in the database. Optional filter by item ids.</summary>
+        Task<(List<StockBalance> Items, int TotalCount)> GetInStockBalancesPagedAsync(int warehouseId, IReadOnlyCollection<int>? itemIds, int page, int pageSize, CancellationToken ct = default);
         Task<List<StockBalance>> GetBalancesByItemAsync(int rmsItemId, CancellationToken ct = default);
-        Task<List<StockMovement>> GetMovementsAsync(int? warehouseId = null, int? rmsItemId = null, DateTime? fromDate = null, DateTime? toDate = null, CancellationToken ct = default);
+        /// <summary>Latest movements, newest first, limited to <paramref name="take"/> rows.</summary>
+        Task<List<StockMovement>> GetRecentMovementsAsync(int? warehouseId, int take, CancellationToken ct = default);
         Task AddMovementAsync(StockMovement movement, CancellationToken ct = default);
         Task AddBalanceAsync(StockBalance balance, CancellationToken ct = default);
         void UpdateBalance(StockBalance balance);

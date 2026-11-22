@@ -1,3 +1,4 @@
+﻿using ShopEx.Application.DTOs.ShopEx;
 using ShopEx.Domain.Entity;
 using System;
 using System.Collections.Generic;
@@ -11,6 +12,7 @@ namespace ShopEx.Application.interfaces.ShopEx.Repositories
     {
         public Task<SupplierInvoice?> GetByIdAsync(int id, CancellationToken ct = default);
         Task<List<SupplierInvoice>> GetAllAsync(CancellationToken ct = default);
+        Task<SupplierInvoicesPage> GetPagedAsync(int page, int pageSize, string? search, IReadOnlyCollection<int>? supplierIdsMatchingSearch, string? status, int? supplierId, CancellationToken ct = default);
         Task<bool> ExistsAsync(int rmsSupplierId, string invoiceNumber, CancellationToken ct = default);
         Task AddAsync(SupplierInvoice invoice, CancellationToken ct = default);
     }

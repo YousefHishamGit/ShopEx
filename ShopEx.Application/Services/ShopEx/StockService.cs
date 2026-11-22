@@ -1,4 +1,5 @@
 using ShopEx.Application.DTOs.Stock;
+using ShopEx.Application.interfaces.RMS.Repositories;
 using ShopEx.Application.interfaces.ShopEx.Repositories;
 using ShopEx.Application.interfaces.ShopEx.Services;
 using ShopEx.Domain.Entity;
@@ -15,15 +16,18 @@ namespace ShopEx.Application.Services.ShopEx
     {
         private readonly IWarehouseRepository _warehouseRepository;
         private readonly IStockRepository _stockRepository;
+        private readonly IItemRepository _itemRepository;
         private readonly IUnitOfWork _unitOfWork;
 
         public StockService(
             IWarehouseRepository warehouseRepository,
             IStockRepository stockRepository,
+            IItemRepository itemRepository,
             IUnitOfWork unitOfWork)
         {
             _warehouseRepository = warehouseRepository ?? throw new ArgumentNullException(nameof(warehouseRepository));
             _stockRepository = stockRepository ?? throw new ArgumentNullException(nameof(stockRepository));
+            _itemRepository = itemRepository ?? throw new ArgumentNullException(nameof(itemRepository));
             _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
         }
 
@@ -155,32 +159,83 @@ namespace ShopEx.Application.Services.ShopEx
         }
 
         // Stock Balances & Movements
-        public async Task<List<StockBalanceResponse>> GetBalancesAsync(int warehouseId, bool lowStockOnly = false, CancellationToken ct = default)
+        private const int MaxPageSize = 100;
+        private const int RecentMovementsCount = 30;
+
+        public async Task<PagedStockBalanceResponse> GetBalancesAsync(
+            int warehouseId, string? search = null, int page = 1, int pageSize = 20, CancellationToken ct = default)
         {
-            var balances = await _stockRepository.GetBalancesByWarehouseAsync(warehouseId, lowStockOnly, ct);
-            return balances.Select(MapToBalanceResponse).ToList();
+            page = Math.Max(page, 1);
+            pageSize = Math.Clamp(pageSize, 1, MaxPageSize);
+
+            // Item names live in the RMS database, so a text search is resolved to item ids first.
+            List<int>? itemIds = null;
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                itemIds = await _itemRepository.SearchIdsAsync(search);
+                if (itemIds.Count == 0)
+                {
+                    return new PagedStockBalanceResponse { Page = page, PageSize = pageSize };
+                }
+            }
+
+            var (balances, total) = await _stockRepository.GetInStockBalancesPagedAsync(warehouseId, itemIds, page, pageSize, ct);
+
+            // One batched RMS query for the page instead of one query per row.
+            var items = await _itemRepository.GetByIdsAsync(balances.Select(b => b.RMSItemID));
+
+            var rows = new List<StockBalanceResponse>(balances.Count);
+            foreach (var balance in balances)
+            {
+                var row = MapToBalanceResponse(balance);
+                if (items.TryGetValue(balance.RMSItemID, out var item))
+                {
+                    row.ItemDescription = item.Description ?? $"صنف #{item.ID}";
+                    row.ItemLookupCode = item.ItemLookupCode;
+                    row.RetailPrice = item.Price ?? 0;
+                    row.Cost = item.Cost ?? balance.AverageCost;
+                }
+                else
+                {
+                    row.ItemDescription = $"صنف #{balance.RMSItemID}";
+                    row.Cost = balance.AverageCost;
+                }
+                rows.Add(row);
+            }
+
+            return new PagedStockBalanceResponse { Items = rows, Page = page, PageSize = pageSize, TotalCount = total };
         }
 
         public async Task<StockBalanceResponse?> GetItemBalanceAsync(int warehouseId, int rmsItemId, CancellationToken ct = default)
         {
             var balance = await _stockRepository.GetBalanceAsync(warehouseId, rmsItemId, ct);
-            return balance == null ? null : MapToBalanceResponse(balance);
+            if (balance == null) return null;
+
+            var res = MapToBalanceResponse(balance);
+            var item = await _itemRepository.GetByIdAsync(rmsItemId);
+            if (item != null)
+            {
+                res.ItemDescription = item.Description ?? $"صنف #{item.ID}";
+                res.ItemLookupCode = item.ItemLookupCode;
+                res.RetailPrice = item.Price ?? 0;
+                res.Cost = item.Cost ?? res.AverageCost;
+            }
+            return res;
         }
 
-        public async Task<List<StockMovementResponse>> GetMovementsAsync(
-            int? warehouseId = null,
-            int? rmsItemId = null,
-            DateTime? fromDate = null,
-            DateTime? toDate = null,
-            CancellationToken ct = default)
+        public async Task<List<StockMovementResponse>> GetRecentMovementsAsync(int? warehouseId = null, CancellationToken ct = default)
         {
-            var movements = await _stockRepository.GetMovementsAsync(warehouseId, rmsItemId, fromDate, toDate, ct);
+            var movements = await _stockRepository.GetRecentMovementsAsync(warehouseId, RecentMovementsCount, ct);
+            var items = await _itemRepository.GetByIdsAsync(movements.Select(m => m.RMSItemID));
+
             return movements.Select(m => new StockMovementResponse
             {
                 ID = m.ID,
                 WarehouseID = m.WarehouseID,
                 WarehouseName = m.Warehouse?.Name ?? string.Empty,
                 RMSItemID = m.RMSItemID,
+                ItemDescription = items.TryGetValue(m.RMSItemID, out var item) ? item.Description : null,
+                IsIncoming = IncomingTypes.Contains(m.MovementType),
                 MovementType = m.MovementType,
                 Quantity = m.Quantity,
                 UnitCost = m.UnitCost,
@@ -266,6 +321,16 @@ namespace ShopEx.Application.Services.ShopEx
 
             return MapToBalanceResponse(balance);
         }
+
+        private static readonly HashSet<StockMovementType> IncomingTypes = new()
+        {
+            StockMovementType.OpeningBalance,
+            StockMovementType.PurchaseIn,
+            StockMovementType.CustomerReturnIn,
+            StockMovementType.AdjustmentIn,
+            StockMovementType.TransferIn,
+            StockMovementType.ConsignmentReturnIn
+        };
 
         private static StockBalanceResponse MapToBalanceResponse(StockBalance b)
         {

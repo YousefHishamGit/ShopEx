@@ -91,7 +91,11 @@ namespace ShopEx.Application.DTOs.Expense
 
     public class UpdateExpenseRequest
     {
-        public int CategoryId { get; set; }
+        /// <summary>
+        /// بند موجود بالـ ID، أو اتركه فارغاً واكتب CategoryName لبند جديد
+        /// </summary>
+        public int? CategoryId { get; set; }
+        public string? CategoryName { get; set; }
         public int? StoreId { get; set; }
         public decimal Amount { get; set; }
         public DateTime ExpenseDate { get; set; }
@@ -123,10 +127,32 @@ namespace ShopEx.Application.DTOs.Expense
     // Analytics & Summaries (الملخصات والتحليلات)
     // ================================================================
 
+    /// <summary>
+    /// فلاتر البحث في المصروفات
+    /// </summary>
+    public class ExpenseFilter
+    {
+        public int? StoreId { get; set; }
+        public int? CategoryId { get; set; }
+        /// <summary>من بداية هذا اليوم (شامل)</summary>
+        public DateTime? FromDate { get; set; }
+        /// <summary>حتى نهاية هذا اليوم (شامل)</summary>
+        public DateTime? ToDate { get; set; }
+        public ExpensePaymentMethod? PaymentMethod { get; set; }
+        /// <summary>بحث نصي في المستفيد / رقم الإيصال / الملاحظات / اسم البند</summary>
+        public string? Search { get; set; }
+    }
+
     public class ExpenseSummaryDto
     {
+        /// <summary>إجمالي كل المصروفات المطابقة للفلاتر (وليس الصفحة الحالية فقط)</summary>
         public decimal TotalAmount { get; set; }
+        /// <summary>عدد كل المصروفات المطابقة للفلاتر</summary>
         public int TotalCount { get; set; }
+        public int Page { get; set; }
+        public int PageSize { get; set; }
+        public int TotalPages { get; set; }
+        /// <summary>مصروفات الصفحة الحالية فقط</summary>
         public List<ExpenseResponse> Items { get; set; } = new();
         public List<ExpenseByCategorySummaryDto> CategorySummaries { get; set; } = new();
     }

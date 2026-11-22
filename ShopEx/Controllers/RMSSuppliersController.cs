@@ -22,27 +22,11 @@ namespace ShopEx.Controllers
             [FromQuery] int? pageSize = null,
             [FromQuery] string? search = null)
         {
-            var suppliers = await _supplierService.GetAllSuppliersAsync();
-            if (suppliers == null)
-            {
-                return Ok(new List<ShopEx.Application.DTOs.RMS.SupplierResponse>());
-            }
-
-            if (!string.IsNullOrWhiteSpace(search))
-            {
-                var term = search.Trim();
-                suppliers = suppliers.Where(s =>
-                    (!string.IsNullOrEmpty(s.SupplierName) && s.SupplierName.Contains(term, StringComparison.OrdinalIgnoreCase)) ||
-                    (!string.IsNullOrEmpty(s.Code) && s.Code.Contains(term, StringComparison.OrdinalIgnoreCase)) ||
-                    s.ID.ToString().Contains(term));
-            }
-
             if (page.HasValue && pageSize.HasValue && pageSize.Value > 0)
             {
-                var totalCount = suppliers.Count();
                 var p = Math.Max(1, page.Value);
-                var size = pageSize.Value;
-                var items = suppliers.Skip((p - 1) * size).Take(size).ToList();
+                var size = Math.Min(pageSize.Value, 100);
+                var (items, totalCount) = await _supplierService.GetSuppliersPagedAsync(search, p, size);
 
                 return Ok(new
                 {
@@ -50,11 +34,12 @@ namespace ShopEx.Controllers
                     totalCount,
                     pageNumber = p,
                     pageSize = size,
-                    totalPages = (int)Math.Ceiling((double)totalCount / size)
+                    totalPages = Math.Max(1, (int)Math.Ceiling((double)totalCount / size))
                 });
             }
 
-            return Ok(suppliers);
+            var suppliers = await _supplierService.GetAllSuppliersAsync();
+            return Ok(suppliers ?? new List<ShopEx.Application.DTOs.RMS.SupplierResponse>());
         }
 
         // GET: api/RMSSuppliers/{id}/items
@@ -73,9 +58,15 @@ namespace ShopEx.Controllers
         }
 
         [HttpGet("{id}/statement")]
-        public async Task<IActionResult> GetSupplierStatement(int id)
+        public async Task<IActionResult> GetSupplierStatement(
+            int id,
+            [FromQuery] string? status = null,
+            [FromQuery] string? section = null,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 10,
+            [FromQuery] string? search = null)
         {
-            var statement = await _supplierService.GetSupplierStatementAsync(id);
+            var statement = await _supplierService.GetSupplierStatementAsync(id, status, section, page, pageSize, search);
 
             if (statement == null)
             {

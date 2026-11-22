@@ -95,6 +95,28 @@ namespace ShopEx.Controllers
             }
         }
 
+        // POST: api/RMSWorksheets/transfer (create approved worksheet, status 2, sending items to a branch)
+        [HttpPost("transfer")]
+        [ProducesResponseType(StatusCodes.Status201Created)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> Transfer([FromBody] TransferWorksheetRequest request, CancellationToken cancellationToken)
+        {
+            try
+            {
+                var worksheetId = await _worksheetService.CreateApprovedTransferAsync(request, cancellationToken);
+                return CreatedAtAction(nameof(GetById), new { id = worksheetId },
+                    new { worksheetId, status = 2, message = $"Worksheet {worksheetId} approved (status 2)." });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
         // POST: api/RMSWorksheets/{id}/purchases (Add Purchase Orders to existing open worksheet)
         [HttpPost("{id:int}/purchases")]
         [ProducesResponseType(StatusCodes.Status200OK)]
@@ -130,11 +152,11 @@ namespace ShopEx.Controllers
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<IActionResult> Approve(int id, CancellationToken cancellationToken)
+        public async Task<IActionResult> Approve(int id, [FromBody] ApproveWorksheetRequest? request, CancellationToken cancellationToken)
         {
             try
             {
-                await _worksheetService.ApproveWorksheetAsync(id, cancellationToken);
+                await _worksheetService.ApproveWorksheetAsync(id, request?.DestinationStoreId, cancellationToken);
                 return Ok(new
                 {
                     worksheetId = id,

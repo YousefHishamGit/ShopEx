@@ -1,4 +1,5 @@
 using ShopEx.Application.DTOs.Consignment;
+using ShopEx.Application.interfaces.RMS.Repositories;
 using ShopEx.Application.interfaces.ShopEx.Repositories;
 using ShopEx.Application.interfaces.ShopEx.Services;
 using ShopEx.Domain.Entity;
@@ -17,6 +18,7 @@ namespace ShopEx.Application.Services.ShopEx
         private readonly IDealerRepository _dealerRepository;
         private readonly IWarehouseRepository _warehouseRepository;
         private readonly IStockRepository _stockRepository;
+        private readonly IItemRepository _itemRepository;
         private readonly IUnitOfWork _unitOfWork;
 
         public ConsignmentService(
@@ -24,12 +26,14 @@ namespace ShopEx.Application.Services.ShopEx
             IDealerRepository dealerRepository,
             IWarehouseRepository warehouseRepository,
             IStockRepository stockRepository,
+            IItemRepository itemRepository,
             IUnitOfWork unitOfWork)
         {
             _consignmentRepository = consignmentRepository ?? throw new ArgumentNullException(nameof(consignmentRepository));
             _dealerRepository = dealerRepository ?? throw new ArgumentNullException(nameof(dealerRepository));
             _warehouseRepository = warehouseRepository ?? throw new ArgumentNullException(nameof(warehouseRepository));
             _stockRepository = stockRepository ?? throw new ArgumentNullException(nameof(stockRepository));
+            _itemRepository = itemRepository ?? throw new ArgumentNullException(nameof(itemRepository));
             _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
         }
 
@@ -60,69 +64,83 @@ namespace ShopEx.Application.Services.ShopEx
                     throw new ArgumentException("تكلفة الوحدة لا يمكن أن تكون سالبة.");
             }
 
-            // Resolve Warehouse (defaults to HQ/default warehouse)
+            if (request.AgreedDays.HasValue && request.AgreedDays.Value < 0)
+                throw new ArgumentException("مدة الأمانة لا يمكن أن تكون سالبة.");
+
+            // Resolve warehouse: the requested one, otherwise the default. Stock must always be deducted from a real warehouse.
             Warehouse? warehouse = null;
             if (request.WarehouseID.HasValue)
             {
                 warehouse = await _warehouseRepository.GetByIdAsync(request.WarehouseID.Value, ct);
+                if (warehouse == null)
+                    throw new KeyNotFoundException($"المخزن برقم {request.WarehouseID.Value} غير موجود.");
             }
+            warehouse ??= await _warehouseRepository.GetDefaultAsync(ct);
             if (warehouse == null)
+                throw new InvalidOperationException("لا يوجد مخزن افتراضي لصرف البضاعة منه.");
+
+            // Check availability (aggregated per item, in case the same item appears on more than one line)
+            var balances = new Dictionary<int, StockBalance?>();
+            foreach (var group in request.Items.GroupBy(i => i.RMSItemID))
             {
-                warehouse = await _warehouseRepository.GetDefaultAsync(ct);
+                var balance = await _stockRepository.GetBalanceAsync(warehouse.ID, group.Key, ct);
+                balances[group.Key] = balance;
+
+                var required = group.Sum(i => i.QuantityIssued);
+                var available = balance?.QuantityOnHand ?? 0;
+                if (available < required)
+                {
+                    var itemInfo = await _itemRepository.GetByIdAsync(group.Key);
+                    var name = itemInfo?.Description ?? $"#{group.Key}";
+                    throw new InvalidOperationException(
+                        $"الرصيد المتاح من الصنف '{name}' بمخزن {warehouse.Name} ({available}) أقل من الكمية المطلوبة ({required}).");
+                }
             }
 
             var agreedDays = request.AgreedDays.GetValueOrDefault(15);
             var issueDate = DateTime.Now;
             var dueDate = request.DueDate ?? issueDate.AddDays(agreedDays);
-            var consignmentNumber = await _consignmentRepository.GetNextConsignmentNumberAsync(ct);
+            if (dueDate.Date < issueDate.Date)
+                throw new ArgumentException("تاريخ الاستحقاق لا يمكن أن يسبق تاريخ الصرف.");
 
-            var consignment = new Consignment
+            ConsignmentResponse? response = null;
+
+            await _unitOfWork.ExecuteInTransactionAsync(async () =>
             {
-                ConsignmentNumber = consignmentNumber,
-                DealerID = dealer.ID,
-                Dealer = dealer,
-                IssueDate = issueDate,
-                AgreedDays = agreedDays,
-                DueDate = dueDate,
-                Status = ConsignmentStatus.Open,
-                Notes = request.Notes?.Trim(),
-                Items = request.Items.Select(i => new ConsignmentItem
+                var consignmentNumber = await _consignmentRepository.GetNextConsignmentNumberAsync(ct);
+
+                var consignment = new Consignment
                 {
-                    RMSItemID = i.RMSItemID,
-                    QuantityIssued = i.QuantityIssued,
-                    UnitPrice = i.UnitPrice,
-                    UnitCost = i.UnitCost
-                }).ToList()
-            };
+                    ConsignmentNumber = consignmentNumber,
+                    DealerID = dealer.ID,
+                    Dealer = dealer,
+                    WarehouseID = warehouse.ID,
+                    IssueDate = issueDate,
+                    AgreedDays = agreedDays,
+                    DueDate = dueDate,
+                    Status = ConsignmentStatus.Open,
+                    Notes = request.Notes?.Trim(),
+                    Items = request.Items.Select(i => new ConsignmentItem
+                    {
+                        RMSItemID = i.RMSItemID,
+                        QuantityIssued = i.QuantityIssued,
+                        UnitPrice = i.UnitPrice,
+                        UnitCost = i.UnitCost
+                    }).ToList()
+                };
 
-            await _consignmentRepository.AddAsync(consignment, ct);
+                await _consignmentRepository.AddAsync(consignment, ct);
+                // Persist first so the stock movements reference the real consignment ID
+                await _unitOfWork.SaveChangesAsync(ct);
 
-            // Deduct stock from warehouse if warehouse is available
-            if (warehouse != null)
-            {
                 foreach (var item in consignment.Items)
                 {
-                    var balance = await _stockRepository.GetBalanceAsync(warehouse.ID, item.RMSItemID, ct);
-                    if (balance == null)
-                    {
-                        balance = new StockBalance
-                        {
-                            WarehouseID = warehouse.ID,
-                            RMSItemID = item.RMSItemID,
-                            QuantityOnHand = -item.QuantityIssued,
-                            AverageCost = item.UnitCost,
-                            LastUpdatedAt = DateTime.Now
-                        };
-                        await _stockRepository.AddBalanceAsync(balance, ct);
-                    }
-                    else
-                    {
-                        balance.QuantityOnHand -= item.QuantityIssued;
-                        balance.LastUpdatedAt = DateTime.Now;
-                        _stockRepository.UpdateBalance(balance);
-                    }
+                    var balance = balances[item.RMSItemID]!; // existence guaranteed by the availability check above
+                    balance.QuantityOnHand -= item.QuantityIssued;
+                    balance.LastUpdatedAt = DateTime.Now;
+                    _stockRepository.UpdateBalance(balance);
 
-                    var movement = new StockMovement
+                    await _stockRepository.AddMovementAsync(new StockMovement
                     {
                         WarehouseID = warehouse.ID,
                         RMSItemID = item.RMSItemID,
@@ -133,26 +151,26 @@ namespace ShopEx.Application.Services.ShopEx
                         ReferenceType = "Consignment",
                         ReferenceID = consignment.ID,
                         Notes = $"صرف بضاعة أمانة للتاجر: {dealer.Name} - إذن رقم {consignmentNumber}"
-                    };
-                    await _stockRepository.AddMovementAsync(movement, ct);
+                    }, ct);
                 }
-            }
 
-            await _unitOfWork.SaveChangesAsync(ct);
+                await _unitOfWork.SaveChangesAsync(ct);
+                response = await MapToResponseAsync(consignment, warehouse.Name);
+            }, ct);
 
-            return MapToResponse(consignment);
+            return response!;
         }
 
         public async Task<ConsignmentResponse?> GetByIdAsync(int id, CancellationToken ct = default)
         {
             var entity = await _consignmentRepository.GetByIdAsync(id, ct);
-            return entity == null ? null : MapToResponse(entity);
+            return entity == null ? null : await MapToResponseAsync(entity);
         }
 
         public async Task<ConsignmentResponse?> GetByNumberAsync(string consignmentNumber, CancellationToken ct = default)
         {
             var entity = await _consignmentRepository.GetByConsignmentNumberAsync(consignmentNumber, ct);
-            return entity == null ? null : MapToResponse(entity);
+            return entity == null ? null : await MapToResponseAsync(entity);
         }
 
         public async Task<List<ConsignmentSummaryResponse>> GetAllAsync(
@@ -162,8 +180,7 @@ namespace ShopEx.Application.Services.ShopEx
             DateTime? toDate = null,
             CancellationToken ct = default)
         {
-            var list = await _consignmentRepository.GetAllAsync(dealerId, status, fromDate, toDate, ct);
-            return list.Select(MapToSummary).ToList();
+            return await _consignmentRepository.GetSummariesAsync(dealerId, status, fromDate, toDate, ct);
         }
 
         public async Task<ConsignmentResponse> AddSettlementAsync(int id, CreateConsignmentSettlementRequest request, CancellationToken ct = default)
@@ -181,116 +198,110 @@ namespace ShopEx.Application.Services.ShopEx
             if (request.Items == null || !request.Items.Any())
                 throw new ArgumentException("يجب إدخال صنف واحد على الأقل في التسوية.", nameof(request.Items));
 
+            // Merge duplicate lines of the same consignment item so the outstanding check is accurate
+            var requested = request.Items
+                .GroupBy(i => i.ConsignmentItemID)
+                .Select(g => new { ConsignmentItemID = g.Key, Sold = g.Sum(x => x.QuantitySold), Returned = g.Sum(x => x.QuantityReturned) })
+                .ToList();
+
             var settlementItems = new List<ConsignmentSettlementItem>();
-            var warehouse = await _warehouseRepository.GetDefaultAsync(ct);
+            var returnLines = new List<(ConsignmentItem Item, decimal Qty)>();
 
-            foreach (var reqItem in request.Items)
+            foreach (var req in requested)
             {
-                var consignmentItem = consignment.Items.FirstOrDefault(i => i.ID == reqItem.ConsignmentItemID);
+                var consignmentItem = consignment.Items.FirstOrDefault(i => i.ID == req.ConsignmentItemID);
                 if (consignmentItem == null)
-                    throw new ArgumentException($"الصنف ذو المعرف {reqItem.ConsignmentItemID} لا ينتمي لإذن الأمانة هذا.");
+                    throw new ArgumentException($"الصنف ذو المعرف {req.ConsignmentItemID} لا ينتمي لإذن الأمانة هذا.");
 
-                if (reqItem.QuantitySold < 0 || reqItem.QuantityReturned < 0)
+                if (req.Sold < 0 || req.Returned < 0)
                     throw new ArgumentException("الكميات المباعة والمرتجعة لا يمكن أن تكون سالبة.");
 
-                if (reqItem.QuantitySold == 0 && reqItem.QuantityReturned == 0)
+                if (req.Sold == 0 && req.Returned == 0)
                     continue;
 
-                var totalSettled = reqItem.QuantitySold + reqItem.QuantityReturned;
+                var totalSettled = req.Sold + req.Returned;
                 if (totalSettled > consignmentItem.QuantityOutstanding)
                 {
                     throw new InvalidOperationException(
                         $"الكمية المطلوبة لتسوية الصنف {consignmentItem.RMSItemID} هي ({totalSettled})، بينما الكمية المتبقية بالأمانة هي ({consignmentItem.QuantityOutstanding}).");
                 }
 
-                var settlementItem = new ConsignmentSettlementItem
+                settlementItems.Add(new ConsignmentSettlementItem
                 {
                     ConsignmentItemID = consignmentItem.ID,
                     ConsignmentItem = consignmentItem,
-                    QuantitySold = reqItem.QuantitySold,
-                    QuantityReturned = reqItem.QuantityReturned
-                };
-                settlementItems.Add(settlementItem);
+                    QuantitySold = req.Sold,
+                    QuantityReturned = req.Returned
+                });
 
-                // If items are returned to warehouse, update stock
-                if (reqItem.QuantityReturned > 0 && warehouse != null)
-                {
-                    var balance = await _stockRepository.GetBalanceAsync(warehouse.ID, consignmentItem.RMSItemID, ct);
-                    if (balance == null)
-                    {
-                        balance = new StockBalance
-                        {
-                            WarehouseID = warehouse.ID,
-                            RMSItemID = consignmentItem.RMSItemID,
-                            QuantityOnHand = reqItem.QuantityReturned,
-                            AverageCost = consignmentItem.UnitCost,
-                            LastUpdatedAt = DateTime.Now
-                        };
-                        await _stockRepository.AddBalanceAsync(balance, ct);
-                    }
-                    else
-                    {
-                        balance.QuantityOnHand += reqItem.QuantityReturned;
-                        balance.LastUpdatedAt = DateTime.Now;
-                        _stockRepository.UpdateBalance(balance);
-                    }
-
-                    var movement = new StockMovement
-                    {
-                        WarehouseID = warehouse.ID,
-                        RMSItemID = consignmentItem.RMSItemID,
-                        MovementType = StockMovementType.ConsignmentReturnIn,
-                        Quantity = reqItem.QuantityReturned,
-                        UnitCost = consignmentItem.UnitCost,
-                        MovementDate = DateTime.Now,
-                        ReferenceType = "ConsignmentSettlement",
-                        ReferenceID = consignment.ID,
-                        Notes = $"مرتجع بضاعة أمانة من التاجر: {consignment.Dealer?.Name} - إذن رقم {consignment.ConsignmentNumber}"
-                    };
-                    await _stockRepository.AddMovementAsync(movement, ct);
-                }
+                if (req.Returned > 0)
+                    returnLines.Add((consignmentItem, req.Returned));
             }
 
             if (!settlementItems.Any())
                 throw new ArgumentException("يجب إدخال كميات مباعة أو مرتجعة في التسوية.");
 
-            var settlement = new ConsignmentSettlement
+            var settledSoldValue = settlementItems.Sum(i => i.QuantitySold * i.ConsignmentItem.UnitPrice);
+            if (request.Payment != null && request.Payment.Amount < 0)
+                throw new ArgumentException("مبلغ الدفعة لا يمكن أن يكون سالباً.");
+            var hasPayment = request.Payment != null && request.Payment.Amount > 0;
+            var dueAfterSettlement = consignment.RemainingAmount + settledSoldValue;
+            if (hasPayment && request.Payment!.Amount > dueAfterSettlement)
             {
-                ConsignmentID = consignment.ID,
-                SettlementDate = DateTime.Now,
-                Notes = request.Notes?.Trim(),
-                CreatedBy = request.CreatedBy?.Trim(),
-                Items = settlementItems
-            };
+                throw new InvalidOperationException(
+                    $"مبلغ التحصيل ({request.Payment.Amount:N2}) أكبر من المستحق على البنزينة ({dueAfterSettlement:N2}).");
+            }
 
-            await _consignmentRepository.AddSettlementAsync(settlement, ct);
-            consignment.Settlements.Add(settlement);
-
-            // If a payment is provided alongside the settlement
-            if (request.Payment != null && request.Payment.Amount > 0)
+            // Returned goods go back to the warehouse they were issued from
+            Warehouse? warehouse = null;
+            if (returnLines.Count > 0)
             {
-                var payment = new ConsignmentPayment
+                warehouse = consignment.WarehouseID.HasValue
+                    ? await _warehouseRepository.GetByIdAsync(consignment.WarehouseID.Value, ct)
+                    : null;
+                warehouse ??= await _warehouseRepository.GetDefaultAsync(ct);
+                if (warehouse == null)
+                    throw new InvalidOperationException("لا يوجد مخزن لاستقبال المرتجع.");
+            }
+
+            await _unitOfWork.ExecuteInTransactionAsync(async () =>
+            {
+                foreach (var (item, qty) in returnLines)
+                    await ReturnToStockAsync(warehouse!, item, qty, StockMovementType.ConsignmentReturnIn,
+                        "ConsignmentSettlement", consignment.ID,
+                        $"مرتجع بضاعة أمانة من التاجر: {consignment.Dealer?.Name} - إذن رقم {consignment.ConsignmentNumber}", ct);
+
+                var settlement = new ConsignmentSettlement
                 {
                     ConsignmentID = consignment.ID,
-                    Amount = request.Payment.Amount,
-                    PaymentDate = request.Payment.PaymentDate ?? DateTime.Now,
-                    PaymentMethod = request.Payment.PaymentMethod?.Trim(),
-                    Notes = request.Payment.Notes?.Trim()
+                    SettlementDate = DateTime.Now,
+                    Notes = request.Notes?.Trim(),
+                    CreatedBy = request.CreatedBy?.Trim(),
+                    Items = settlementItems
                 };
-                await _consignmentRepository.AddPaymentAsync(payment, ct);
-                consignment.Payments.Add(payment);
-            }
 
-            // Check if consignment is fully settled and paid
-            if (consignment.IsFullyAccountedFor && consignment.RemainingAmount <= 0)
-            {
-                consignment.Status = ConsignmentStatus.Closed;
-                _consignmentRepository.Update(consignment);
-            }
+                await _consignmentRepository.AddSettlementAsync(settlement, ct);
+                consignment.Settlements.Add(settlement);
 
-            await _unitOfWork.SaveChangesAsync(ct);
+                if (hasPayment)
+                {
+                    var payment = new ConsignmentPayment
+                    {
+                        ConsignmentID = consignment.ID,
+                        Amount = request.Payment!.Amount,
+                        PaymentDate = request.Payment.PaymentDate ?? DateTime.Now,
+                        PaymentMethod = request.Payment.PaymentMethod?.Trim(),
+                        Notes = request.Payment.Notes?.Trim()
+                    };
+                    await _consignmentRepository.AddPaymentAsync(payment, ct);
+                    consignment.Payments.Add(payment);
+                }
 
-            return MapToResponse(consignment);
+                CloseIfSettled(consignment);
+                await _unitOfWork.SaveChangesAsync(ct);
+            }, ct);
+
+            return await MapToResponseAsync(consignment);
         }
 
         public async Task<ConsignmentResponse> AddPaymentAsync(int id, AddConsignmentPaymentRequest request, CancellationToken ct = default)
@@ -308,6 +319,12 @@ namespace ShopEx.Application.Services.ShopEx
             if (consignment.Status == ConsignmentStatus.Cancelled)
                 throw new InvalidOperationException("لا يمكن إضافة دفعة لإذن أمانة ملغي.");
 
+            if (request.Amount > consignment.RemainingAmount)
+            {
+                throw new InvalidOperationException(
+                    $"مبلغ الدفعة ({request.Amount:N2}) أكبر من المتبقي للتحصيل ({Math.Max(consignment.RemainingAmount, 0):N2}).");
+            }
+
             var payment = new ConsignmentPayment
             {
                 ConsignmentID = consignment.ID,
@@ -320,16 +337,10 @@ namespace ShopEx.Application.Services.ShopEx
             await _consignmentRepository.AddPaymentAsync(payment, ct);
             consignment.Payments.Add(payment);
 
-            // If fully accounted and fully paid, close
-            if (consignment.IsFullyAccountedFor && consignment.RemainingAmount <= 0)
-            {
-                consignment.Status = ConsignmentStatus.Closed;
-                _consignmentRepository.Update(consignment);
-            }
-
+            CloseIfSettled(consignment);
             await _unitOfWork.SaveChangesAsync(ct);
 
-            return MapToResponse(consignment);
+            return await MapToResponseAsync(consignment);
         }
 
         public async Task<ConsignmentResponse> CancelConsignmentAsync(int id, CancellationToken ct = default)
@@ -347,42 +358,104 @@ namespace ShopEx.Application.Services.ShopEx
             if (consignment.Payments.Any())
                 throw new InvalidOperationException("لا يمكن إلغاء إذن الأمانة لوجود دفعات مسجلة عليه.");
 
-            // Return stock back to warehouse
-            var warehouse = await _warehouseRepository.GetDefaultAsync(ct);
-            if (warehouse != null)
+            // Return stock back to the warehouse it was issued from
+            Warehouse? warehouse = consignment.WarehouseID.HasValue
+                ? await _warehouseRepository.GetByIdAsync(consignment.WarehouseID.Value, ct)
+                : null;
+            warehouse ??= await _warehouseRepository.GetDefaultAsync(ct);
+            if (warehouse == null)
+                throw new InvalidOperationException("لا يوجد مخزن لاستقبال البضاعة المسترجعة.");
+
+            await _unitOfWork.ExecuteInTransactionAsync(async () =>
             {
                 foreach (var item in consignment.Items)
-                {
-                    var balance = await _stockRepository.GetBalanceAsync(warehouse.ID, item.RMSItemID, ct);
-                    if (balance != null)
-                    {
-                        balance.QuantityOnHand += item.QuantityIssued;
-                        balance.LastUpdatedAt = DateTime.Now;
-                        _stockRepository.UpdateBalance(balance);
-                    }
+                    await ReturnToStockAsync(warehouse, item, item.QuantityIssued, StockMovementType.ConsignmentReturnIn,
+                        "ConsignmentCancel", consignment.ID,
+                        $"إلغاء إذن أمانة {consignment.ConsignmentNumber} واسترجاع الكمية للمخزن", ct);
 
-                    var movement = new StockMovement
+                consignment.Status = ConsignmentStatus.Cancelled;
+                await _unitOfWork.SaveChangesAsync(ct);
+            }, ct);
+
+            return await MapToResponseAsync(consignment);
+        }
+
+        private async Task ReturnToStockAsync(
+            Warehouse warehouse, ConsignmentItem item, decimal quantity, StockMovementType type,
+            string referenceType, int referenceId, string notes, CancellationToken ct)
+        {
+            var balance = await _stockRepository.GetBalanceAsync(warehouse.ID, item.RMSItemID, ct);
+            if (balance == null)
+            {
+                await _stockRepository.AddBalanceAsync(new StockBalance
+                {
+                    WarehouseID = warehouse.ID,
+                    RMSItemID = item.RMSItemID,
+                    QuantityOnHand = quantity,
+                    AverageCost = item.UnitCost,
+                    LastUpdatedAt = DateTime.Now
+                }, ct);
+            }
+            else
+            {
+                balance.QuantityOnHand += quantity;
+                balance.LastUpdatedAt = DateTime.Now;
+                _stockRepository.UpdateBalance(balance);
+            }
+
+            await _stockRepository.AddMovementAsync(new StockMovement
+            {
+                WarehouseID = warehouse.ID,
+                RMSItemID = item.RMSItemID,
+                MovementType = type,
+                Quantity = quantity,
+                UnitCost = item.UnitCost,
+                MovementDate = DateTime.Now,
+                ReferenceType = referenceType,
+                ReferenceID = referenceId,
+                Notes = notes
+            }, ct);
+        }
+
+        private static void CloseIfSettled(Consignment consignment)
+        {
+            if (consignment.Status == ConsignmentStatus.Open
+                && consignment.IsFullyAccountedFor
+                && consignment.RemainingAmount <= 0)
+            {
+                consignment.Status = ConsignmentStatus.Closed;
+            }
+        }
+
+        private async Task<ConsignmentResponse> MapToResponseAsync(Consignment c, string? warehouseName = null)
+        {
+            var response = MapToResponse(c);
+
+            if (warehouseName == null && c.WarehouseID.HasValue)
+                warehouseName = (await _warehouseRepository.GetByIdAsync(c.WarehouseID.Value))?.Name;
+            response.WarehouseID = c.WarehouseID;
+            response.WarehouseName = warehouseName;
+
+            var ids = response.Items.Select(i => i.RMSItemID).Distinct().ToList();
+            if (ids.Count > 0)
+            {
+                var items = await _itemRepository.GetByIdsAsync(ids);
+                foreach (var i in response.Items)
+                {
+                    if (items.TryGetValue(i.RMSItemID, out var rms))
                     {
-                        WarehouseID = warehouse.ID,
-                        RMSItemID = item.RMSItemID,
-                        MovementType = StockMovementType.AdjustmentIn,
-                        Quantity = item.QuantityIssued,
-                        UnitCost = item.UnitCost,
-                        MovementDate = DateTime.Now,
-                        ReferenceType = "ConsignmentCancel",
-                        ReferenceID = consignment.ID,
-                        Notes = $"إلغاء إذن أمانة {consignment.ConsignmentNumber} واسترجاع الكمية للمخزن"
-                    };
-                    await _stockRepository.AddMovementAsync(movement, ct);
+                        i.ItemDescription = rms.Description;
+                        i.ItemLookupCode = rms.ItemLookupCode;
+                    }
+                }
+                foreach (var si in response.Settlements.SelectMany(x => x.Items))
+                {
+                    if (items.TryGetValue(si.RMSItemID, out var rms))
+                        si.ItemDescription = rms.Description;
                 }
             }
 
-            consignment.Status = ConsignmentStatus.Cancelled;
-            _consignmentRepository.Update(consignment);
-
-            await _unitOfWork.SaveChangesAsync(ct);
-
-            return MapToResponse(consignment);
+            return response;
         }
 
         private static ConsignmentResponse MapToResponse(Consignment c)
@@ -455,31 +528,6 @@ namespace ShopEx.Application.Services.ShopEx
                     PaymentMethod = p.PaymentMethod,
                     Notes = p.Notes
                 }).ToList() ?? new()
-            };
-        }
-
-        private static ConsignmentSummaryResponse MapToSummary(Consignment c)
-        {
-            return new ConsignmentSummaryResponse
-            {
-                ID = c.ID,
-                ConsignmentNumber = c.ConsignmentNumber,
-                DealerID = c.DealerID,
-                DealerName = c.Dealer?.Name ?? string.Empty,
-                DealerPhone = c.Dealer?.Phone ?? string.Empty,
-                IssueDate = c.IssueDate,
-                AgreedDays = c.AgreedDays,
-                DueDate = c.DueDate,
-                Status = c.Status,
-                ItemsCount = c.Items?.Count ?? 0,
-                TotalIssuedValue = c.TotalIssuedValue,
-                TotalSoldValue = c.TotalSoldValue,
-                PaidAmount = c.PaidAmount,
-                RemainingAmount = c.RemainingAmount,
-                OutstandingQuantity = c.OutstandingQuantity,
-                OutstandingValue = c.OutstandingValue,
-                IsFullyAccountedFor = c.IsFullyAccountedFor,
-                IsOverdue = c.IsOverdue
             };
         }
     }

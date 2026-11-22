@@ -1,4 +1,4 @@
-﻿using ShopEx.Domain.Enum;
+using ShopEx.Domain.Enum;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -31,7 +31,6 @@ namespace ShopEx.Domain.Entity
 
         public decimal TotalAmount => Items.Sum(i => i.TotalPrice);
         public decimal RefundedAmount => Refunds.Sum(r => r.Amount);
-        public decimal PendingRefund =>
-            SettlementType == SupplierReturnSettlementType.CashRefund ? TotalAmount - RefundedAmount : 0;
+        public decimal PendingRefund => TotalAmount - RefundedAmount > 0 ? TotalAmount - RefundedAmount : 0;
     }
 }

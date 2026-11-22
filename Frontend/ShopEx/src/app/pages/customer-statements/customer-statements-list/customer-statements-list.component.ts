@@ -3,20 +3,28 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { CustomerStatementService } from '../../../services/customer-statement.service';
+import { PrintService } from '../../../shared/print/print.service';
+import { CustomerInvoicePrintComponent } from '../../../shared/print/customer-invoice-print.component';
+import { ApiService } from '../../../services/api.service';
 import {
   CustomerOpenInvoice,
   CustomerSummary,
-  CustomerInvoiceDetail
+  CustomerInvoiceDetail,
+  StoreOption
 } from '../../../models/models';
 
 @Component({
   selector: 'app-customer-statements-list',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule, FormsModule, RouterLink, CustomerInvoicePrintComponent],
   templateUrl: './customer-statements-list.component.html'
 })
 export class CustomerStatementsListComponent implements OnInit {
   activeTab: 'invoices' | 'customers' = 'invoices';
+
+  // Stores from DB
+  stores: StoreOption[] = [];
+  selectedStoreId: number | null = null;
 
   // Filters
   searchQuery = '';
@@ -47,10 +55,27 @@ export class CustomerStatementsListComponent implements OnInit {
 
   constructor(
     private statementService: CustomerStatementService,
-    private router: Router
+    private api: ApiService,
+    private router: Router,
+    private printer: PrintService
   ) {}
 
   ngOnInit(): void {
+    this.loadStores();
+    this.loadInvoices();
+  }
+
+  loadStores(): void {
+    this.api.getStores().subscribe({
+      next: (stores) => {
+        this.stores = stores || [];
+      },
+      error: (err) => console.error('Failed to load stores for customer statements filter', err)
+    });
+  }
+
+  onStoreChange(): void {
+    this.invoicesPageNumber = 1;
     this.loadInvoices();
   }
 
@@ -71,7 +96,7 @@ export class CustomerStatementsListComponent implements OnInit {
     this.statementService
       .getOpenInvoices(
         undefined,
-        undefined,
+        this.selectedStoreId || undefined,
         this.minDaysOld || undefined,
         this.searchQuery,
         this.invoicesPageNumber,
@@ -199,6 +224,6 @@ export class CustomerStatementsListComponent implements OnInit {
   }
 
   printInvoiceModal(): void {
-    window.print();
+    this.printer.print();
   }
 }

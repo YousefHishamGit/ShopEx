@@ -2,10 +2,8 @@
   <!-- Header -->
   <div class="flex items-center justify-between pb-2 border-b border-outline">
     <div class="flex items-center gap-3">
-      <a
-        routerLink="/consignments"
-        class="p-2 rounded-lg border border-outline hover:bg-light-surface text-light-on-surface-variant transition-colors"
-      >
+      <a routerLink="/consignments"
+        class="p-2 rounded-lg border border-outline hover:bg-light-surface text-light-on-surface-variant transition-colors">
         <span class="material-symbols-outlined text-[20px]">arrow_forward</span>
       </a>
       <div>
@@ -19,12 +17,10 @@
       </div>
     </div>
 
-    <button
-      (click)="submitConsignment()"
-      [disabled]="submitting"
-      class="px-5 py-2.5 bg-primary text-on-primary font-medium rounded-lg hover:bg-primary/90 shadow-sm transition-all text-sm flex items-center gap-2"
-    >
-      <span *ngIf="submitting" class="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></span>
+    <button (click)="submitConsignment()" [disabled]="submitting"
+      class="px-5 py-2.5 bg-primary text-on-primary font-medium rounded-lg hover:bg-primary/90 shadow-sm transition-all text-sm flex items-center gap-2">
+      <span *ngIf="submitting"
+        class="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></span>
       <span class="material-symbols-outlined text-[20px]">check_circle</span>
       <span>تأكيد وصرف البضاعة</span>
     </button>
@@ -46,179 +42,176 @@
         </h2>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <!-- Dealer / Petrol Station Selection -->
+          <!-- Dealer / Petrol Station Selection with TabbedSelect -->
           <div>
-            <div class="flex items-center justify-between mb-1">
-              <label class="text-xs font-medium text-light-on-surface-variant">البنزينة / المحل المستلم *</label>
-              <button
-                type="button"
-                (click)="openQuickDealerModal()"
-                class="text-xs text-primary hover:underline flex items-center gap-0.5"
-              >
+            <div class="flex items-center justify-between mb-1.5">
+              <label class="text-xs font-bold text-slate-800">البنزينة / المحل المستلم *</label>
+              <button type="button" (click)="openQuickDealerModal()"
+                class="text-xs text-primary hover:underline flex items-center gap-0.5 font-semibold">
                 <span class="material-symbols-outlined text-[14px]">add</span>
                 بنزينة جديدة
               </button>
             </div>
-            <select
-              [(ngModel)]="selectedDealerId"
-              class="w-full px-3 py-2 text-sm border border-outline rounded-lg bg-light-surface focus:outline-none focus:border-primary text-light-on-surface font-semibold"
-            >
-              <option *ngFor="let d of dealers" [ngValue]="d.id">
-                {{ d.name }} - {{ d.phone }}
-              </option>
-            </select>
+            <app-tabbed-select [items]="selectableDealers" [selectedId]="selectedDealerId"
+              placeholder="اختر البنزينة المستلمة..." title="اختيار بنزينة / منفذ التوزيع"
+              defaultIcon="local_gas_station" [pageSize]="10" (select)="selectedDealerId = +$event.id">
+            </app-tabbed-select>
           </div>
 
-          <!-- Warehouse (HQ) -->
-          <div>
-            <label class="block text-xs font-medium text-light-on-surface-variant mb-1">المخزن المنصرف منه *</label>
-            <select
-              [(ngModel)]="selectedWarehouseId"
-              class="w-full px-3 py-2 text-sm border border-outline rounded-lg bg-light-surface focus:outline-none focus:border-primary text-light-on-surface"
-            >
-              <option *ngFor="let w of warehouses" [ngValue]="w.id">
-                {{ w.name }} {{ w.isDefault ? '(الرئيسي HQ)' : '' }}
-              </option>
-            </select>
-          </div>
 
-          <!-- Agreed Days (المدة المتفق عليها) -->
-          <div>
-            <label class="block text-xs font-medium text-light-on-surface-variant mb-1">
-              المدة المتفق عليها للتسوية (بالأيام)
-            </label>
-            <div class="relative">
-              <input
-                type="number"
-                [(ngModel)]="agreedDays"
-                (change)="onAgreedDaysChange()"
-                min="1"
-                class="w-full px-3 py-2 text-sm border border-outline rounded-lg bg-light-surface focus:outline-none focus:border-primary font-bold text-primary"
-              />
-              <span class="absolute left-3 top-2 text-xs text-gray-400">يوم</span>
+
+          <!-- Agreed days: presets instead of free typing -->
+          <div class="sm:col-span-2">
+            <label class="block text-xs font-bold text-slate-800 mb-1.5">مدة التسوية المتفق عليها</label>
+            <div class="flex flex-wrap items-center gap-2">
+              <button *ngFor="let d of agreedDaysOptions" type="button" (click)="setAgreedDays(d)"
+                [class.bg-primary]="agreedDays === d" [class.text-on-primary]="agreedDays === d"
+                [class.border-primary]="agreedDays === d"
+                class="px-3.5 py-1.5 rounded-full border border-slate-300 text-xs font-bold text-slate-600 hover:border-primary transition-all">
+                {{ d }} يوم
+              </button>
+              <div class="inline-flex flex-col gap-1">
+
+
+                <div
+                  class="inline-flex items-center justify-between gap-2 w-18 h-10 rounded-xl border border-slate-200 bg-slate-50/70 px-3 shadow-2xs transition-all focus-within:bg-white focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/15">
+                  <input type="number" [(ngModel)]="agreedDays" (ngModelChange)="calculateDueDate()" min="0" max="365"
+                    placeholder="0"
+                    class="w-full min-w-0 border-0 p-0 text-right text-sm font-bold font-mono text-slate-800 placeholder:text-slate-400 bg-transparent focus:outline-none focus:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                  <span class="shrink-0 text-xs font-medium text-slate-400 select-none border-r border-slate-200 pr-2">
+                    يوم
+                  </span>
+                </div>
+              </div>
+              <div class="mr-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/5 text-xs text-slate-600">
+                <span class="material-symbols-outlined text-[16px] text-primary">event</span>
+                تاريخ الاستحقاق:
+                <strong class="font-mono text-primary">{{ dueDate | date : 'yyyy/MM/dd' }}</strong>
+              </div>
             </div>
-            <p class="text-[11px] text-gray-500 mt-1">المدة المعتادة: 15 يوم</p>
-          </div>
-
-          <!-- Due Date (تاريخ الاستحقاق) -->
-          <div>
-            <label class="block text-xs font-medium text-light-on-surface-variant mb-1">تاريخ الاستحقاق المتوقع</label>
-            <input
-              type="date"
-              [(ngModel)]="dueDate"
-              class="w-full px-3 py-2 text-sm border border-outline rounded-lg bg-light-surface focus:outline-none focus:border-primary"
-            />
           </div>
 
           <!-- Notes -->
           <div class="sm:col-span-2">
-            <label class="block text-xs font-medium text-light-on-surface-variant mb-1">ملاحظات الإذن</label>
-            <input
-              type="text"
-              [(ngModel)]="notes"
-              placeholder="مثال: تسليم لمسئول الشيفت أ/ سامح مع إقرار استلام"
-              class="w-full px-3 py-2 text-xs border border-outline rounded-lg bg-light-surface focus:outline-none focus:border-primary"
-            />
+            <label class="block text-xs font-bold text-slate-800 mb-1.5">ملاحظات الإذن</label>
+            <input type="text" [(ngModel)]="notes" placeholder="مثال: تسليم لمسئول الشيفت أ/ سامح مع إقرار استلام"
+              class="w-full px-3.5 py-2.5 text-sm border border-slate-300 rounded-xl bg-slate-50 focus:outline-none focus:border-primary" />
           </div>
         </div>
       </div>
 
       <!-- Items Section -->
-      <div class="bg-light-surface p-5 rounded-xl border border-outline shadow-sm space-y-4">
-        <div class="flex items-center justify-between border-b border-outline pb-2">
-          <h2 class="text-sm font-bold text-light-on-surface flex items-center gap-2">
-            <span class="material-symbols-outlined text-[18px] text-primary">inventory_2</span>
-            أصناف البضاعة المنصرفة ({{ items.length }})
-          </h2>
+      <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-200 pb-3">
+          <div class="flex items-center gap-2">
+            <h2 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+              <span class="material-symbols-outlined text-[18px] text-primary">inventory_2</span>
+              <span>أصناف البضاعة المنصرفة ({{ items.length }})</span>
+            </h2>
+            <span *ngIf="stockBalances.length > 0" class="text-xs text-slate-500 mr-2">
+              (متوفر <strong class="text-primary font-mono">{{ stockBalances.length }}</strong> صنف بالمخزن)
+            </span>
+          </div>
 
-          <button
-            (click)="addItem()"
-            type="button"
-            class="px-3 py-1.5 bg-primary/10 text-primary text-xs font-medium rounded-lg hover:bg-primary/20 transition-all flex items-center gap-1"
-          >
+          <button (click)="addItem()" type="button"
+            class="px-3 py-1.5 bg-primary/10 text-primary text-xs font-bold rounded-lg hover:bg-primary/20 transition-all flex items-center gap-1">
             <span class="material-symbols-outlined text-[16px]">add</span>
             <span>إضافة صنف</span>
           </button>
         </div>
 
-        <div class="overflow-x-auto">
-          <table class="w-full text-xs text-right border-collapse">
-            <thead class="bg-light-surface-variant text-light-on-surface-variant">
-              <tr>
-                <th class="p-2.5 w-10 text-center">#</th>
-                <th class="p-2.5 w-32">كود الصنف (RMS ID) *</th>
-                <th class="p-2.5 w-28">الكمية الصادرة *</th>
-                <th class="p-2.5 w-32">سعر البيع للبنزينة (ج.م) *</th>
-                <th class="p-2.5 w-32">سعر التكلفة (ج.م)</th>
-                <th class="p-2.5 w-28 text-left">إجمالي القيمة</th>
-                <th class="p-2.5 w-12 text-center">حذف</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-outline">
-              <tr *ngFor="let item of items; let idx = index" class="hover:bg-light-surface-variant/40">
-                <td class="p-2.5 text-center font-bold text-gray-400">{{ idx + 1 }}</td>
+        <div *ngIf="!loadingBalances && stockBalances.length === 0"
+          class="p-6 text-center text-xs text-slate-500 bg-slate-50 rounded-xl border border-dashed border-slate-300">
+          <span class="material-symbols-outlined text-[32px] text-slate-300 block mb-1">inventory_2</span>
+          لا توجد أصناف بها رصيد في هذا المخزن. اختر مخزنًا آخر.
+        </div>
 
-                <!-- RMS Item ID -->
-                <td class="p-2.5">
-                  <input
-                    type="number"
-                    [(ngModel)]="item.rmsItemID"
-                    placeholder="كود الصنف"
-                    class="w-full px-2 py-1.5 border border-outline rounded bg-light-surface focus:outline-none focus:border-primary font-mono text-xs"
-                  />
-                </td>
+        <div *ngIf="stockBalances.length > 0" class="space-y-3">
+          <div *ngFor="let item of items; let idx = index; trackBy: trackByIndex"
+            class="rounded-xl border p-3.5 space-y-3 transition-colors"
+            [class.border-slate-200]="!isOverStock(item) && !isDuplicate(idx)"
+            [class.border-red-300]="isOverStock(item) || isDuplicate(idx)"
+            [class.bg-red-50]="isOverStock(item) || isDuplicate(idx)">
+            <div class="flex items-start gap-3">
+              <span
+                class="w-6 h-6 rounded-full bg-slate-100 text-slate-500 text-[11px] font-bold font-mono flex items-center justify-center shrink-0 mt-2">{{
+                idx + 1 }}</span>
+              <div class="flex-1 min-w-0">
+                <app-tabbed-select [items]="selectableStockItems" [selectedId]="item.rmsItemID"
+                  placeholder="اضغط لاختيار الصنف من المخزن..." title="أصناف المخزن المنصرف منه"
+                  defaultIcon="inventory_2" [pageSize]="10" (select)="onStockItemSelect(idx, $event)"
+                  (clear)="onStockItemClear(idx)">
+                </app-tabbed-select>
+              </div>
+              <button type="button" (click)="removeItem(idx)" [disabled]="items.length === 1" title="حذف السطر"
+                class="text-slate-400 hover:text-red-600 hover:bg-red-50 disabled:opacity-20 p-1.5 rounded-lg transition-colors mt-1">
+                <span class="material-symbols-outlined text-[20px]">delete</span>
+              </button>
+            </div>
 
-                <!-- Quantity Issued -->
-                <td class="p-2.5">
-                  <input
-                    type="number"
-                    [(ngModel)]="item.quantityIssued"
-                    min="1"
-                    class="w-full px-2 py-1.5 border border-outline rounded bg-light-surface focus:outline-none focus:border-primary font-bold text-xs"
-                  />
-                </td>
+            <div *ngIf="item.rmsItemID > 0" class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 items-start pr-9">
+              <!-- الكمية -->
+              <div>
+                <label class="block text-[11px] font-semibold text-slate-600 mb-1">الكمية</label>
+                <div [class.border-red-500]="isOverStock(item)" [class.ring-2]="isOverStock(item)"
+                  [class.ring-red-200]="isOverStock(item)" [class.bg-red-50]="isOverStock(item)"
+                  class="flex items-center h-9 w-full sm:w-24 rounded-md border border-slate-300 bg-white px-2 transition-all focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20">
+                  <input type="number" [(ngModel)]="item.quantityIssued" min="1" placeholder="0"
+                    [class.text-red-700]="isOverStock(item)"
+                    class="w-full min-w-0 border-0 p-0 text-center text-xs font-bold font-mono text-slate-900 placeholder:text-slate-400 bg-transparent focus:outline-none focus:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                </div>
 
-                <!-- Unit Price -->
-                <td class="p-2.5">
-                  <input
-                    type="number"
-                    [(ngModel)]="item.unitPrice"
-                    min="0"
-                    step="0.01"
-                    class="w-full px-2 py-1.5 border border-outline rounded bg-light-surface focus:outline-none focus:border-primary text-xs font-semibold text-emerald-700"
-                  />
-                </td>
+                <p *ngIf="isOverStock(item)" class="text-[10px] font-semibold text-red-600 mt-1 leading-tight">
+                  الكمية أكبر من الرصيد المتاح
+                </p>
+              </div>
 
-                <!-- Unit Cost -->
-                <td class="p-2.5">
-                  <input
-                    type="number"
-                    [(ngModel)]="item.unitCost"
-                    min="0"
-                    step="0.01"
-                    class="w-full px-2 py-1.5 border border-outline rounded bg-light-surface focus:outline-none focus:border-primary text-xs text-gray-600"
-                  />
-                </td>
+              <!-- سعر البيع -->
+              <div>
+                <label class="block text-[11px] font-semibold text-slate-600 mb-1">سعر البيع</label>
 
-                <!-- Line Total Value -->
-                <td class="p-2.5 text-left font-bold text-light-on-surface">
-                  {{ (item.quantityIssued * item.unitPrice) | number : '1.2-2' }}
-                </td>
-
-                <!-- Remove Button -->
-                <td class="p-2.5 text-center">
-                  <button
-                    type="button"
-                    (click)="removeItem(idx)"
-                    [disabled]="items.length === 1"
-                    class="text-red-500 hover:text-red-700 disabled:text-gray-300 p-1"
-                  >
-                    <span class="material-symbols-outlined text-[18px]">delete</span>
+                <div *ngIf="!item.editPrice"
+                  class="flex items-center justify-between gap-1 h-9 rounded-md bg-slate-50/80 border border-slate-200 px-2.5 transition-colors hover:border-slate-300">
+                  <span class="font-mono font-bold text-xs text-emerald-700 truncate">
+                    {{ item.unitPrice | number : '1.2-2' }}
+                  </span>
+                  <button type="button" (click)="item.editPrice = true" title="تعديل السعر"
+                    class="inline-flex items-center justify-center rounded text-slate-400 hover:text-primary hover:bg-slate-200/60 p-0.5 transition-colors shrink-0">
+                    <span class="material-symbols-outlined text-[15px]">edit</span>
                   </button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+                </div>
+
+                <input *ngIf="item.editPrice" type="number" [(ngModel)]="item.unitPrice" min="0" step="0.01"
+                  class="w-full h-9 px-2.5 border border-primary rounded-md bg-white font-mono font-bold text-xs text-emerald-700 focus:outline-none focus:ring-2 focus:ring-primary/20" />
+              </div>
+
+              <!-- التكلفة -->
+              <div>
+                <label class="block text-[11px] font-semibold text-slate-600 mb-1">التكلفة</label>
+                <div
+                  class="flex items-center h-9 rounded-md bg-slate-50/80 border border-slate-200 px-2.5 font-mono text-xs text-slate-500 truncate">
+                  {{ item.unitCost | number : '1.2-2' }}
+                </div>
+              </div>
+
+              <!-- إجمالي السطر -->
+              <div class="text-left">
+                <label class="block text-[11px] font-semibold text-slate-600 mb-1">إجمالي السطر</label>
+                <div
+                  class="flex items-center justify-end gap-1 h-9 px-2 rounded-md bg-primary/5 border border-primary/15 font-mono font-extrabold text-primary text-xs sm:text-sm whitespace-nowrap">
+                  <span>{{ (item.quantityIssued * item.unitPrice) | number : '1.2-2' }}</span>
+                  <span class="text-[10px] font-medium text-slate-500">ج.م</span>
+                </div>
+              </div>
+            </div>
+
+            <div *ngIf="isOverStock(item)" class="pr-9 text-[11px] text-red-600 flex items-center gap-1">
+              <span class="material-symbols-outlined text-[14px]">warning</span> الكمية تتجاوز الرصيد المتاح بالمخزن
+            </div>
+            <div *ngIf="isDuplicate(idx)" class="pr-9 text-[11px] text-red-600 flex items-center gap-1">
+              <span class="material-symbols-outlined text-[14px]">warning</span> هذا الصنف مضاف في سطر آخر
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -259,12 +252,10 @@
         </div>
 
         <div class="pt-3">
-          <button
-            (click)="submitConsignment()"
-            [disabled]="submitting"
-            class="w-full py-3 bg-primary text-on-primary font-medium rounded-lg hover:bg-primary/90 shadow-sm transition-all text-sm flex items-center justify-center gap-2"
-          >
-            <span *ngIf="submitting" class="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></span>
+          <button (click)="submitConsignment()" [disabled]="submitting"
+            class="w-full py-3 bg-primary text-on-primary font-medium rounded-lg hover:bg-primary/90 shadow-sm transition-all text-sm flex items-center justify-center gap-2">
+            <span *ngIf="submitting"
+              class="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></span>
             <span class="material-symbols-outlined text-[20px]">local_shipping</span>
             <span>صرف البضاعة الآن</span>
           </button>
@@ -296,58 +287,38 @@
     <div class="space-y-3">
       <div>
         <label class="block text-xs font-medium text-light-on-surface-variant mb-1">اسم المحل / البنزينة *</label>
-        <input
-          type="text"
-          [(ngModel)]="quickDealer.name"
-          placeholder="مثال: Circle K - طريق السويس"
-          class="w-full px-3 py-2 text-xs border border-outline rounded-lg bg-light-surface focus:outline-none focus:border-primary"
-        />
+        <input type="text" [(ngModel)]="quickDealer.name" placeholder="مثال: Circle K - طريق السويس"
+          class="w-full px-3 py-2 text-xs border border-outline rounded-lg bg-light-surface focus:outline-none focus:border-primary" />
       </div>
 
       <div>
         <label class="block text-xs font-medium text-light-on-surface-variant mb-1">رقم الهاتف *</label>
-        <input
-          type="text"
-          [(ngModel)]="quickDealer.phone"
-          placeholder="مثال: 01011223344"
-          class="w-full px-3 py-2 text-xs border border-outline rounded-lg bg-light-surface focus:outline-none focus:border-primary"
-        />
+        <input type="text" [(ngModel)]="quickDealer.phone" placeholder="مثال: 01011223344"
+          class="w-full px-3 py-2 text-xs border border-outline rounded-lg bg-light-surface focus:outline-none focus:border-primary" />
       </div>
 
       <div>
         <label class="block text-xs font-medium text-light-on-surface-variant mb-1">العنوان / المحطة</label>
-        <input
-          type="text"
-          [(ngModel)]="quickDealer.address"
-          placeholder="مثال: محطة شيل أوت مدينتي"
-          class="w-full px-3 py-2 text-xs border border-outline rounded-lg bg-light-surface focus:outline-none focus:border-primary"
-        />
+        <input type="text" [(ngModel)]="quickDealer.address" placeholder="مثال: محطة شيل أوت مدينتي"
+          class="w-full px-3 py-2 text-xs border border-outline rounded-lg bg-light-surface focus:outline-none focus:border-primary" />
       </div>
 
       <div>
         <label class="block text-xs font-medium text-light-on-surface-variant mb-1">ملاحظات</label>
-        <input
-          type="text"
-          [(ngModel)]="quickDealer.notes"
-          placeholder="ملاحظات إضافية"
-          class="w-full px-3 py-2 text-xs border border-outline rounded-lg bg-light-surface focus:outline-none focus:border-primary"
-        />
+        <input type="text" [(ngModel)]="quickDealer.notes" placeholder="ملاحظات إضافية"
+          class="w-full px-3 py-2 text-xs border border-outline rounded-lg bg-light-surface focus:outline-none focus:border-primary" />
       </div>
     </div>
 
     <div class="pt-3 border-t border-outline flex justify-end gap-2">
-      <button
-        (click)="closeQuickDealerModal()"
-        class="px-4 py-2 border border-outline rounded-lg text-xs font-medium hover:bg-light-surface-variant"
-      >
+      <button (click)="closeQuickDealerModal()"
+        class="px-4 py-2 border border-outline rounded-lg text-xs font-medium hover:bg-light-surface-variant">
         إلغاء
       </button>
-      <button
-        (click)="saveQuickDealer()"
-        [disabled]="savingQuickDealer"
-        class="px-4 py-2 bg-primary text-on-primary rounded-lg text-xs font-medium hover:bg-primary/90 transition-all flex items-center gap-1.5"
-      >
-        <span *ngIf="savingQuickDealer" class="animate-spin rounded-full h-3.5 w-3.5 border-2 border-white border-t-transparent"></span>
+      <button (click)="saveQuickDealer()" [disabled]="savingQuickDealer"
+        class="px-4 py-2 bg-primary text-on-primary rounded-lg text-xs font-medium hover:bg-primary/90 transition-all flex items-center gap-1.5">
+        <span *ngIf="savingQuickDealer"
+          class="animate-spin rounded-full h-3.5 w-3.5 border-2 border-white border-t-transparent"></span>
         <span>حفظ واختيار</span>
       </button>
     </div>

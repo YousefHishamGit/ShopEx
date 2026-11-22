@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using ShopEx.Application.DTOs.Consignment;
 using ShopEx.Application.interfaces.ShopEx.Repositories;
 using ShopEx.Domain.Entity;
 using ShopEx.Domain.Enum;
@@ -62,29 +63,105 @@ namespace ShopEx.Infrastructure.Repositories.ShopEx
                                                .Include(c => c.Payments)
                                                .AsSplitQuery();
 
-            if (dealerId.HasValue)
-            {
-                query = query.Where(c => c.DealerID == dealerId.Value);
-            }
-
-            if (status.HasValue)
-            {
-                query = query.Where(c => c.Status == status.Value);
-            }
-
-            if (fromDate.HasValue)
-            {
-                query = query.Where(c => c.IssueDate >= fromDate.Value);
-            }
-
-            if (toDate.HasValue)
-            {
-                query = query.Where(c => c.IssueDate <= toDate.Value);
-            }
+            query = ApplyFilters(query, dealerId, status, fromDate, toDate);
 
             return query.OrderByDescending(c => c.IssueDate)
                         .ThenByDescending(c => c.ID)
                         .ToListAsync(ct);
+        }
+
+        /// <summary>
+        /// Lightweight list query: aggregates are computed in SQL and no entity graph is materialized.
+        /// </summary>
+        public async Task<List<ConsignmentSummaryResponse>> GetSummariesAsync(
+            int? dealerId = null,
+            ConsignmentStatus? status = null,
+            DateTime? fromDate = null,
+            DateTime? toDate = null,
+            CancellationToken ct = default)
+        {
+            var query = ApplyFilters(_db.Consignments.AsNoTracking(), dealerId, status, fromDate, toDate);
+
+            var rows = await query
+                .OrderByDescending(c => c.IssueDate)
+                .ThenByDescending(c => c.ID)
+                .Select(c => new
+                {
+                    c.ID,
+                    c.ConsignmentNumber,
+                    c.DealerID,
+                    DealerName = c.Dealer.Name,
+                    DealerPhone = c.Dealer.Phone,
+                    c.IssueDate,
+                    c.AgreedDays,
+                    c.DueDate,
+                    c.Status,
+                    ItemsCount = c.Items.Count,
+                    Issued = c.Items.Sum(i => i.QuantityIssued * i.UnitPrice),
+                    Sold = c.Items.Sum(i => i.SettlementItems.Sum(s => s.QuantitySold) * i.UnitPrice),
+                    OutQty = c.Items.Sum(i => i.QuantityIssued - i.SettlementItems.Sum(s => s.QuantitySold + s.QuantityReturned)),
+                    OutValue = c.Items.Sum(i => (i.QuantityIssued - i.SettlementItems.Sum(s => s.QuantitySold + s.QuantityReturned)) * i.UnitPrice),
+                    Paid = c.Payments.Sum(p => p.Amount)
+                })
+                .ToListAsync(ct);
+
+            var today = DateTime.Today;
+            return rows.Select(r =>
+            {
+                var remaining = r.Sold - r.Paid;
+                return new ConsignmentSummaryResponse
+                {
+                    ID = r.ID,
+                    ConsignmentNumber = r.ConsignmentNumber,
+                    DealerID = r.DealerID,
+                    DealerName = r.DealerName ?? string.Empty,
+                    DealerPhone = r.DealerPhone ?? string.Empty,
+                    IssueDate = r.IssueDate,
+                    AgreedDays = r.AgreedDays,
+                    DueDate = r.DueDate,
+                    Status = r.Status,
+                    ItemsCount = r.ItemsCount,
+                    TotalIssuedValue = r.Issued,
+                    TotalSoldValue = r.Sold,
+                    PaidAmount = r.Paid,
+                    RemainingAmount = remaining,
+                    OutstandingQuantity = r.OutQty,
+                    OutstandingValue = r.OutValue,
+                    IsFullyAccountedFor = r.OutQty <= 0,
+                    IsOverdue = r.Status == ConsignmentStatus.Open
+                                && r.DueDate.Date < today
+                                && (r.OutQty > 0 || remaining > 0)
+                };
+            }).ToList();
+        }
+
+        private static IQueryable<Consignment> ApplyFilters(
+            IQueryable<Consignment> query,
+            int? dealerId,
+            ConsignmentStatus? status,
+            DateTime? fromDate,
+            DateTime? toDate)
+        {
+            if (dealerId.HasValue)
+                query = query.Where(c => c.DealerID == dealerId.Value);
+
+            if (status.HasValue)
+                query = query.Where(c => c.Status == status.Value);
+
+            if (fromDate.HasValue)
+            {
+                var from = fromDate.Value.Date;
+                query = query.Where(c => c.IssueDate >= from);
+            }
+
+            if (toDate.HasValue)
+            {
+                // inclusive of the whole "to" day
+                var toExclusive = toDate.Value.Date.AddDays(1);
+                query = query.Where(c => c.IssueDate < toExclusive);
+            }
+
+            return query;
         }
 
         public Task<bool> ExistsAsync(string consignmentNumber, CancellationToken ct = default)

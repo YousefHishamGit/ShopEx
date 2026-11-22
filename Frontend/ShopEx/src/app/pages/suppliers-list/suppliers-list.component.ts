@@ -25,7 +25,7 @@ export class SuppliersListComponent implements OnInit {
 
   private searchTimeout: any;
 
-  constructor(private api: ApiService, private router: Router) {}
+  constructor(private api: ApiService, private router: Router) { }
 
   ngOnInit(): void {
     this.fetchSuppliers(1);
@@ -40,6 +40,8 @@ export class SuppliersListComponent implements OnInit {
     this.api.getSuppliers(this.currentPage, this.pageSize, this.searchTerm).subscribe({
       next: (res) => {
         this.suppliers = res.items || [];
+
+
         this.totalCount = res.totalCount;
         this.currentPage = res.pageNumber;
         this.pageSize = res.pageSize;

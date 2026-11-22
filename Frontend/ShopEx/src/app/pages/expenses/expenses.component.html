@@ -1,208 +1,299 @@
-<!-- Page Header -->
-<div class="space-y-6">
-  <div class="flex items-center justify-between">
-    <div>
-      <h1 class="text-headline-sm font-bold text-light-on-surface flex items-center gap-2">
-        <span class="material-symbols-outlined text-primary text-[28px]">receipt_long</span>
-        المصروفات
-      </h1>
-      <p class="text-body-sm text-light-on-surface-variant mt-0.5">إدارة وتتبع مصروفات الفروع</p>
+<div class="space-y-5" dir="rtl">
+
+  <!-- ============ Header ============ -->
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div class="flex items-center gap-3">
+      <div class="w-12 h-12 rounded-2xl bg-primary text-white flex items-center justify-center shadow-sm">
+        <span class="material-symbols-outlined text-[26px]">receipt_long</span>
+      </div>
+      <div>
+        <h1 class="text-xl sm:text-2xl font-bold text-light-on-surface leading-tight">المصروفات</h1>
+        <p class="text-xs sm:text-sm text-light-on-surface-variant mt-0.5">تسجيل ومتابعة مصروفات الفروع والإدارة،
+          وتوزيعها على البنود</p>
+      </div>
     </div>
-    <button (click)="openCreateExpense()"
-      class="flex items-center gap-2 px-4 py-2 bg-primary text-on-primary rounded-lg text-body-md font-medium hover:bg-primary/90 transition-colors shadow-sm">
+
+    <button type="button" (click)="openCreateExpense()"
+      class="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-primary text-white text-sm font-semibold rounded-xl shadow-sm hover:bg-primary/90 transition-colors">
       <span class="material-symbols-outlined text-[20px]">add</span>
-      إضافة مصروف
+      <span>إضافة مصروف</span>
     </button>
   </div>
 
-  <!-- KPI Cards -->
-  <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-    <div class="bg-light-surface rounded-xl border border-outline p-4 shadow-sm">
-      <div class="flex items-center justify-between mb-2">
-        <span class="text-body-sm text-light-on-surface-variant">إجمالي المصروفات</span>
-        <span class="material-symbols-outlined text-primary text-[22px]">payments</span>
-      </div>
-      <div class="text-headline-sm font-bold text-light-on-surface">
-        {{ summary ? formatAmount(summary.totalAmount) : '0.00' }} ج.م
-      </div>
-      <div class="text-body-xs text-light-on-surface-variant mt-1">{{ summary?.totalCount ?? 0 }} عملية</div>
-    </div>
-
-    <div class="bg-light-surface rounded-xl border border-outline p-4 shadow-sm">
-      <div class="flex items-center justify-between mb-2">
-        <span class="text-body-sm text-light-on-surface-variant">أعلى بند مصروف</span>
-        <span class="material-symbols-outlined text-warning text-[22px]">trending_up</span>
-      </div>
-      <div class="text-title-lg font-bold text-light-on-surface truncate">
-        {{ topCategory?.categoryName ?? '-' }}
-      </div>
-      <div class="text-body-xs text-light-on-surface-variant mt-1">
-        {{ topCategory ? formatAmount(topCategory.totalAmount) + ' ج.م' : '' }}
+  <!-- ============ KPI Cards (على كل النتائج المطابقة للفلاتر) ============ -->
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+    <div class="relative overflow-hidden bg-light-surface p-4 rounded-2xl border border-outline shadow-sm">
+      <span class="absolute inset-y-0 right-0 w-1 bg-primary"></span>
+      <div class="flex items-start justify-between gap-2">
+        <div class="min-w-0">
+          <span class="text-[11px] sm:text-xs text-light-on-surface-variant font-medium block mb-1">إجمالي
+            المصروفات</span>
+          <div class="text-lg sm:text-xl font-bold text-light-on-surface truncate">
+            {{ (summary?.totalAmount ?? 0) | number:'1.0-2' }}
+            <span class="text-[11px] font-normal text-gray-500">ج.م</span>
+          </div>
+        </div>
+        <div class="w-9 h-9 shrink-0 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+          <span class="material-symbols-outlined text-[20px]">payments</span>
+        </div>
       </div>
     </div>
 
-    <div class="bg-light-surface rounded-xl border border-outline p-4 shadow-sm">
-      <div class="flex items-center justify-between mb-2">
-        <span class="text-body-sm text-light-on-surface-variant">عدد البنود</span>
-        <span class="material-symbols-outlined text-success text-[22px]">category</span>
+    <div class="relative overflow-hidden bg-light-surface p-4 rounded-2xl border border-outline shadow-sm">
+      <span class="absolute inset-y-0 right-0 w-1 bg-blue-500"></span>
+      <div class="flex items-start justify-between gap-2">
+        <div class="min-w-0">
+          <span class="text-[11px] sm:text-xs text-light-on-surface-variant font-medium block mb-1">عدد العمليات</span>
+          <div class="text-lg sm:text-xl font-bold text-light-on-surface">
+            {{ summary?.totalCount ?? 0 }}
+            <span class="text-[11px] font-normal text-gray-500">عملية</span>
+          </div>
+          <div class="text-[11px] text-gray-500 mt-0.5 truncate">المتوسط {{ averageAmount | number:'1.0-2' }} ج.م</div>
+        </div>
+        <div class="w-9 h-9 shrink-0 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+          <span class="material-symbols-outlined text-[20px]">receipt</span>
+        </div>
       </div>
-      <div class="text-headline-sm font-bold text-light-on-surface">{{ categories.length }}</div>
-      <div class="text-body-xs text-light-on-surface-variant mt-1">بند مصروفات نشط</div>
+    </div>
+
+    <div class="relative overflow-hidden bg-light-surface p-4 rounded-2xl border border-outline shadow-sm">
+      <span class="absolute inset-y-0 right-0 w-1 bg-amber-500"></span>
+      <div class="flex items-start justify-between gap-2">
+        <div class="min-w-0">
+          <span class="text-[11px] sm:text-xs text-light-on-surface-variant font-medium block mb-1">أعلى بند
+            صرفاً</span>
+          <div class="text-base sm:text-lg font-bold text-light-on-surface truncate">{{ topCategory?.categoryName ?? '—'
+            }}</div>
+          <div class="text-[11px] text-gray-500 mt-0.5 truncate">
+            <ng-container *ngIf="topCategory">{{ topCategory.totalAmount | number:'1.0-2' }} ج.م · {{
+              topCategory.percentage | number:'1.0-0' }}%</ng-container>
+          </div>
+        </div>
+        <div class="w-9 h-9 shrink-0 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+          <span class="material-symbols-outlined text-[20px]">trending_up</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="relative overflow-hidden bg-light-surface p-4 rounded-2xl border border-outline shadow-sm">
+      <span class="absolute inset-y-0 right-0 w-1 bg-emerald-500"></span>
+      <div class="flex items-start justify-between gap-2">
+        <div class="min-w-0">
+          <span class="text-[11px] sm:text-xs text-light-on-surface-variant font-medium block mb-1">البنود النشطة</span>
+          <div class="text-lg sm:text-xl font-bold text-light-on-surface">
+            {{ activeCategoriesCount }}
+            <span class="text-[11px] font-normal text-gray-500">من {{ allCategories.length }}</span>
+          </div>
+        </div>
+        <div class="w-9 h-9 shrink-0 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+          <span class="material-symbols-outlined text-[20px]">category</span>
+        </div>
+      </div>
     </div>
   </div>
 
-  <!-- Tabs -->
-  <div class="flex gap-1 bg-light-surface border border-outline rounded-lg p-1 w-fit">
-    <button (click)="activeTab = 'expenses'"
-      [class]="activeTab === 'expenses'
-        ? 'px-4 py-2 rounded bg-primary text-on-primary text-body-md font-semibold shadow-sm transition-all'
-        : 'px-4 py-2 rounded text-body-md text-light-on-surface-variant hover:text-light-on-surface transition-all'">
-      <span class="flex items-center gap-1.5">
-        <span class="material-symbols-outlined text-[18px]">receipt</span>
-        حركات المصروفات
-      </span>
+  <!-- ============ Tabs ============ -->
+  <div class="inline-flex p-1 bg-light-surface-variant rounded-xl gap-1 w-full sm:w-auto">
+    <button type="button" (click)="activeTab = 'expenses'"
+      [ngClass]="activeTab === 'expenses' ? 'bg-light-surface text-primary shadow-sm font-bold' : 'text-light-on-surface-variant hover:text-light-on-surface'"
+      class="flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs sm:text-sm flex items-center justify-center gap-2 transition-all">
+      <span class="material-symbols-outlined text-[18px]">receipt</span>
+      <span>حركات المصروفات</span>
     </button>
-    <button (click)="activeTab = 'categories'"
-      [class]="activeTab === 'categories'
-        ? 'px-4 py-2 rounded bg-primary text-on-primary text-body-md font-semibold shadow-sm transition-all'
-        : 'px-4 py-2 rounded text-body-md text-light-on-surface-variant hover:text-light-on-surface transition-all'">
-      <span class="flex items-center gap-1.5">
-        <span class="material-symbols-outlined text-[18px]">category</span>
-        بنود المصروفات
-      </span>
+    <button type="button" (click)="activeTab = 'categories'"
+      [ngClass]="activeTab === 'categories' ? 'bg-light-surface text-primary shadow-sm font-bold' : 'text-light-on-surface-variant hover:text-light-on-surface'"
+      class="flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs sm:text-sm flex items-center justify-center gap-2 transition-all">
+      <span class="material-symbols-outlined text-[18px]">category</span>
+      <span>بنود المصروفات</span>
     </button>
   </div>
 
-  <!-- ========== EXPENSES TAB ========== -->
+  <!-- ======================================================== -->
+  <!-- EXPENSES TAB -->
+  <!-- ======================================================== -->
   <div *ngIf="activeTab === 'expenses'" class="space-y-4">
 
     <!-- Filters -->
-    <div class="bg-light-surface border border-outline rounded-xl p-4 shadow-sm">
-      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+    <div class="bg-light-surface border border-outline rounded-2xl p-3 sm:p-4 shadow-sm space-y-3">
+      <!-- Quick date presets + search -->
+      <div class="flex flex-col lg:flex-row lg:items-center gap-3">
+        <div class="inline-flex p-1 bg-light-surface-variant rounded-xl gap-1 self-start">
+          <button *ngFor="let p of [
+              { id: 'all', label: 'الكل' },
+              { id: 'today', label: 'اليوم' },
+              { id: 'month', label: 'هذا الشهر' },
+              { id: 'lastMonth', label: 'الشهر الماضي' }
+            ]" type="button" (click)="applyPreset($any(p.id))"
+            [ngClass]="datePreset === p.id ? 'bg-light-surface text-primary shadow-sm font-bold' : 'text-light-on-surface-variant hover:text-light-on-surface'"
+            class="px-3 py-1.5 rounded-lg text-xs transition-all whitespace-nowrap">
+            {{ p.label }}
+          </button>
+        </div>
+
+        <div class="relative flex-1">
+          <span
+            class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-[18px]">search</span>
+          <input type="text" [(ngModel)]="filters.search" (ngModelChange)="onSearchInput()"
+            placeholder="ابحث بالمستفيد، رقم الإيصال، الملاحظات، البند..."
+            class="w-full pr-9 pl-3 py-2 text-xs border border-outline rounded-xl bg-light-surface text-light-on-surface focus:outline-none focus:border-primary" />
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 lg:grid-cols-5 gap-3">
         <div>
-          <label class="block text-body-xs text-light-on-surface-variant mb-1">الفرع</label>
-          <select [(ngModel)]="filters.storeId"
-            class="w-full border border-outline rounded-lg px-3 py-2 text-body-sm bg-light-surface text-light-on-surface focus:outline-none focus:border-primary">
+          <label class="block text-[11px] font-semibold text-light-on-surface-variant mb-1">الفرع</label>
+          <select [(ngModel)]="filters.storeId" (ngModelChange)="onFilterChange()"
+            class="w-full px-8 py-2 text-xs border border-outline rounded-xl bg-light-surface text-light-on-surface focus:outline-none focus:border-primary">
             <option [ngValue]="undefined">كل الفروع</option>
             <option *ngFor="let s of stores" [ngValue]="s.id">{{ s.name }}</option>
           </select>
         </div>
         <div>
-          <label class="block text-body-xs text-light-on-surface-variant mb-1">البند</label>
-          <select [(ngModel)]="filters.categoryId"
-            class="w-full border border-outline rounded-lg px-3 py-2 text-body-sm bg-light-surface text-light-on-surface focus:outline-none focus:border-primary">
+          <label class="block text-[11px] font-semibold text-light-on-surface-variant mb-1">البند</label>
+          <select [(ngModel)]="filters.categoryId" (ngModelChange)="onFilterChange()"
+            class="w-full px-8 py-2 text-xs border border-outline rounded-xl bg-light-surface text-light-on-surface focus:outline-none focus:border-primary">
             <option [ngValue]="undefined">كل البنود</option>
             <option *ngFor="let c of allCategories" [ngValue]="c.id">{{ c.name }}</option>
           </select>
         </div>
         <div>
-          <label class="block text-body-xs text-light-on-surface-variant mb-1">من تاريخ</label>
-          <input type="date" [(ngModel)]="filters.fromDate"
-            class="w-full border border-outline rounded-lg px-3 py-2 text-body-sm bg-light-surface text-light-on-surface focus:outline-none focus:border-primary" />
-        </div>
-        <div>
-          <label class="block text-body-xs text-light-on-surface-variant mb-1">إلى تاريخ</label>
-          <input type="date" [(ngModel)]="filters.toDate"
-            class="w-full border border-outline rounded-lg px-3 py-2 text-body-sm bg-light-surface text-light-on-surface focus:outline-none focus:border-primary" />
-        </div>
-        <div>
-          <label class="block text-body-xs text-light-on-surface-variant mb-1">طريقة الدفع</label>
-          <select [(ngModel)]="filters.paymentMethod"
-            class="w-full border border-outline rounded-lg px-3 py-2 text-body-sm bg-light-surface text-light-on-surface focus:outline-none focus:border-primary">
+          <label class="block text-[11px] font-semibold text-light-on-surface-variant mb-1">طريقة الدفع</label>
+          <select [(ngModel)]="filters.paymentMethod" (ngModelChange)="onFilterChange()"
+            class="w-full px-8 py-2 text-xs border border-outline rounded-xl bg-light-surface text-light-on-surface focus:outline-none focus:border-primary">
             <option [ngValue]="undefined">الكل</option>
             <option *ngFor="let pm of paymentMethods" [ngValue]="pm.value">{{ pm.label }}</option>
           </select>
         </div>
-      </div>
-      <div class="flex gap-2 mt-3">
-        <button (click)="applyFilters()"
-          class="flex items-center gap-1.5 px-4 py-2 bg-primary text-on-primary rounded-lg text-body-sm font-medium hover:bg-primary/90 transition-colors">
-          <span class="material-symbols-outlined text-[16px]">search</span>
-          بحث
-        </button>
-        <button (click)="clearFilters()"
-          class="flex items-center gap-1.5 px-4 py-2 border border-outline text-light-on-surface-variant rounded-lg text-body-sm hover:bg-light-surface-variant transition-colors">
-          <span class="material-symbols-outlined text-[16px]">clear</span>
-          مسح
-        </button>
+        <div>
+          <label class="block text-[11px] font-semibold text-light-on-surface-variant mb-1">من تاريخ</label>
+          <input type="date" [(ngModel)]="filters.fromDate" (ngModelChange)="onDateChange()"
+            [max]="filters.toDate || null"
+            class="w-full px-3 py-2 text-xs border border-outline rounded-xl bg-light-surface text-light-on-surface focus:outline-none focus:border-primary" />
+        </div>
+        <div>
+          <label class="block text-[11px] font-semibold text-light-on-surface-variant mb-1">إلى تاريخ</label>
+          <div class="flex items-center gap-2">
+            <input type="date" [(ngModel)]="filters.toDate" (ngModelChange)="onDateChange()"
+              [min]="filters.fromDate || null"
+              class="w-full px-3 py-2 text-xs border border-outline rounded-xl bg-light-surface text-light-on-surface focus:outline-none focus:border-primary" />
+            <button *ngIf="hasActiveFilters" type="button" (click)="clearFilters()"
+              class="px-3 py-2 text-xs font-semibold rounded-xl border border-outline text-light-on-surface-variant hover:bg-light-surface-variant transition-colors whitespace-nowrap"
+              title="مسح كل الفلاتر">
+              مسح
+            </button>
+          </div>
+        </div>
       </div>
     </div>
 
-    <!-- Category Breakdown -->
-    <div *ngIf="summary?.categorySummaries?.length" class="bg-light-surface border border-outline rounded-xl p-4 shadow-sm">
-      <h3 class="text-title-md font-semibold text-light-on-surface mb-3 flex items-center gap-2">
-        <span class="material-symbols-outlined text-[20px] text-primary">pie_chart</span>
-        توزيع المصروفات بالبنود
-      </h3>
-      <div class="space-y-2.5">
-        <div *ngFor="let cs of summary!.categorySummaries" class="space-y-1">
-          <div class="flex items-center justify-between text-body-sm">
-            <span class="text-light-on-surface font-medium">{{ cs.categoryName }}</span>
-            <span class="text-light-on-surface-variant">{{ formatAmount(cs.totalAmount) }} ج.م
-              <span class="text-primary font-semibold ms-1">({{ cs.percentage | number:'1.1-1' }}%)</span>
+    <!-- Category breakdown -->
+    <div *ngIf="summary?.categorySummaries?.length"
+      class="bg-light-surface border border-outline rounded-2xl p-4 shadow-sm">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="text-sm font-bold text-light-on-surface flex items-center gap-2">
+          <span class="material-symbols-outlined text-[20px] text-primary">pie_chart</span>
+          توزيع المصروفات على البنود
+        </h3>
+        <span class="text-[11px] text-gray-500 hidden sm:block">اضغط على بند لتصفية الحركات</span>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1">
+        <button *ngFor="let cs of summary!.categorySummaries" type="button" (click)="filterByCategory(cs.categoryId)"
+          class="text-right rounded-lg px-2 py-1.5 hover:bg-light-surface-variant/60 transition-colors"
+          [ngClass]="filters.categoryId === cs.categoryId ? 'bg-primary/5 ring-1 ring-primary/30' : ''">
+          <div class="flex items-center justify-between gap-2 text-xs mb-1">
+            <span class="font-semibold text-light-on-surface truncate">{{ cs.categoryName }}</span>
+            <span class="text-light-on-surface-variant whitespace-nowrap">
+              {{ cs.totalAmount | number:'1.0-2' }} ج.م
+              <span class="text-primary font-bold">· {{ cs.percentage | number:'1.0-1' }}%</span>
             </span>
           </div>
-          <div class="h-2 bg-light-surface-variant rounded-full overflow-hidden">
-            <div class="h-full bg-primary rounded-full transition-all"
-              [style.width]="cs.percentage + '%'"></div>
+          <div class="h-1.5 bg-light-surface-variant rounded-full overflow-hidden">
+            <div class="h-full bg-primary rounded-full transition-all" [style.width.%]="cs.percentage"></div>
           </div>
-        </div>
+        </button>
       </div>
     </div>
 
-    <!-- Expenses Table -->
-    <div class="bg-light-surface border border-outline rounded-xl shadow-sm overflow-hidden">
-      <div class="p-4 border-b border-outline flex items-center justify-between">
-        <span class="text-title-md font-semibold text-light-on-surface">
-          سجل المصروفات
-          <span class="text-body-sm text-light-on-surface-variant font-normal mr-2">({{ expenses.length }} عملية)</span>
-        </span>
-        <div *ngIf="loading" class="flex items-center gap-2 text-body-sm text-light-on-surface-variant">
-          <span class="material-symbols-outlined text-[18px] animate-spin">progress_activity</span>
-          جاري التحميل...
+    <!-- Loading skeleton -->
+    <div *ngIf="loading && expenses.length === 0"
+      class="bg-light-surface rounded-2xl border border-outline shadow-sm p-4 space-y-3 animate-pulse">
+      <div class="h-4 w-40 bg-light-surface-variant rounded"></div>
+      <div *ngFor="let _ of [1,2,3,4,5]" class="h-12 bg-light-surface-variant/70 rounded-xl"></div>
+    </div>
+
+    <!-- Expenses table -->
+    <div *ngIf="!(loading && expenses.length === 0)"
+      class="bg-light-surface border border-outline rounded-2xl shadow-sm overflow-hidden">
+      <div class="px-4 py-3 border-b border-outline flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <h3 class="text-sm font-bold text-light-on-surface">سجل المصروفات</h3>
+          <span
+            class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-light-surface-variant text-light-on-surface-variant">
+            {{ summary?.totalCount ?? 0 }}
+          </span>
+        </div>
+        <div *ngIf="loading" class="flex items-center gap-1.5 text-xs text-light-on-surface-variant">
+          <span class="material-symbols-outlined text-[16px] animate-spin">progress_activity</span>
+          تحديث...
         </div>
       </div>
 
-      <div *ngIf="!loading && expenses.length === 0" class="py-16 text-center text-light-on-surface-variant">
-        <span class="material-symbols-outlined text-[48px] block mb-2 opacity-30">receipt_long</span>
-        لا توجد مصروفات مسجلة
+      <div *ngIf="expenses.length === 0" class="py-14 text-center text-light-on-surface-variant">
+        <span class="material-symbols-outlined text-[44px] text-gray-300 block mb-2">receipt_long</span>
+        <p class="font-bold text-sm">لا توجد مصروفات مطابقة</p>
+        <p class="text-xs text-gray-500 mt-1" *ngIf="hasActiveFilters">جرّب تغيير الفلاتر أو مسحها</p>
       </div>
 
       <div class="overflow-x-auto" *ngIf="expenses.length > 0">
-        <table class="w-full text-body-sm">
-          <thead class="bg-light-surface-variant border-b border-outline">
+        <table class="w-full text-right text-xs">
+          <thead
+            class="bg-light-surface-variant/60 text-light-on-surface-variant border-b border-outline font-semibold">
             <tr>
-              <th class="px-4 py-3 text-right text-body-xs font-semibold text-light-on-surface-variant uppercase tracking-wide">التاريخ</th>
-              <th class="px-4 py-3 text-right text-body-xs font-semibold text-light-on-surface-variant uppercase tracking-wide">البند</th>
-              <th class="px-4 py-3 text-right text-body-xs font-semibold text-light-on-surface-variant uppercase tracking-wide">الفرع</th>
-              <th class="px-4 py-3 text-right text-body-xs font-semibold text-light-on-surface-variant uppercase tracking-wide">المبلغ</th>
-              <th class="px-4 py-3 text-right text-body-xs font-semibold text-light-on-surface-variant uppercase tracking-wide">طريقة الدفع</th>
-              <th class="px-4 py-3 text-right text-body-xs font-semibold text-light-on-surface-variant uppercase tracking-wide">المستفيد</th>
-              <th class="px-4 py-3 text-right text-body-xs font-semibold text-light-on-surface-variant uppercase tracking-wide">ملاحظات</th>
-              <th class="px-4 py-3 text-center text-body-xs font-semibold text-light-on-surface-variant uppercase tracking-wide">إجراءات</th>
+              <th class="py-3 px-4">التاريخ</th>
+              <th class="py-3 px-4">البند</th>
+              <th class="py-3 px-4">الفرع</th>
+              <th class="py-3 px-4 text-left">المبلغ</th>
+              <th class="py-3 px-4">الدفع</th>
+              <th class="py-3 px-4">المستفيد</th>
+              <th class="py-3 px-4">ملاحظات</th>
+              <th class="py-3 px-4 text-center">إجراءات</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-outline">
-            <tr *ngFor="let e of expenses" class="hover:bg-light-surface-variant/50 transition-colors">
-              <td class="px-4 py-3 text-light-on-surface whitespace-nowrap">{{ formatDate(e.expenseDate) }}</td>
-              <td class="px-4 py-3">
-                <span class="inline-flex items-center px-2.5 py-1 rounded-full bg-primary/10 text-primary text-body-xs font-medium">
+            <tr *ngFor="let e of expenses; trackBy: trackExpense"
+              class="hover:bg-light-surface-variant/40 transition-colors">
+              <td class="py-3 px-4 text-light-on-surface whitespace-nowrap">{{ e.expenseDate | date:'yyyy/MM/dd' }}</td>
+              <td class="py-3 px-4">
+                <span
+                  class="inline-flex items-center px-2.5 py-1 rounded-full bg-primary/10 text-primary text-[11px] font-semibold whitespace-nowrap">
                   {{ e.categoryName }}
                 </span>
               </td>
-              <td class="px-4 py-3 text-light-on-surface-variant">{{ e.storeName ?? '-' }}</td>
-              <td class="px-4 py-3 font-semibold text-light-on-surface">{{ formatAmount(e.amount) }} ج.م</td>
-              <td class="px-4 py-3 text-light-on-surface-variant">{{ getPaymentMethodLabel(e.paymentMethod) }}</td>
-              <td class="px-4 py-3 text-light-on-surface-variant">{{ e.recipient || '-' }}</td>
-              <td class="px-4 py-3 text-light-on-surface-variant max-w-[150px] truncate" [title]="e.notes || ''">{{ e.notes || '-' }}</td>
-              <td class="px-4 py-3">
-                <div class="flex items-center justify-center gap-1.5">
-                  <button (click)="openEditExpense(e)"
-                    class="p-1.5 text-primary hover:bg-primary/10 rounded transition-colors" title="تعديل">
+              <td class="py-3 px-4 text-light-on-surface-variant whitespace-nowrap">{{ getStoreName(e.storeId) }}</td>
+              <td class="py-3 px-4 text-left font-extrabold text-[13px] text-light-on-surface whitespace-nowrap">
+                {{ e.amount | number:'1.2-2' }} <span class="text-[10px] font-normal text-gray-500">ج.م</span>
+              </td>
+              <td class="py-3 px-4 text-light-on-surface-variant whitespace-nowrap">
+                <span class="inline-flex items-center gap-1">
+                  <span class="material-symbols-outlined text-[15px] text-gray-400">{{
+                    getPaymentMethod(e.paymentMethod)?.icon }}</span>
+                  {{ getPaymentMethod(e.paymentMethod)?.label }}
+                </span>
+              </td>
+              <td class="py-3 px-4 text-light-on-surface-variant">
+                <div>{{ e.recipient || '—' }}</div>
+                <div *ngIf="e.receiptNumber" class="text-[10px] text-gray-400">إيصال: {{ e.receiptNumber }}</div>
+              </td>
+              <td class="py-3 px-4 text-light-on-surface-variant max-w-[180px] truncate" [title]="e.notes || ''">{{
+                e.notes || '—' }}</td>
+              <td class="py-3 px-4">
+                <div class="flex items-center justify-center gap-1">
+                  <button type="button" (click)="openEditExpense(e)"
+                    class="p-1.5 text-primary hover:bg-primary/10 rounded-lg transition-colors" title="تعديل">
                     <span class="material-symbols-outlined text-[18px]">edit</span>
                   </button>
-                  <button (click)="confirmDeleteExpense(e.id)"
-                    class="p-1.5 text-error hover:bg-error/10 rounded transition-colors" title="حذف">
+                  <button type="button" (click)="confirmDeleteExpense(e.id)"
+                    class="p-1.5 text-error hover:bg-error/10 rounded-lg transition-colors" title="حذف">
                     <span class="material-symbols-outlined text-[18px]">delete</span>
                   </button>
                 </div>
@@ -211,123 +302,158 @@
           </tbody>
         </table>
       </div>
+
+      <!-- Pagination -->
+      <div *ngIf="summary && summary.totalPages > 1"
+        class="px-4 py-3 border-t border-outline flex items-center justify-between gap-3 text-xs">
+        <span class="text-light-on-surface-variant">
+          عرض {{ pageFrom }} – {{ pageTo }} من {{ summary.totalCount }}
+        </span>
+        <div class="flex items-center gap-1">
+          <button type="button" (click)="goToPage(page - 1)" [disabled]="page <= 1 || loading"
+            class="px-3 py-1.5 rounded-lg border border-outline hover:bg-light-surface-variant disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-1">
+            <span class="material-symbols-outlined text-[16px]">chevron_right</span>
+            السابق
+          </button>
+          <span class="px-3 py-1.5 font-bold text-light-on-surface">{{ page }} / {{ summary.totalPages }}</span>
+          <button type="button" (click)="goToPage(page + 1)" [disabled]="page >= summary.totalPages || loading"
+            class="px-3 py-1.5 rounded-lg border border-outline hover:bg-light-surface-variant disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-1">
+            التالي
+            <span class="material-symbols-outlined text-[16px]">chevron_left</span>
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 
-  <!-- ========== CATEGORIES TAB ========== -->
-  <div *ngIf="activeTab === 'categories'" class="space-y-4">
-    <div class="bg-light-surface border border-outline rounded-xl shadow-sm overflow-hidden">
-      <div class="p-4 border-b border-outline flex items-center justify-between">
-        <span class="text-title-md font-semibold text-light-on-surface">بنود المصروفات</span>
-        <button (click)="openCreateCategory()"
-          class="flex items-center gap-1.5 px-3 py-2 bg-primary text-on-primary rounded-lg text-body-sm font-medium hover:bg-primary/90 transition-colors">
-          <span class="material-symbols-outlined text-[18px]">add</span>
-          إضافة بند
-        </button>
+  <!-- ======================================================== -->
+  <!-- CATEGORIES TAB -->
+  <!-- ======================================================== -->
+  <div *ngIf="activeTab === 'categories'"
+    class="bg-light-surface border border-outline rounded-2xl shadow-sm overflow-hidden">
+    <div class="px-4 py-3 border-b border-outline flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <h3 class="text-sm font-bold text-light-on-surface">بنود المصروفات</h3>
+        <span
+          class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-light-surface-variant text-light-on-surface-variant">{{
+          allCategories.length }}</span>
       </div>
+      <button type="button" (click)="openCreateCategory()"
+        class="inline-flex items-center gap-1.5 px-3 py-2 bg-primary text-white rounded-xl text-xs font-semibold hover:bg-primary/90 transition-colors">
+        <span class="material-symbols-outlined text-[18px]">add</span>
+        إضافة بند
+      </button>
+    </div>
 
-      <div *ngIf="categories.length === 0" class="py-16 text-center text-light-on-surface-variant">
-        <span class="material-symbols-outlined text-[48px] block mb-2 opacity-30">category</span>
-        لا توجد بنود مصروفات بعد
-      </div>
+    <div *ngIf="allCategories.length === 0" class="py-14 text-center text-light-on-surface-variant">
+      <span class="material-symbols-outlined text-[44px] text-gray-300 block mb-2">category</span>
+      <p class="font-bold text-sm">لا توجد بنود مصروفات بعد</p>
+      <p class="text-xs text-gray-500 mt-1">يمكنك أيضاً كتابة اسم بند جديد مباشرة عند تسجيل مصروف</p>
+    </div>
 
-      <div class="overflow-x-auto" *ngIf="categories.length > 0">
-        <table class="w-full text-body-sm">
-          <thead class="bg-light-surface-variant border-b border-outline">
-            <tr>
-              <th class="px-4 py-3 text-right text-body-xs font-semibold text-light-on-surface-variant uppercase tracking-wide">البند</th>
-              <th class="px-4 py-3 text-right text-body-xs font-semibold text-light-on-surface-variant uppercase tracking-wide">الوصف</th>
-              <th class="px-4 py-3 text-right text-body-xs font-semibold text-light-on-surface-variant uppercase tracking-wide">عدد المصروفات</th>
-              <th class="px-4 py-3 text-right text-body-xs font-semibold text-light-on-surface-variant uppercase tracking-wide">الإجمالي</th>
-              <th class="px-4 py-3 text-center text-body-xs font-semibold text-light-on-surface-variant uppercase tracking-wide">الحالة</th>
-              <th class="px-4 py-3 text-center text-body-xs font-semibold text-light-on-surface-variant uppercase tracking-wide">إجراءات</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-outline">
-            <tr *ngFor="let cat of categories" class="hover:bg-light-surface-variant/50 transition-colors">
-              <td class="px-4 py-3 font-medium text-light-on-surface">{{ cat.name }}</td>
-              <td class="px-4 py-3 text-light-on-surface-variant">{{ cat.description || '-' }}</td>
-              <td class="px-4 py-3 text-light-on-surface-variant">{{ cat.expensesCount }}</td>
-              <td class="px-4 py-3 font-semibold text-light-on-surface">{{ formatAmount(cat.totalAmount) }} ج.م</td>
-              <td class="px-4 py-3 text-center">
-                <span [class]="cat.isActive
-                  ? 'inline-flex items-center px-2.5 py-1 rounded-full bg-success/10 text-success text-body-xs font-medium'
-                  : 'inline-flex items-center px-2.5 py-1 rounded-full bg-error/10 text-error text-body-xs font-medium'">
-                  {{ cat.isActive ? 'نشط' : 'معطل' }}
-                </span>
-              </td>
-              <td class="px-4 py-3">
-                <div class="flex items-center justify-center gap-1.5">
-                  <button (click)="openEditCategory(cat)"
-                    class="p-1.5 text-primary hover:bg-primary/10 rounded transition-colors" title="تعديل">
-                    <span class="material-symbols-outlined text-[18px]">edit</span>
-                  </button>
-                  <button (click)="toggleCategoryStatus(cat)"
-                    [class]="cat.isActive
-                      ? 'p-1.5 text-warning hover:bg-warning/10 rounded transition-colors'
-                      : 'p-1.5 text-success hover:bg-success/10 rounded transition-colors'"
-                    [title]="cat.isActive ? 'تعطيل' : 'تفعيل'">
-                    <span class="material-symbols-outlined text-[18px]">{{ cat.isActive ? 'toggle_on' : 'toggle_off' }}</span>
-                  </button>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+    <div class="overflow-x-auto" *ngIf="allCategories.length > 0">
+      <table class="w-full text-right text-xs">
+        <thead class="bg-light-surface-variant/60 text-light-on-surface-variant border-b border-outline font-semibold">
+          <tr>
+            <th class="py-3 px-4">البند</th>
+            <th class="py-3 px-4">الوصف</th>
+            <th class="py-3 px-4 text-center">عدد المصروفات</th>
+            <th class="py-3 px-4 text-left">الإجمالي</th>
+            <th class="py-3 px-4 text-center">الحالة</th>
+            <th class="py-3 px-4 text-center">إجراءات</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-outline">
+          <tr *ngFor="let cat of allCategories; trackBy: trackCategory"
+            class="hover:bg-light-surface-variant/40 transition-colors" [class.opacity-60]="!cat.isActive">
+            <td class="py-3 px-4 font-bold text-[13px] text-light-on-surface">{{ cat.name }}</td>
+            <td class="py-3 px-4 text-light-on-surface-variant">{{ cat.description || '—' }}</td>
+            <td class="py-3 px-4 text-center text-light-on-surface-variant">{{ cat.expensesCount }}</td>
+            <td class="py-3 px-4 text-left font-semibold text-light-on-surface whitespace-nowrap">{{ cat.totalAmount |
+              number:'1.2-2' }} ج.م</td>
+            <td class="py-3 px-4 text-center">
+              <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold"
+                [ngClass]="cat.isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-500'">
+                {{ cat.isActive ? 'نشط' : 'معطل' }}
+              </span>
+            </td>
+            <td class="py-3 px-4">
+              <div class="flex items-center justify-center gap-1">
+                <button type="button" (click)="openEditCategory(cat)"
+                  class="p-1.5 text-primary hover:bg-primary/10 rounded-lg transition-colors" title="تعديل">
+                  <span class="material-symbols-outlined text-[18px]">edit</span>
+                </button>
+                <button type="button" (click)="toggleCategoryStatus(cat)" class="p-1.5 rounded-lg transition-colors"
+                  [ngClass]="cat.isActive ? 'text-amber-600 hover:bg-amber-50' : 'text-emerald-600 hover:bg-emerald-50'"
+                  [title]="cat.isActive ? 'تعطيل' : 'تفعيل'">
+                  <span class="material-symbols-outlined text-[20px]">{{ cat.isActive ? 'toggle_on' : 'toggle_off'
+                    }}</span>
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
     </div>
   </div>
 </div>
 
-<!-- ========== EXPENSE MODAL ========== -->
-<div *ngIf="showExpenseModal" class="fixed inset-0 z-50 flex items-center justify-center p-4">
-  <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" (click)="closeExpenseModal()"></div>
-  <div class="relative bg-light-surface rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto z-10">
-    <div class="sticky top-0 bg-light-surface border-b border-outline px-6 py-4 flex items-center justify-between rounded-t-2xl">
-      <h2 class="text-title-lg font-bold text-light-on-surface flex items-center gap-2">
-        <span class="material-symbols-outlined text-primary text-[22px]">{{ editingExpense ? 'edit' : 'add_circle' }}</span>
-        {{ editingExpense ? 'تعديل مصروف' : 'إضافة مصروف جديد' }}
-      </h2>
-      <button (click)="closeExpenseModal()" class="p-2 text-light-on-surface-variant hover:text-error rounded-lg transition-colors">
-        <span class="material-symbols-outlined text-[22px]">close</span>
+<!-- ========================================================== -->
+<!-- EXPENSE MODAL -->
+<!-- ========================================================== -->
+<div *ngIf="showExpenseModal" class="fixed inset-0 z-50 flex items-center justify-center p-4" dir="rtl">
+  <div class="absolute inset-0 bg-black/50 backdrop-blur-xs" (click)="closeExpenseModal()"></div>
+  <div
+    class="relative bg-light-surface rounded-2xl border border-outline shadow-2xl w-full max-w-lg max-h-[92vh] flex flex-col z-10">
+    <div class="px-6 py-4 border-b border-outline flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+          <span class="material-symbols-outlined text-[22px]">{{ editingExpense ? 'edit' : 'add_circle' }}</span>
+        </div>
+        <h2 class="text-base font-bold text-light-on-surface">{{ editingExpense ? 'تعديل مصروف' : 'إضافة مصروف جديد' }}
+        </h2>
+      </div>
+      <button type="button" (click)="closeExpenseModal()" class="p-1 text-gray-400 hover:text-gray-600">
+        <span class="material-symbols-outlined text-[20px]">close</span>
       </button>
     </div>
 
-    <div class="p-6 space-y-4">
-      <!-- Error -->
-      <div *ngIf="errorMsg" class="flex items-center gap-2 p-3 bg-error/10 text-error rounded-lg text-body-sm">
+    <div class="p-6 space-y-4 text-xs overflow-y-auto">
+      <div *ngIf="errorMsg" class="flex items-center gap-2 p-3 bg-error/10 text-error rounded-xl">
         <span class="material-symbols-outlined text-[18px]">error</span>
         {{ errorMsg }}
       </div>
 
-      <!-- Category Autocomplete -->
+      <!-- Category autocomplete -->
       <div>
-        <label class="block text-body-sm font-medium text-light-on-surface mb-1.5">
+        <label class="block font-semibold text-light-on-surface mb-1">
           بند المصروف <span class="text-error">*</span>
-          <span class="text-body-xs text-light-on-surface-variant font-normal mr-1">(اكتب اسم جديد لإضافته تلقائياً)</span>
+          <span class="text-[11px] text-light-on-surface-variant font-normal mr-1">(اكتب اسماً جديداً لإضافته
+            تلقائياً)</span>
         </label>
         <div class="relative">
-          <input type="text" [(ngModel)]="categorySearch"
-            (input)="onCategorySearchInput()"
-            (focus)="onCategoryFocus()"
-            (blur)="closeCategoryDropdown()"
-            placeholder="ابحث أو أضف بند جديد..."
-            class="w-full border border-outline rounded-lg px-3 py-2.5 text-body-sm bg-light-surface text-light-on-surface focus:outline-none focus:border-primary" />
-          <span class="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-[18px] text-light-on-surface-variant">search</span>
-
-          <!-- New category badge -->
-          <div *ngIf="!expenseForm.categoryId && categorySearch.trim()"
-            class="absolute left-10 top-1/2 -translate-y-1/2 inline-flex items-center gap-1 px-2 py-0.5 bg-primary/10 text-primary rounded-full text-body-xs">
-            <span class="material-symbols-outlined text-[13px]">add</span>
-            جديد
+          <input type="text" [(ngModel)]="categorySearch" (input)="onCategorySearchInput()" (focus)="onCategoryFocus()"
+            (blur)="closeCategoryDropdown()" placeholder="ابحث أو أضف بند جديد..."
+            class="w-full pr-3 pl-24 py-2.5 text-xs border border-outline rounded-xl bg-light-surface text-light-on-surface focus:outline-none focus:border-primary" />
+          <div *ngIf="categorySearch.trim()" class="absolute left-3 top-1/2 -translate-y-1/2">
+            <span *ngIf="!expenseForm.categoryId"
+              class="inline-flex items-center gap-1 px-2 py-0.5 bg-primary/10 text-primary rounded-full text-[11px] font-semibold">
+              <span class="material-symbols-outlined text-[13px]">add</span> بند جديد
+            </span>
+            <span *ngIf="expenseForm.categoryId && !selectedCategoryInactive"
+              class="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded-full text-[11px] font-semibold">
+              <span class="material-symbols-outlined text-[13px]">check</span> موجود
+            </span>
+            <span *ngIf="selectedCategoryInactive"
+              class="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-50 text-amber-700 rounded-full text-[11px] font-semibold">
+              <span class="material-symbols-outlined text-[13px]">block</span> معطل
+            </span>
           </div>
 
-          <!-- Dropdown -->
           <div *ngIf="categoryDropdownOpen && filteredCategories.length > 0"
-            class="absolute top-full mt-1 w-full bg-light-surface border border-outline rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto">
-            <button *ngFor="let cat of filteredCategories"
-              (mousedown)="selectCategory(cat)"
-              class="w-full text-right px-4 py-2.5 text-body-sm text-light-on-surface hover:bg-light-surface-variant transition-colors flex items-center gap-2">
+            class="absolute top-full mt-1 w-full bg-light-surface border border-outline rounded-xl shadow-lg z-50 max-h-48 overflow-y-auto">
+            <button *ngFor="let cat of filteredCategories" type="button" (mousedown)="selectCategory(cat)"
+              class="w-full text-right px-4 py-2.5 text-xs text-light-on-surface hover:bg-light-surface-variant transition-colors flex items-center gap-2">
               <span class="material-symbols-outlined text-[16px] text-primary">category</span>
               {{ cat.name }}
             </button>
@@ -336,137 +462,155 @@
       </div>
 
       <!-- Amount + Store -->
-      <div class="grid grid-cols-2 gap-4">
+      <div class="grid grid-cols-2 gap-3">
         <div>
-          <label class="block text-body-sm font-medium text-light-on-surface mb-1.5">المبلغ <span class="text-error">*</span></label>
-          <input type="number" [(ngModel)]="expenseForm.amount" min="0" step="0.01"
-            placeholder="0.00"
-            class="w-full border border-outline rounded-lg px-3 py-2.5 text-body-sm bg-light-surface text-light-on-surface focus:outline-none focus:border-primary" />
+          <label class="block font-semibold text-light-on-surface mb-1">المبلغ (ج.م) <span
+              class="text-error">*</span></label>
+          <input type="number" [(ngModel)]="expenseForm.amount" min="0" step="0.01" placeholder="0.00"
+            class="w-full px-3 py-2.5 text-base font-bold border border-outline rounded-xl bg-light-surface text-primary focus:outline-none focus:border-primary" />
         </div>
         <div>
-          <label class="block text-body-sm font-medium text-light-on-surface mb-1.5">الفرع</label>
+          <label class="block font-semibold text-light-on-surface mb-1">الفرع</label>
           <select [(ngModel)]="expenseForm.storeId"
-            class="w-full border border-outline rounded-lg px-3 py-2.5 text-body-sm bg-light-surface text-light-on-surface focus:outline-none focus:border-primary">
-            <option [ngValue]="undefined">-- اختر الفرع --</option>
+            class="w-full px-3 py-2.5 text-xs border border-outline rounded-xl bg-light-surface text-light-on-surface focus:outline-none focus:border-primary">
+            <option [ngValue]="undefined">الإدارة العامة (بدون فرع)</option>
             <option *ngFor="let s of stores" [ngValue]="s.id">{{ s.name }}</option>
           </select>
         </div>
       </div>
 
-      <!-- Date + Payment Method -->
-      <div class="grid grid-cols-2 gap-4">
+      <!-- Date + Payment -->
+      <div class="grid grid-cols-2 gap-3">
         <div>
-          <label class="block text-body-sm font-medium text-light-on-surface mb-1.5">التاريخ</label>
+          <label class="block font-semibold text-light-on-surface mb-1">التاريخ</label>
           <input type="date" [(ngModel)]="expenseForm.expenseDate"
-            class="w-full border border-outline rounded-lg px-3 py-2.5 text-body-sm bg-light-surface text-light-on-surface focus:outline-none focus:border-primary" />
+            class="w-full px-3 py-2.5 text-xs border border-outline rounded-xl bg-light-surface text-light-on-surface focus:outline-none focus:border-primary" />
         </div>
         <div>
-          <label class="block text-body-sm font-medium text-light-on-surface mb-1.5">طريقة الدفع</label>
+          <label class="block font-semibold text-light-on-surface mb-1">طريقة الدفع</label>
           <select [(ngModel)]="expenseForm.paymentMethod"
-            class="w-full border border-outline rounded-lg px-3 py-2.5 text-body-sm bg-light-surface text-light-on-surface focus:outline-none focus:border-primary">
+            class="w-full px-3 py-2.5 text-xs border border-outline rounded-xl bg-light-surface text-light-on-surface focus:outline-none focus:border-primary">
             <option *ngFor="let pm of paymentMethods" [ngValue]="pm.value">{{ pm.label }}</option>
           </select>
         </div>
       </div>
 
       <!-- Recipient + Receipt -->
-      <div class="grid grid-cols-2 gap-4">
+      <div class="grid grid-cols-2 gap-3">
         <div>
-          <label class="block text-body-sm font-medium text-light-on-surface mb-1.5">المستفيد</label>
-          <input type="text" [(ngModel)]="expenseForm.recipient" placeholder="اسم المستفيد"
-            class="w-full border border-outline rounded-lg px-3 py-2.5 text-body-sm bg-light-surface text-light-on-surface focus:outline-none focus:border-primary" />
+          <label class="block font-semibold text-light-on-surface mb-1">المستفيد</label>
+          <input type="text" [(ngModel)]="expenseForm.recipient" maxlength="200" placeholder="مثال: شركة الكهرباء"
+            class="w-full px-3 py-2.5 text-xs border border-outline rounded-xl bg-light-surface text-light-on-surface focus:outline-none focus:border-primary" />
         </div>
         <div>
-          <label class="block text-body-sm font-medium text-light-on-surface mb-1.5">رقم الإيصال</label>
-          <input type="text" [(ngModel)]="expenseForm.receiptNumber" placeholder="رقم الإيصال"
-            class="w-full border border-outline rounded-lg px-3 py-2.5 text-body-sm bg-light-surface text-light-on-surface focus:outline-none focus:border-primary" />
+          <label class="block font-semibold text-light-on-surface mb-1">رقم الإيصال</label>
+          <input type="text" [(ngModel)]="expenseForm.receiptNumber" maxlength="100" placeholder="اختياري"
+            class="w-full px-3 py-2.5 text-xs border border-outline rounded-xl bg-light-surface text-light-on-surface focus:outline-none focus:border-primary" />
         </div>
       </div>
 
-      <!-- Notes -->
       <div>
-        <label class="block text-body-sm font-medium text-light-on-surface mb-1.5">ملاحظات</label>
-        <textarea [(ngModel)]="expenseForm.notes" rows="2" placeholder="ملاحظات إضافية..."
-          class="w-full border border-outline rounded-lg px-3 py-2.5 text-body-sm bg-light-surface text-light-on-surface focus:outline-none focus:border-primary resize-none"></textarea>
+        <label class="block font-semibold text-light-on-surface mb-1">ملاحظات</label>
+        <textarea [(ngModel)]="expenseForm.notes" rows="2" maxlength="1000" placeholder="تفاصيل إضافية عن سبب الصرف..."
+          class="w-full px-3 py-2.5 text-xs border border-outline rounded-xl bg-light-surface text-light-on-surface focus:outline-none focus:border-primary resize-none"></textarea>
       </div>
     </div>
 
-    <div class="sticky bottom-0 bg-light-surface border-t border-outline px-6 py-4 flex gap-3 justify-end rounded-b-2xl">
-      <button (click)="closeExpenseModal()"
-        class="px-5 py-2.5 border border-outline text-light-on-surface-variant rounded-lg text-body-md hover:bg-light-surface-variant transition-colors">
+    <div
+      class="px-6 py-3 border-t border-outline bg-light-surface-variant/30 flex items-center justify-end gap-2 rounded-b-2xl">
+      <button type="button" (click)="closeExpenseModal()" [disabled]="submittingExpense"
+        class="px-4 py-2 rounded-xl border border-outline bg-light-surface text-light-on-surface hover:bg-light-surface-variant transition-colors text-xs font-semibold">
         إلغاء
       </button>
-      <button (click)="saveExpense()"
-        class="px-5 py-2.5 bg-primary text-on-primary rounded-lg text-body-md font-medium hover:bg-primary/90 transition-colors flex items-center gap-2">
-        <span class="material-symbols-outlined text-[18px]">save</span>
+      <button type="button" (click)="saveExpense()" [disabled]="submittingExpense"
+        class="px-5 py-2 rounded-xl bg-primary text-white hover:bg-primary/90 transition-colors text-xs font-semibold inline-flex items-center gap-1.5 disabled:opacity-60">
+        <span *ngIf="submittingExpense"
+          class="inline-block animate-spin w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full"></span>
+        <span *ngIf="!submittingExpense" class="material-symbols-outlined text-[18px]">save</span>
         {{ editingExpense ? 'حفظ التعديلات' : 'إضافة المصروف' }}
       </button>
     </div>
   </div>
 </div>
 
-<!-- ========== CATEGORY MODAL ========== -->
-<div *ngIf="showCategoryModal" class="fixed inset-0 z-50 flex items-center justify-center p-4">
-  <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" (click)="closeCategoryModal()"></div>
-  <div class="relative bg-light-surface rounded-2xl shadow-xl w-full max-w-md z-10">
-    <div class="border-b border-outline px-6 py-4 flex items-center justify-between">
-      <h2 class="text-title-lg font-bold text-light-on-surface flex items-center gap-2">
-        <span class="material-symbols-outlined text-primary text-[22px]">{{ editingCategory ? 'edit' : 'add_circle' }}</span>
-        {{ editingCategory ? 'تعديل بند' : 'إضافة بند جديد' }}
-      </h2>
-      <button (click)="closeCategoryModal()" class="p-2 text-light-on-surface-variant hover:text-error rounded-lg transition-colors">
-        <span class="material-symbols-outlined text-[22px]">close</span>
+<!-- ========================================================== -->
+<!-- CATEGORY MODAL -->
+<!-- ========================================================== -->
+<div *ngIf="showCategoryModal" class="fixed inset-0 z-50 flex items-center justify-center p-4" dir="rtl">
+  <div class="absolute inset-0 bg-black/50 backdrop-blur-xs" (click)="closeCategoryModal()"></div>
+  <div class="relative bg-light-surface rounded-2xl border border-outline shadow-2xl w-full max-w-md z-10">
+    <div class="px-6 py-4 border-b border-outline flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+          <span class="material-symbols-outlined text-[22px]">{{ editingCategory ? 'edit' : 'add_circle' }}</span>
+        </div>
+        <h2 class="text-base font-bold text-light-on-surface">{{ editingCategory ? 'تعديل بند' : 'إضافة بند جديد' }}
+        </h2>
+      </div>
+      <button type="button" (click)="closeCategoryModal()" class="p-1 text-gray-400 hover:text-gray-600">
+        <span class="material-symbols-outlined text-[20px]">close</span>
       </button>
     </div>
 
-    <div class="p-6 space-y-4">
-      <div *ngIf="errorMsg" class="flex items-center gap-2 p-3 bg-error/10 text-error rounded-lg text-body-sm">
+    <div class="p-6 space-y-4 text-xs">
+      <div *ngIf="errorMsg" class="flex items-center gap-2 p-3 bg-error/10 text-error rounded-xl">
         <span class="material-symbols-outlined text-[18px]">error</span>
         {{ errorMsg }}
       </div>
 
       <div>
-        <label class="block text-body-sm font-medium text-light-on-surface mb-1.5">اسم البند <span class="text-error">*</span></label>
-        <input type="text" [(ngModel)]="categoryForm.name" placeholder="مثال: كهرباء، إيجار، رواتب..."
-          class="w-full border border-outline rounded-lg px-3 py-2.5 text-body-sm bg-light-surface text-light-on-surface focus:outline-none focus:border-primary" />
+        <label class="block font-semibold text-light-on-surface mb-1">اسم البند <span
+            class="text-error">*</span></label>
+        <input type="text" [(ngModel)]="categoryForm.name" (keydown.enter)="saveCategory()" maxlength="150"
+          placeholder="مثال: كهرباء، إيجار، رواتب..."
+          class="w-full px-3 py-2.5 text-xs border border-outline rounded-xl bg-light-surface text-light-on-surface focus:outline-none focus:border-primary" />
       </div>
 
       <div>
-        <label class="block text-body-sm font-medium text-light-on-surface mb-1.5">وصف (اختياري)</label>
-        <textarea [(ngModel)]="categoryForm.description" rows="2" placeholder="وصف إضافي للبند..."
-          class="w-full border border-outline rounded-lg px-3 py-2.5 text-body-sm bg-light-surface text-light-on-surface focus:outline-none focus:border-primary resize-none"></textarea>
+        <label class="block font-semibold text-light-on-surface mb-1">وصف (اختياري)</label>
+        <textarea [(ngModel)]="categoryForm.description" rows="2" maxlength="500" placeholder="وصف إضافي للبند..."
+          class="w-full px-3 py-2.5 text-xs border border-outline rounded-xl bg-light-surface text-light-on-surface focus:outline-none focus:border-primary resize-none"></textarea>
       </div>
     </div>
 
-    <div class="border-t border-outline px-6 py-4 flex gap-3 justify-end">
-      <button (click)="closeCategoryModal()"
-        class="px-5 py-2.5 border border-outline text-light-on-surface-variant rounded-lg text-body-md hover:bg-light-surface-variant transition-colors">
+    <div
+      class="px-6 py-3 border-t border-outline bg-light-surface-variant/30 flex items-center justify-end gap-2 rounded-b-2xl">
+      <button type="button" (click)="closeCategoryModal()" [disabled]="submittingCategory"
+        class="px-4 py-2 rounded-xl border border-outline bg-light-surface text-light-on-surface hover:bg-light-surface-variant transition-colors text-xs font-semibold">
         إلغاء
       </button>
-      <button (click)="saveCategory()"
-        class="px-5 py-2.5 bg-primary text-on-primary rounded-lg text-body-md font-medium hover:bg-primary/90 transition-colors flex items-center gap-2">
-        <span class="material-symbols-outlined text-[18px]">save</span>
+      <button type="button" (click)="saveCategory()" [disabled]="submittingCategory"
+        class="px-5 py-2 rounded-xl bg-primary text-white hover:bg-primary/90 transition-colors text-xs font-semibold inline-flex items-center gap-1.5 disabled:opacity-60">
+        <span *ngIf="submittingCategory"
+          class="inline-block animate-spin w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full"></span>
         {{ editingCategory ? 'حفظ' : 'إضافة' }}
       </button>
     </div>
   </div>
 </div>
 
-<!-- ========== DELETE CONFIRM ========== -->
-<div *ngIf="showDeleteConfirm" class="fixed inset-0 z-50 flex items-center justify-center p-4">
-  <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" (click)="closeDeleteConfirm()"></div>
-  <div class="relative bg-light-surface rounded-2xl shadow-xl w-full max-w-sm z-10 p-6 text-center space-y-4">
-    <span class="material-symbols-outlined text-[48px] text-error block">delete_forever</span>
-    <h3 class="text-title-lg font-bold text-light-on-surface">تأكيد الحذف</h3>
-    <p class="text-body-md text-light-on-surface-variant">هل أنت متأكد من حذف هذا المصروف؟ لا يمكن التراجع عن هذا الإجراء.</p>
-    <div class="flex gap-3 justify-center pt-2">
-      <button (click)="closeDeleteConfirm()"
-        class="px-5 py-2.5 border border-outline text-light-on-surface-variant rounded-lg text-body-md hover:bg-light-surface-variant transition-colors">
+<!-- ========================================================== -->
+<!-- DELETE CONFIRM -->
+<!-- ========================================================== -->
+<div *ngIf="showDeleteConfirm" class="fixed inset-0 z-50 flex items-center justify-center p-4" dir="rtl">
+  <div class="absolute inset-0 bg-black/50 backdrop-blur-xs" (click)="closeDeleteConfirm()"></div>
+  <div
+    class="relative bg-light-surface rounded-2xl border border-outline shadow-2xl w-full max-w-sm z-10 p-6 text-center space-y-3">
+    <div class="w-14 h-14 mx-auto rounded-full bg-error/10 text-error flex items-center justify-center">
+      <span class="material-symbols-outlined text-[30px]">delete_forever</span>
+    </div>
+    <h3 class="text-base font-bold text-light-on-surface">تأكيد الحذف</h3>
+    <p class="text-xs text-light-on-surface-variant">هل أنت متأكد من حذف هذا المصروف؟ لا يمكن التراجع عن هذا الإجراء.
+    </p>
+    <div class="flex gap-2 justify-center pt-2">
+      <button type="button" (click)="closeDeleteConfirm()" [disabled]="deleting"
+        class="px-5 py-2 border border-outline text-light-on-surface rounded-xl text-xs font-semibold hover:bg-light-surface-variant transition-colors">
         إلغاء
       </button>
-      <button (click)="deleteExpense()"
-        class="px-5 py-2.5 bg-error text-white rounded-lg text-body-md font-medium hover:bg-error/90 transition-colors flex items-center gap-2">
-        <span class="material-symbols-outlined text-[18px]">delete</span>
+      <button type="button" (click)="deleteExpense()" [disabled]="deleting"
+        class="px-5 py-2 bg-error text-white rounded-xl text-xs font-semibold hover:bg-error/90 transition-colors inline-flex items-center gap-1.5 disabled:opacity-60">
+        <span *ngIf="deleting"
+          class="inline-block animate-spin w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full"></span>
         حذف
       </button>
     </div>

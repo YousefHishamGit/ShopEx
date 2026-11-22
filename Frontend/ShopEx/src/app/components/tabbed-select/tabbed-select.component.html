@@ -1,0 +1,179 @@
+<!-- Trigger / selected preview (compact) -->
+<div class="relative w-full text-right" dir="rtl">
+  <div *ngIf="selectedItem"
+    class="flex items-center justify-between gap-2 px-2.5 py-1.5 bg-blue-50/60 hover:bg-blue-50 border border-blue-200 rounded-lg transition-colors">
+    <div class="flex items-center gap-2 min-w-0">
+      <span class="material-symbols-outlined text-[18px] text-primary shrink-0">{{ selectedItem.icon || defaultIcon
+        }}</span>
+      <div class="min-w-0 text-right leading-tight">
+        <div class="text-[13px] font-bold text-slate-900 truncate">{{ selectedItem.title }}</div>
+        <div class="text-[11px] text-slate-500 flex items-center gap-2 truncate">
+          <span class="font-mono">#{{ selectedItem.id }}</span>
+          <span *ngIf="selectedItem.subtitle" class="truncate text-slate-400">{{ selectedItem.subtitle }}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-1 shrink-0">
+      <span *ngIf="selectedItem.price !== undefined" class="text-xs text-emerald-700 font-bold font-mono ml-1">
+        {{ selectedItem.price | number:'1.2-2' }}
+      </span>
+      <button type="button" (click)="openModal()"
+        class="px-2 py-0.5 text-[11px] font-bold text-primary bg-white hover:bg-blue-100 border border-blue-200 rounded-md transition-colors flex items-center gap-0.5">
+        <span class="material-symbols-outlined text-[14px]">swap_horiz</span>
+        <span>تغيير</span>
+      </button>
+      <button *ngIf="allowClear" type="button" (click)="clearSelection()"
+        class="p-0.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
+        title="إلغاء التحديد">
+        <span class="material-symbols-outlined text-[16px]">close</span>
+      </button>
+    </div>
+  </div>
+
+  <button *ngIf="!selectedItem" type="button" (click)="openModal()"
+    class="w-full flex items-center justify-between px-3 py-2 bg-white hover:bg-slate-50 border border-slate-300 hover:border-primary/60 rounded-lg text-sm text-slate-600 transition-colors group">
+    <div class="flex items-center gap-2 min-w-0">
+      <span
+        class="material-symbols-outlined text-slate-400 group-hover:text-primary transition-colors text-[18px]">search</span>
+      <span class="text-slate-500 text-[13px] truncate group-hover:text-slate-800">{{ placeholder }}</span>
+    </div>
+    <span class="material-symbols-outlined text-[18px] text-slate-400 shrink-0">expand_more</span>
+  </button>
+</div>
+
+<!-- Picker dialog -->
+<div *ngIf="isOpen"
+  class="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-2 sm:p-6 bg-slate-900/60 backdrop-blur-sm animate-fade-in"
+  (click)="closeModal()" dir="rtl">
+
+  <div
+    class="bg-white w-full max-w-4xl max-h-[92vh] rounded-2xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden animate-scale-up"
+    (click)="$event.stopPropagation()">
+
+    <!-- Header + search in one compact bar -->
+    <div class="px-4 py-3 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center gap-3">
+      <div class="flex items-center gap-2 shrink-0">
+        <span class="material-symbols-outlined text-primary text-[22px]">{{ defaultIcon }}</span>
+        <h3 class="text-sm font-bold text-slate-900">{{ title }}</h3>
+      </div>
+
+      <div class="relative flex-1">
+        <span class="material-symbols-outlined absolute right-3 top-2 text-slate-400 text-[18px]">search</span>
+        <input #searchInput type="text" [(ngModel)]="searchQuery" (ngModelChange)="onSearchChange()"
+          (keydown)="onSearchKeydown($event)"
+          placeholder="ابحث بالاسم أو الباركود أو الرقم... (Enter لاختيار أول نتيجة)"
+          class="w-full pr-9 pl-8 py-1.5 bg-white border border-slate-300 rounded-lg text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">
+        <button *ngIf="searchQuery" type="button" (click)="clearSearch()"
+          class="absolute left-2 top-1.5 text-slate-400 hover:text-slate-600">
+          <span class="material-symbols-outlined text-[18px]">clear</span>
+        </button>
+      </div>
+
+      <div class="flex items-center gap-2 shrink-0 text-[11px] text-slate-500">
+        <span class="px-2 py-1 bg-white border border-slate-200 rounded-md">
+          <strong class="text-slate-800 font-mono">{{ filteredItems.length }}</strong>
+          <span *ngIf="filteredItems.length !== items.length"> / {{ items.length }}</span> صنف
+        </span>
+        <button type="button" (click)="closeModal()"
+          class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center"
+          title="إغلاق (Esc)">
+          <span class="material-symbols-outlined text-[18px]">close</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Tabs (only when there is more than one) -->
+    <div *ngIf="tabs.length > 1" class="px-3 bg-white border-b border-slate-200 overflow-x-auto">
+      <div class="flex items-center gap-1 min-w-max">
+        <button *ngFor="let tab of tabs" type="button" (click)="setActiveTab(tab.key)"
+          [class.border-primary]="activeTab === tab.key" [class.text-primary]="activeTab === tab.key"
+          [class.font-bold]="activeTab === tab.key" [class.text-slate-500]="activeTab !== tab.key"
+          class="px-3 py-2 text-xs transition-colors flex items-center gap-1.5 border-b-2 border-transparent hover:text-slate-900">
+          <span *ngIf="tab.icon" class="material-symbols-outlined text-[15px]">{{ tab.icon }}</span>
+          <span>{{ tab.label }}</span>
+          <span [class.bg-primary]="activeTab === tab.key" [class.text-white]="activeTab === tab.key"
+            [class.bg-slate-200]="activeTab !== tab.key" [class.text-slate-700]="activeTab !== tab.key"
+            class="px-1.5 rounded-full text-[10px] font-mono font-bold">{{ tab.count }}</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Results: compact one-line rows, two columns on wide screens -->
+    <div class="flex-1 overflow-y-auto p-3 bg-slate-50/40">
+
+      <div *ngIf="paginatedItems.length === 0" class="py-10 text-center">
+        <span class="material-symbols-outlined text-[36px] text-slate-300">manage_search</span>
+        <h4 class="text-sm font-bold text-slate-700 mt-1">لا توجد نتائج</h4>
+        <p class="text-xs text-slate-500 mt-0.5">جرّب كلمة بحث أخرى أو تبويباً مختلفاً.</p>
+        <button *ngIf="searchQuery || activeTab !== 'all'" type="button" (click)="resetFilters()"
+          class="mt-2 text-xs font-semibold text-primary hover:underline">إعادة ضبط الفلاتر</button>
+      </div>
+
+      <div *ngIf="paginatedItems.length > 0" class="grid grid-cols-1 md:grid-cols-2 gap-1.5">
+        <button *ngFor="let item of paginatedItems; let i = index; trackBy: trackById" type="button"
+          (click)="selectItem(item)" (mouseenter)="highlightIndex = i" [class.border-primary]="isSelected(item)"
+          [class.bg-blue-50]="isSelected(item)" [class.ring-1]="highlightIndex === i"
+          [class.ring-primary]="highlightIndex === i"
+          class="group w-full text-right flex items-center gap-2.5 px-3 py-2 bg-white hover:bg-blue-50/60 rounded-lg border border-slate-200 hover:border-primary/50 transition-colors">
+
+          <div class="min-w-0 flex-1 leading-tight">
+            <div class="text-[14px] font-bold text-slate-900 group-hover:text-primary truncate" [title]="item.title">{{
+              item.title }}</div>
+            <div class="text-[11px] text-slate-500 flex items-center gap-1.5 mt-0.5 min-w-0">
+              <span class="font-mono text-slate-400 shrink-0">#{{ item.id }}</span>
+              <span *ngIf="item.subtitle" class="truncate">{{ item.subtitle }}</span>
+              <span *ngIf="item.category" class="px-1.5 rounded bg-slate-100 text-slate-500 text-[10px] shrink-0">{{
+                item.category }}</span>
+            </div>
+          </div>
+
+          <div class="shrink-0 text-left leading-tight">
+            <div *ngIf="item.price !== undefined" class="text-[13px] font-black font-mono text-primary">
+              {{ item.price | number:'1.2-2' }}
+            </div>
+            <div *ngIf="item.quantity !== undefined" class="text-[10px] font-bold font-mono mt-0.5"
+              [class.text-emerald-700]="item.quantity > 5"
+              [class.text-amber-700]="item.quantity > 0 && item.quantity <= 5"
+              [class.text-slate-400]="item.quantity <= 0">
+              مخزون {{ item.quantity }}
+            </div>
+          </div>
+
+          <span class="material-symbols-outlined text-[18px] shrink-0" [class.text-primary]="isSelected(item)"
+            [class.text-slate-300]="!isSelected(item)">
+            {{ isSelected(item) ? 'check_circle' : 'add_circle' }}
+          </span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Footer: paging -->
+    <div *ngIf="filteredItems.length > 0"
+      class="px-3 py-2 bg-slate-50 border-t border-slate-200 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-600">
+      <div class="flex items-center gap-2">
+        <span>{{ startIndex + 1 }}–{{ endIndex }} من {{ filteredItems.length }}</span>
+        <div class="flex items-center gap-1">
+          <button *ngFor="let opt of pageSizeOptions" type="button" (click)="setPageSize(opt)"
+            [class.bg-primary]="pageSize === opt" [class.text-white]="pageSize === opt"
+            [class.bg-white]="pageSize !== opt" class="px-1.5 py-0.5 rounded border border-slate-200 font-mono">{{ opt
+            }}</button>
+        </div>
+      </div>
+
+      <div *ngIf="totalPages > 1" class="flex items-center gap-0.5">
+        <button type="button" (click)="goToPage(currentPage - 1)" [disabled]="currentPage === 1"
+          class="p-1 rounded hover:bg-slate-200 disabled:opacity-30 disabled:pointer-events-none">
+          <span class="material-symbols-outlined text-[18px]">chevron_right</span>
+        </button>
+        <button *ngFor="let page of visiblePages" type="button" (click)="goToPage(page)"
+          [class.bg-primary]="page === currentPage" [class.text-white]="page === currentPage"
+          class="w-6 h-6 rounded text-xs font-mono hover:bg-slate-200">{{ page }}</button>
+        <button type="button" (click)="goToPage(currentPage + 1)" [disabled]="currentPage === totalPages"
+          class="p-1 rounded hover:bg-slate-200 disabled:opacity-30 disabled:pointer-events-none">
+          <span class="material-symbols-outlined text-[18px]">chevron_left</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

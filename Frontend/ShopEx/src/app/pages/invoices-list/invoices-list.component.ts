@@ -13,68 +13,97 @@ import { SupplierInvoice } from '../../models/models';
 })
 export class InvoicesListComponent implements OnInit {
   invoices: SupplierInvoice[] = [];
-  filteredInvoices: SupplierInvoice[] = [];
   searchTerm: string = '';
   statusFilter: string = 'ALL';
   loading: boolean = true;
   errorMessage: string = '';
 
+  // Server-side pagination: only the visible page is ever loaded
+  currentPage: number = 1;
+  pageSize: number = 10;
+  totalCount: number = 0;
+  totalPages: number = 1;
+
+  // Totals over the whole filtered set (computed by the server)
+  totalInvoicedAmount: number = 0;
+  totalPaidAmount: number = 0;
+  totalRemainingAmount: number = 0;
+
+  private searchTimeout: any;
+  private requestSeq = 0;
+
   constructor(private api: ApiService) {}
 
   ngOnInit(): void {
-    this.fetchInvoices();
+    this.fetchInvoices(1);
   }
 
-  fetchInvoices(): void {
+  fetchInvoices(page: number = this.currentPage): void {
     this.loading = true;
     this.errorMessage = '';
-    this.api.getInvoices().subscribe({
-      next: (data) => {
-        this.invoices = data || [];
-        this.applyFilter();
+    const seq = ++this.requestSeq;
+
+    this.api.getInvoicesPaged(page, this.pageSize, this.searchTerm, this.statusFilter).subscribe({
+      next: (res) => {
+        if (seq !== this.requestSeq) return; // a newer request superseded this one
+        this.invoices = res.items || [];
+        this.totalCount = res.totalCount;
+        this.currentPage = res.pageNumber;
+        this.pageSize = res.pageSize;
+        this.totalPages = res.totalPages || 1;
+        this.totalInvoicedAmount = res.totalAmount;
+        this.totalPaidAmount = res.totalPaid;
+        this.totalRemainingAmount = res.totalRemaining;
         this.loading = false;
       },
       error: (err) => {
+        if (seq !== this.requestSeq) return;
         console.error('Error fetching invoices', err);
-        this.errorMessage = 'Failed to load invoices. Ensure backend is running.';
+        this.errorMessage = 'تعذر تحميل الفواتير. تأكد من تشغيل السيرفر ثم أعد المحاولة.';
         this.loading = false;
       }
     });
   }
 
-  applyFilter(): void {
-    let result = [...this.invoices];
-    const term = this.searchTerm.toLowerCase().trim();
+  onSearchChange(): void {
+    if (this.searchTimeout) clearTimeout(this.searchTimeout);
+    this.searchTimeout = setTimeout(() => this.fetchInvoices(1), 350);
+  }
 
-    if (term) {
-      result = result.filter(inv =>
-        (inv.invoiceNumber && inv.invoiceNumber.toLowerCase().includes(term)) ||
-        (inv.rmsSupplierName && inv.rmsSupplierName.toLowerCase().includes(term)) ||
-        (inv.rmsSupplierID && inv.rmsSupplierID.toString().includes(term))
-      );
+  onStatusChange(): void {
+    this.fetchInvoices(1);
+  }
+
+  clearFilters(): void {
+    this.searchTerm = '';
+    this.statusFilter = 'ALL';
+    this.fetchInvoices(1);
+  }
+
+  get hasFilters(): boolean {
+    return !!this.searchTerm.trim() || this.statusFilter !== 'ALL';
+  }
+
+  changePage(page: number): void {
+    if (page >= 1 && page <= this.totalPages && page !== this.currentPage) {
+      this.fetchInvoices(page);
     }
-
-    if (this.statusFilter !== 'ALL') {
-      result = result.filter(inv => inv.statusName?.toLowerCase() === this.statusFilter.toLowerCase());
-    }
-
-    this.filteredInvoices = result;
   }
 
-  get totalInvoicesCount(): number {
-    return this.invoices.length;
+  onPageSizeChange(): void {
+    this.fetchInvoices(1);
   }
 
-  get totalInvoicedAmount(): number {
-    return this.invoices.reduce((sum, inv) => sum + (inv.totalAmount || 0), 0);
+  get pageNumbers(): number[] {
+    const pages: number[] = [];
+    let start = Math.max(1, this.currentPage - 2);
+    const end = Math.min(this.totalPages, start + 4);
+    start = Math.max(1, end - 4);
+    for (let i = start; i <= end; i++) pages.push(i);
+    return pages;
   }
 
-  get totalPaidAmount(): number {
-    return this.invoices.reduce((sum, inv) => sum + (inv.paidAmount || 0), 0);
-  }
-
-  get totalRemainingAmount(): number {
-    return this.invoices.reduce((sum, inv) => sum + (inv.remainingAmount || 0), 0);
+  isOverdue(inv: SupplierInvoice): boolean {
+    return !!inv.dueDate && inv.remainingAmount > 0 && new Date(inv.dueDate) < new Date(new Date().toDateString());
   }
 }
-

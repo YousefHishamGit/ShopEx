@@ -2,7 +2,9 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { ConsignmentService } from '../../../services/consignment.service';
+import { PrintService } from '../../../shared/print/print.service';
+import { PrintSheetComponent } from '../../../shared/print/print-sheet.component';
+import { ConsignmentService, PAYMENT_METHODS } from '../../../services/consignment.service';
 import {
   Consignment,
   ConsignmentItem,
@@ -14,6 +16,8 @@ import {
 interface SettlementItemRow {
   consignmentItemID: number;
   rmsItemID: number;
+  itemDescription?: string;
+  itemLookupCode?: string;
   quantityOutstanding: number;
   unitPrice: number;
   unitCost: number;
@@ -24,7 +28,7 @@ interface SettlementItemRow {
 @Component({
   selector: 'app-consignment-detail',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule, FormsModule, RouterLink, PrintSheetComponent],
   templateUrl: './consignment-detail.component.html'
 })
 export class ConsignmentDetailComponent implements OnInit {
@@ -42,6 +46,9 @@ export class ConsignmentDetailComponent implements OnInit {
   settlementNotes = '';
   settlementCreatedBy = '';
   settlementItems: SettlementItemRow[] = [];
+  paymentMethods = PAYMENT_METHODS;
+  collectMode: 'now' | 'all' | 'custom' = 'now';
+  paymentMode: 'full' | 'half' | 'custom' = 'full';
   collectPaymentNow = false;
   immediatePaymentAmount = 0;
   immediatePaymentMethod = 'نقدي';
@@ -62,7 +69,8 @@ export class ConsignmentDetailComponent implements OnInit {
   constructor(
     private route: ActivatedRoute,
     private router: Router,
-    private consignmentService: ConsignmentService
+    private consignmentService: ConsignmentService,
+    private printer: PrintService
   ) {}
 
   ngOnInit(): void {
@@ -99,6 +107,8 @@ export class ConsignmentDetailComponent implements OnInit {
       .map((i) => ({
         consignmentItemID: i.id,
         rmsItemID: i.rmsItemID,
+        itemDescription: i.itemDescription,
+        itemLookupCode: i.itemLookupCode,
         quantityOutstanding: i.quantityOutstanding,
         unitPrice: i.unitPrice,
         unitCost: i.unitCost,
@@ -109,6 +119,7 @@ export class ConsignmentDetailComponent implements OnInit {
     this.settlementNotes = '';
     this.settlementCreatedBy = '';
     this.collectPaymentNow = false;
+    this.collectMode = 'now';
     this.immediatePaymentAmount = 0;
     this.settlementError = '';
     this.showSettlementModal = true;
@@ -125,16 +136,62 @@ export class ConsignmentDetailComponent implements OnInit {
     );
   }
 
+  /** Sell everything that is still outstanding on this line. */
+  sellAll(row: SettlementItemRow): void {
+    row.quantitySold = row.quantityOutstanding;
+    row.quantityReturned = 0;
+    this.onSettlementSoldChange();
+  }
+
+  /** Return everything that is still outstanding on this line to the warehouse. */
+  returnAll(row: SettlementItemRow): void {
+    row.quantityReturned = row.quantityOutstanding;
+    row.quantitySold = 0;
+    this.onSettlementSoldChange();
+  }
+
+  /** A line is invalid when its quantities are negative or exceed what is still outstanding. */
+  isRowInvalid(row: SettlementItemRow): boolean {
+    const sold = Number(row.quantitySold) || 0;
+    const ret = Number(row.quantityReturned) || 0;
+    return sold < 0 || ret < 0 || sold + ret > row.quantityOutstanding;
+  }
+
+  get settlementDueTotal(): number {
+    return (this.consignment?.remainingAmount || 0) + this.totalSettlementSoldValue;
+  }
+
+  step(row: SettlementItemRow, field: 'quantitySold' | 'quantityReturned', delta: number): void {
+    const cur = Number(row[field]) || 0;
+    const other = Number(field === 'quantitySold' ? row.quantityReturned : row.quantitySold) || 0;
+    row[field] = Math.max(0, Math.min(row.quantityOutstanding - other, cur + delta));
+    this.onSettlementSoldChange();
+  }
+
+  setCollectMode(mode: 'now' | 'all' | 'custom'): void {
+    this.collectMode = mode;
+    this.syncPayment();
+  }
+
+  setPaymentMode(mode: 'full' | 'half' | 'custom'): void {
+    this.paymentMode = mode;
+    const remaining = this.consignment?.remainingAmount || 0;
+    if (mode === 'full') this.paymentRequest.amount = remaining;
+    else if (mode === 'half') this.paymentRequest.amount = Math.round((remaining / 2) * 100) / 100;
+  }
+
+  private syncPayment(): void {
+    if (!this.collectPaymentNow || this.collectMode === 'custom') return;
+    this.immediatePaymentAmount =
+      this.collectMode === 'all' ? this.settlementDueTotal : this.totalSettlementSoldValue;
+  }
+
   onSettlementSoldChange(): void {
-    if (this.collectPaymentNow) {
-      this.immediatePaymentAmount = this.totalSettlementSoldValue;
-    }
+    this.syncPayment();
   }
 
   toggleCollectPayment(): void {
-    if (this.collectPaymentNow) {
-      this.immediatePaymentAmount = this.totalSettlementSoldValue;
-    }
+    this.syncPayment();
   }
 
   submitSettlement(): void {
@@ -157,9 +214,14 @@ export class ConsignmentDetailComponent implements OnInit {
         return;
       }
       if (sold + returned > item.quantityOutstanding) {
-        this.settlementError = `مجموع الكمية المباعة والمرتجعة للصنف (${item.rmsItemID}) يتجاوز الكمية المتبقية بالأمانة (${item.quantityOutstanding}).`;
+        this.settlementError = `مجموع الكمية المباعة والمرتجعة للصنف (${item.itemDescription || item.rmsItemID}) يتجاوز الكمية المتبقية بالأمانة (${item.quantityOutstanding}).`;
         return;
       }
+    }
+
+    if (this.collectPaymentNow && Number(this.immediatePaymentAmount) > this.settlementDueTotal + 0.001) {
+      this.settlementError = `مبلغ التحصيل أكبر من المستحق على البنزينة (${this.settlementDueTotal.toFixed(2)} ج.م).`;
+      return;
     }
 
     const request: CreateConsignmentSettlementRequest = {
@@ -207,6 +269,7 @@ export class ConsignmentDetailComponent implements OnInit {
       notes: ''
     };
     this.paymentError = '';
+    this.paymentMode = 'full';
     this.showPaymentModal = true;
   }
 
@@ -218,6 +281,10 @@ export class ConsignmentDetailComponent implements OnInit {
     if (!this.consignment) return;
     if (!this.paymentRequest.amount || this.paymentRequest.amount <= 0) {
       this.paymentError = 'يرجى إدخال مبلغ صحيح أكبر من صفر.';
+      return;
+    }
+    if (this.paymentRequest.amount > this.consignment.remainingAmount + 0.001) {
+      this.paymentError = 'المبلغ أكبر من المتبقي للتحصيل على هذا الإذن.';
       return;
     }
 
@@ -244,7 +311,7 @@ export class ConsignmentDetailComponent implements OnInit {
     if (!this.consignment) return;
     if (
       !confirm(
-        `هل أنت متأكد من إلغاء إذن الأمانة ${this.consignment.consignmentNumber}؟ سيتم رد البضاعة لمخزن الـ HQ.`
+        `هل أنت متأكد من إلغاء إذن الأمانة ${this.consignment.consignmentNumber}؟ سيتم رد البضاعة إلى ${this.consignment.warehouseName || 'المخزن الرئيسي'}.`
       )
     ) {
       return;
@@ -264,12 +331,19 @@ export class ConsignmentDetailComponent implements OnInit {
   }
 
   printConsignment(): void {
-    window.print();
+    this.printer.print();
   }
 
   getAchievedProfit(): number {
     if (!this.consignment || !this.consignment.items) return 0;
     return this.consignment.items.reduce((sum, i) => sum + (i.profit || 0), 0);
+  }
+
+  get statusLabel(): string {
+    const s = this.consignment?.status;
+    if (this.isClosed(s)) return 'مسواة ومغلقة';
+    if (this.isCancelled(s)) return 'ملغي';
+    return this.consignment?.isOverdue ? 'قيد البيع — متأخر عن التسوية' : 'قيد البيع';
   }
 
   isOpen(status: any): boolean {
@@ -284,6 +358,34 @@ export class ConsignmentDetailComponent implements OnInit {
     return status === 'Cancelled' || status === 3 || status === '3';
   }
 
+  /** Share (0-100) of the issued quantity already sold or returned. */
+  get settledPercent(): number {
+    const items = this.consignment?.items || [];
+    const issued = items.reduce((s, i) => s + i.quantityIssued, 0);
+    if (!issued) return 0;
+    const done = items.reduce((s, i) => s + i.quantitySold + i.quantityReturned, 0);
+    return Math.min(100, Math.round((done / issued) * 100));
+  }
+
+  get soldPercent(): number {
+    const items = this.consignment?.items || [];
+    const issued = items.reduce((s, i) => s + i.quantityIssued, 0);
+    if (!issued) return 0;
+    return Math.min(100, Math.round((items.reduce((s, i) => s + i.quantitySold, 0) / issued) * 100));
+  }
+
+  get daysToDue(): number {
+    if (!this.consignment) return 0;
+    const due = new Date(new Date(this.consignment.dueDate).toDateString());
+    const today = new Date(new Date().toDateString());
+    return Math.round((due.getTime() - today.getTime()) / 86400000);
+  }
+
+  canCancel(): boolean {
+    const c = this.consignment;
+    return !!c && this.isOpen(c.status) && !(c.settlements?.length) && !(c.payments?.length);
+  }
+
   canSettle(): boolean {
     if (!this.consignment) return false;
     // Allow settling if status is Open or not Closed/Cancelled
@@ -292,6 +394,6 @@ export class ConsignmentDetailComponent implements OnInit {
 
   canPay(): boolean {
     if (!this.consignment) return false;
-    return !this.isCancelled(this.consignment.status) && (this.consignment.remainingAmount > 0 || !this.isClosed(this.consignment.status));
+    return !this.isCancelled(this.consignment.status) && this.consignment.remainingAmount > 0;
   }
 }

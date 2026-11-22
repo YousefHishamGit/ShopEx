@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using ShopEx.Application.interfaces.ShopEx.Repositories;
 using ShopEx.Domain.Entity;
+using ShopEx.Domain.Enum;
 using ShopEx.Infrastructure.Persistence.ShopDb;
 using System.Collections.Generic;
 using System.Linq;
@@ -21,13 +22,26 @@ namespace ShopEx.Infrastructure.Repositories.ShopEx
         public Task<Dealer?> GetByIdAsync(int id, CancellationToken ct = default)
         {
             return _db.Dealers
-                      .Include(d => d.Consignments)
+                      .Include(d => d.Consignments.Where(c => c.Status == ConsignmentStatus.Open))
+                          .ThenInclude(c => c.Items)
+                              .ThenInclude(i => i.SettlementItems)
+                      .Include(d => d.Consignments.Where(c => c.Status == ConsignmentStatus.Open))
+                          .ThenInclude(c => c.Payments)
+                      .AsSplitQuery()
                       .FirstOrDefaultAsync(d => d.ID == id, ct);
         }
 
         public Task<List<Dealer>> GetAllAsync(bool? activeOnly = null, string? search = null, CancellationToken ct = default)
         {
-            IQueryable<Dealer> query = _db.Dealers.AsNoTracking();
+            // Open consignments are loaded so the dealer cards can show active count / outstanding / unpaid
+            IQueryable<Dealer> query = _db.Dealers
+                .Include(d => d.Consignments.Where(c => c.Status == ConsignmentStatus.Open))
+                    .ThenInclude(c => c.Items)
+                        .ThenInclude(i => i.SettlementItems)
+                .Include(d => d.Consignments.Where(c => c.Status == ConsignmentStatus.Open))
+                    .ThenInclude(c => c.Payments)
+                .AsSplitQuery()
+                .AsNoTrackingWithIdentityResolution();
 
             if (activeOnly.HasValue && activeOnly.Value)
             {

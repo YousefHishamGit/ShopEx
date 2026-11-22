@@ -27,20 +27,11 @@ namespace ShopEx.Application.interfaces.ShopEx.Services
         Task<bool> DeleteExpenseAsync(int id, CancellationToken ct = default);
         Task<ExpenseResponse?> GetExpenseByIdAsync(int id, CancellationToken ct = default);
 
-        Task<List<ExpenseResponse>> GetExpensesAsync(
-            int? storeId = null,
-            int? categoryId = null,
-            DateTime? fromDate = null,
-            DateTime? toDate = null,
-            ExpensePaymentMethod? paymentMethod = null,
-            CancellationToken ct = default);
+        Task<List<ExpenseResponse>> GetExpensesAsync(ExpenseFilter filter, CancellationToken ct = default);
 
-        Task<ExpenseSummaryDto> GetExpensesSummaryAsync(
-            int? storeId = null,
-            int? categoryId = null,
-            DateTime? fromDate = null,
-            DateTime? toDate = null,
-            ExpensePaymentMethod? paymentMethod = null,
-            CancellationToken ct = default);
+        /// <summary>
+        /// ملخص المصروفات: الإجماليات والتوزيع على البنود محسوبة على كل النتائج، والعناصر (Items) صفحة واحدة فقط
+        /// </summary>
+        Task<ExpenseSummaryDto> GetExpensesSummaryAsync(ExpenseFilter filter, int page = 1, int pageSize = 25, CancellationToken ct = default);
     }
 }

@@ -2,214 +2,180 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../services/api.service';
-import { PurchaseLineDto, OpenWorksheetWithPurchasesRequest, Supplier, SupplierItem } from '../../models/models';
+import { StockService } from '../../services/stock.service';
+import { ToastService } from '../../services/toast.service';
+import { StoreOption, StockBalance } from '../../models/models';
+import { TabbedSelectComponent, TabbedSelectItem } from '../../components/tabbed-select/tabbed-select.component';
+
+interface TransferLine {
+  itemId: number;
+  description: string;
+  qty: number;
+  available: number;
+  price: number;
+}
 
 @Component({
   selector: 'app-open-worksheet',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, TabbedSelectComponent],
   templateUrl: './open-worksheet.component.html'
 })
 export class OpenWorksheetComponent implements OnInit {
-  title: string = 'Worksheet - Purchase Order';
+  stores: StoreOption[] = [];
+  storeId: number | null = null;
   notes: string = '';
 
-  // Optional supplier filter to easily pick products
-  suppliers: Supplier[] = [];
-  selectedSupplierId: number | null = null;
-  supplierItems: SupplierItem[] = [];
-  loadingItems: boolean = false;
+  stock: StockBalance[] = [];
+  loadingStock: boolean = false;
 
-  items: PurchaseLineDto[] = [
-    { itemId: 0, description: '', qty: 1, price: 0, storeId: 1, taxRate: 0 }
-  ];
+  lines: TransferLine[] = [this.emptyLine()];
 
   submitting: boolean = false;
-  isApproving: boolean = false;
   errorMessage: string = '';
   successMessage: string = '';
 
-  constructor(private api: ApiService) {}
+  constructor(
+    private api: ApiService,
+    private stockService: StockService,
+    private toast: ToastService
+  ) { }
 
   ngOnInit(): void {
-    this.loadSuppliers();
-  }
-
-  loadSuppliers(): void {
-    this.api.getAllSuppliers().subscribe({
-      next: (data) => {
-        this.suppliers = data || [];
-      },
-      error: (err) => console.error('Failed to load suppliers for worksheet items', err)
+    this.api.getStores().subscribe({
+      next: (data) => this.stores = data || [],
+      error: () => this.toast.error('تعذر تحميل قائمة الفروع')
     });
+    this.loadStock();
   }
 
-  onSupplierChange(): void {
-    if (this.selectedSupplierId) {
-      this.loadingItems = true;
-      this.api.getSupplierItems(this.selectedSupplierId).subscribe({
-        next: (items) => {
-          this.supplierItems = items || [];
-          this.loadingItems = false;
-        },
-        error: (err) => {
-          console.error('Failed to load supplier items', err);
-          this.loadingItems = false;
+  private emptyLine(): TransferLine {
+    return { itemId: 0, description: '', qty: 1, available: 0, price: 0 };
+  }
+
+  private loadStock(): void {
+    this.loadingStock = true;
+    this.stockService.getWarehouses(true).subscribe({
+      next: (whs) => {
+        const wh = (whs || []).find(w => w.isDefault) || (whs || [])[0];
+        if (!wh) {
+          this.loadingStock = false;
+          this.errorMessage = 'لا يوجد مخزن مفعّل.';
+          return;
         }
-      });
-    } else {
-      this.supplierItems = [];
-    }
-  }
-
-  onItemSelect(index: number, itemId: number): void {
-    const it = this.supplierItems.find(i => i.id === Number(itemId));
-    if (it) {
-      this.items[index].itemId = it.id;
-      this.items[index].description = it.description;
-      this.items[index].price = it.cost || it.price || 0;
-      this.items[index].taxRate = it.taxRate || 0;
-    }
-  }
-
-  addItemRow(): void {
-    this.items.push({
-      itemId: 0,
-      description: '',
-      qty: 1,
-      price: 0,
-      storeId: 1,
-      taxRate: 0
-    });
-  }
-
-  removeItemRow(index: number): void {
-    if (this.items.length > 1) {
-      this.items.splice(index, 1);
-    }
-  }
-
-  get totalItemsCount(): number {
-    return this.items.reduce((sum, i) => sum + (Number(i.qty) || 0), 0);
-  }
-
-  get totalAmount(): number {
-    return this.items.reduce((sum, i) => {
-      const line = (Number(i.qty) || 0) * (Number(i.price) || 0);
-      const tax = line * ((Number(i.taxRate) || 0) / 100);
-      return sum + line + tax;
-    }, 0);
-  }
-
-  /**
-   * Main flow: Create Worksheet with Purchases and immediately Approve it,
-   * then reset back to Create Worksheet form.
-   */
-  approveAndSubmitWorksheet(): void {
-    this.errorMessage = '';
-    this.successMessage = '';
-
-    if (this.items.length === 0 || this.items.some(i => !i.itemId || i.itemId <= 0 || i.qty <= 0)) {
-      this.errorMessage = 'يرجى إدخال كود منتج صالح وتحديد كمية أكبر من صفر لجميع بنود الشراء.';
-      return;
-    }
-
-    const req: OpenWorksheetWithPurchasesRequest = {
-      title: this.title?.trim() || 'Worksheet Purchase Order',
-      notes: this.notes?.trim() || undefined,
-      items: this.items.map(i => ({
-        itemId: Number(i.itemId),
-        description: i.description?.trim(),
-        qty: Number(i.qty),
-        price: Number(i.price),
-        storeId: Number(i.storeId || 1),
-        taxRate: Number(i.taxRate || 0)
-      }))
-    };
-
-    this.submitting = true;
-    this.isApproving = true;
-
-    // 1. Open Worksheet with Purchases
-    this.api.openWorksheetWithPurchases(req).subscribe({
-      next: (res) => {
-        const createdId = res.worksheetId;
-
-        // 2. Immediately Approve Worksheet
-        this.api.approveWorksheet(createdId).subscribe({
-          next: () => {
-            this.submitting = false;
-            this.isApproving = false;
-            this.successMessage = `تم إنشاء واعتماد الـ Worksheet رقم #${createdId} بنجاح! تم تحويل الحالة إلى Approved (2).`;
-            this.resetForm();
+        this.stockService.getAllBalances(wh.id).subscribe({
+          next: (b) => {
+            this.stock = (b || []).filter(x => x.quantityOnHand > 0);
+            this.loadingStock = false;
           },
-          error: (err) => {
-            this.submitting = false;
-            this.isApproving = false;
-            console.error('Error approving worksheet', err);
-            this.errorMessage = `تم إنشاء الـ Worksheet #${createdId} ولكن تعذر اعتماده تلقائياً: ${err.error?.message || err.message}`;
+          error: () => {
+            this.loadingStock = false;
+            this.toast.error('تعذر تحميل أرصدة المخزن');
           }
         });
       },
-      error: (err) => {
-        this.submitting = false;
-        this.isApproving = false;
-        console.error('Error opening worksheet with purchases', err);
-        this.errorMessage = err.error?.message || err.message || 'فشل في إنشاء الـ Worksheet.';
+      error: () => {
+        this.loadingStock = false;
+        this.toast.error('تعذر تحميل المخازن');
       }
     });
   }
 
-  /**
-   * Optional Save as Draft without approval
-   */
-  saveDraft(): void {
+  /** Stock items not already picked in another row. */
+  selectableFor(index: number): TabbedSelectItem[] {
+    const taken = new Set(this.lines.filter((_, i) => i !== index).map(l => l.itemId));
+    return this.stock
+      .filter(s => !taken.has(s.rmsItemID))
+      .map(s => ({
+        id: s.rmsItemID,
+        title: s.itemDescription || `صنف #${s.rmsItemID}`,
+        subtitle: `${s.itemLookupCode ? 'باركود: ' + s.itemLookupCode + ' | ' : ''}المتاح: ${s.quantityOnHand}`,
+        quantity: s.quantityOnHand,
+        icon: 'inventory_2',
+        raw: s
+      }));
+  }
+
+  onItemSelect(index: number, selected: TabbedSelectItem): void {
+    const s = selected.raw as StockBalance;
+    const line = this.lines[index];
+    line.itemId = s.rmsItemID;
+    line.description = s.itemDescription || selected.title;
+    line.available = s.quantityOnHand;
+    line.price = s.averageCost || s.cost || 0;
+    if (!line.qty || line.qty < 1) line.qty = 1;
+  }
+
+  onItemClear(index: number): void {
+    this.lines[index] = this.emptyLine();
+  }
+
+  addLine(): void {
+    this.lines.push(this.emptyLine());
+  }
+
+  removeLine(index: number): void {
+    if (this.lines.length > 1) this.lines.splice(index, 1);
+    else this.lines[0] = this.emptyLine();
+  }
+
+  overStock(l: TransferLine): boolean {
+    return l.itemId > 0 && Number(l.qty) > l.available;
+  }
+
+  get filledLines(): TransferLine[] {
+    return this.lines.filter(l => l.itemId > 0);
+  }
+
+  get totalQty(): number {
+    return this.filledLines.reduce((s, l) => s + (Number(l.qty) || 0), 0);
+  }
+
+  get storeName(): string {
+    return this.stores.find(s => s.storeId === this.storeId)?.storeName || '';
+  }
+
+  get canSubmit(): boolean {
+    return !!this.storeId && this.filledLines.length > 0 && this.lines.every(l =>
+      l.itemId === 0 || (Number(l.qty) > 0 && !this.overStock(l)));
+  }
+
+  approve(): void {
     this.errorMessage = '';
     this.successMessage = '';
-
-    if (this.items.length === 0 || this.items.some(i => !i.itemId || i.itemId <= 0 || i.qty <= 0)) {
-      this.errorMessage = 'يرجى إدخال كود منتج صالح وتحديد كمية أكبر من صفر لجميع بنود الشراء.';
+    if (!this.canSubmit) {
+      this.errorMessage = 'اختر الفرع، ثم أضف أصنافًا بكميات صحيحة لا تتجاوز المتاح.';
+      this.toast.error(this.errorMessage);
       return;
     }
 
-    const req: OpenWorksheetWithPurchasesRequest = {
-      title: this.title?.trim() || 'Worksheet Purchase Order',
-      notes: this.notes?.trim() || undefined,
-      items: this.items.map(i => ({
-        itemId: Number(i.itemId),
-        description: i.description?.trim(),
-        qty: Number(i.qty),
-        price: Number(i.price),
-        storeId: Number(i.storeId || 1),
-        taxRate: Number(i.taxRate || 0)
-      }))
-    };
-
     this.submitting = true;
-    this.api.openWorksheetWithPurchases(req).subscribe({
+    this.api.transferWorksheet({
+      title: `Worksheet - Purchase Order`,
+      notes: this.notes?.trim() || undefined,
+      storeId: Number(this.storeId),
+      items: this.filledLines.map(l => ({
+        itemId: l.itemId,
+        description: l.description,
+        qty: Number(l.qty),
+        price: Number(l.price),
+        storeId: Number(this.storeId),
+        taxRate: 0
+      }))
+    }).subscribe({
       next: (res) => {
         this.submitting = false;
-        this.successMessage = `تم حفظ الـ Worksheet #${res.worksheetId} كمسودة (PendingApproval - 1) بنجاح!`;
-        this.resetForm();
+        this.successMessage = `تم اعتماد أمر التحويل #${res.worksheetId} إلى ${this.storeName} (الحالة 2).`;
+        this.toast.success(this.successMessage);
+        this.lines = [this.emptyLine()];
+        this.notes = '';
+        this.loadStock();
       },
       error: (err) => {
         this.submitting = false;
-        this.errorMessage = err.error?.message || err.message || 'فشل في حفظ المسودة.';
+        this.errorMessage = err.error?.message || err.message || 'فشل اعتماد أمر التحويل.';
+        this.toast.error(this.errorMessage);
       }
     });
-  }
-
-  resetForm(): void {
-    this.title = 'Worksheet - Purchase Order';
-    this.notes = '';
-    this.items = [
-      { itemId: 0, description: '', qty: 1, price: 0, storeId: 1, taxRate: 0 }
-    ];
-    this.selectedSupplierId = null;
-    this.supplierItems = [];
-    // Auto clear success message after 6 seconds
-    setTimeout(() => {
-      this.successMessage = '';
-    }, 6000);
   }
 }

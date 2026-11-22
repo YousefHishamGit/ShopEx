@@ -120,8 +120,8 @@
     </div>
   </div>
 
-  <!-- PRINT SECTION: Formatted printable receipt -->
-  <div class="print-clean bg-light-surface p-6 rounded-xl border border-outline shadow-sm space-y-6">
+  <!-- SCREEN VIEW (hidden when printing the official receipt) -->
+  <div class="screen-only bg-light-surface p-6 rounded-xl border border-outline shadow-sm space-y-6">
     <!-- Receipt Header (Visible in print and screen) -->
     <div class="flex items-center justify-between pb-4 border-b border-outline">
       <div class="flex items-center gap-3">
@@ -218,9 +218,25 @@
 
       <!-- Quick Add Operation Form (No-Print) -->
       <div *ngIf="ticket.status !== MaintenanceStatus.Delivered" class="no-print bg-purple-50/50 p-4 rounded-xl border border-purple-200/80 space-y-3">
-        <div class="text-xs font-bold text-purple-900 flex items-center gap-1.5">
-          <span class="material-symbols-outlined text-[18px]">add_task</span>
-          <span>تسجيل إصلاح جديد / قطعة مستبدلة</span>
+        <div class="flex items-center justify-between">
+          <div class="text-xs font-bold text-purple-900 flex items-center gap-1.5">
+            <span class="material-symbols-outlined text-[18px]">add_task</span>
+            <span>تسجيل إصلاح جديد / قطعة مستبدلة («عملت كذا وسعرها كذا»)</span>
+          </div>
+
+          <!-- Quick Tabbed Selection Trigger -->
+          <div class="w-64">
+            <app-tabbed-select
+              [items]="standardOperations"
+              [selectedId]="selectedOperationId"
+              placeholder="اختيار إصلاح / قطعة جاهزة..."
+              title="دليل عمليات وقطع الصيانة الشائعة"
+              defaultIcon="build"
+              [pageSize]="10"
+              (select)="onSelectStandardOperation($event)"
+              (clear)="onClearStandardOperation()">
+            </app-tabbed-select>
+          </div>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
@@ -244,7 +260,7 @@
                    [(ngModel)]="newOperation.cost"
                    min="0"
                    placeholder="0.00"
-                   class="w-full px-3 py-2 border border-outline rounded-lg text-sm bg-light-surface focus:outline-none focus:border-purple-600">
+                   class="w-full px-3 py-2 border border-outline rounded-lg text-sm bg-light-surface focus:outline-none focus:border-purple-600 font-bold font-mono">
           </div>
 
           <!-- Notes -->
@@ -383,19 +399,113 @@
         <span>{{ ticket.deliveryNotes }}</span>
       </div>
     </div>
+  </div>
 
-    <!-- Print Footer Signatures -->
-    <div class="hidden print:grid grid-cols-2 gap-8 pt-8 border-t border-outline text-xs text-center">
-      <div>
-        <p class="font-bold">توقيع المستلم / الفني</p>
-        <div class="mt-8 border-b border-gray-400 w-36 mx-auto"></div>
+  <!-- ================= OFFICIAL PRINT RECEIPT (A4) ================= -->
+  <app-print-sheet
+    title="إيصال صيانة"
+    [docNumber]="ticket.ticketNumber"
+    [status]="getStatusArabicName(ticket.status)"
+    subtitle="مركز ShopEx للصيانة"
+    [signatures]="['توقيع المستلم / الفني', 'توقيع العميل بالاستلام والمعاينة', 'الاعتماد والختم']">
+
+    <div class="ps-row">
+      <div class="ps-box">
+        <div class="ps-box-title">بيانات العميل</div>
+        <div class="ps-box-body">
+          <div class="ps-kv"><span>اسم العميل:</span><strong>{{ ticket.customerName }}</strong></div>
+          <div class="ps-kv"><span>الهاتف:</span><strong class="ps-mono">{{ ticket.customerPhone }}</strong></div>
+          <div class="ps-kv"><span>تاريخ الاستلام:</span><strong class="ps-mono">{{ ticket.receivedAt | date:'yyyy/MM/dd hh:mm a' }}</strong></div>
+          <div class="ps-kv" *ngIf="ticket.receivedBy"><span>الموظف المستلم:</span><strong>{{ ticket.receivedBy }}</strong></div>
+        </div>
       </div>
-      <div>
-        <p class="font-bold">توقيع العميل بالاستلام والمعاينة</p>
-        <div class="mt-8 border-b border-gray-400 w-36 mx-auto"></div>
+      <div class="ps-box">
+        <div class="ps-box-title">بيانات الجهاز</div>
+        <div class="ps-box-body">
+          <div class="ps-kv"><span>الجهاز:</span><strong>{{ ticket.deviceName }}</strong></div>
+          <div class="ps-kv" *ngIf="ticket.brand || ticket.model"><span>الماركة / الموديل:</span><strong>{{ ticket.brand }} {{ ticket.model }}</strong></div>
+          <div class="ps-kv" *ngIf="ticket.color"><span>اللون:</span><strong>{{ ticket.color }}</strong></div>
+          <div class="ps-kv" *ngIf="ticket.serialNumber"><span>السيريال / IMEI:</span><strong class="ps-mono">{{ ticket.serialNumber }}</strong></div>
+        </div>
       </div>
     </div>
-  </div>
+
+    <div class="ps-row">
+      <div class="ps-box">
+        <div class="ps-box-title">شكوى العميل / وصف العطل</div>
+        <div class="ps-box-body" style="white-space:pre-wrap">{{ ticket.issueDescription || 'لا يوجد وصف مسجل' }}</div>
+      </div>
+      <div class="ps-box">
+        <div class="ps-box-title">الملحقات المستلمة وملاحظات الاستلام</div>
+        <div class="ps-box-body">
+          <div>{{ ticket.accessories || 'لا توجد ملحقات' }}</div>
+          <div *ngIf="ticket.notes" style="margin-top:4px">{{ ticket.notes }}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ps-h">عمليات وقطع الصيانة المنفذة</div>
+    <table class="ps-table">
+      <thead>
+        <tr>
+          <th class="ps-c" style="width:32px">#</th>
+          <th>العملية / الإصلاح</th>
+          <th>ملاحظات</th>
+          <th class="ps-n" style="width:110px">التكلفة</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let op of ticket.operations; let i = index">
+          <td class="ps-c">{{ i + 1 }}</td>
+          <td>{{ op.operationName }}</td>
+          <td>{{ op.notes || '—' }}</td>
+          <td class="ps-n">{{ op.cost | number:'1.2-2' }} ج.م</td>
+        </tr>
+        <tr *ngIf="ticket.operations.length === 0">
+          <td colspan="4" class="ps-c">لم يتم تسجيل عمليات صيانة بعد</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="ps-split">
+      <div class="ps-note-box" *ngIf="ticket.repairNotes || ticket.deliveryNotes">
+        <div class="ps-note-title">ملاحظات</div>
+        <div *ngIf="ticket.repairNotes">الإصلاح: {{ ticket.repairNotes }}</div>
+        <div *ngIf="ticket.deliveryNotes">التسليم: {{ ticket.deliveryNotes }}</div>
+      </div>
+      <div class="ps-totals">
+        <table>
+          <tr><td>إجمالي التكلفة</td><td>{{ ticket.totalCost | number:'1.2-2' }} ج.م</td></tr>
+          <tr><td>المدفوع</td><td>{{ ticket.paidAmount | number:'1.2-2' }} ج.م</td></tr>
+          <tr class="ps-grand"><td>المتبقي</td><td>{{ ticket.remainingAmount | number:'1.2-2' }} ج.م</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <ng-container *ngIf="ticket.payments.length > 0">
+      <div class="ps-h">سجل الدفعات</div>
+      <table class="ps-table">
+        <thead>
+          <tr>
+            <th class="ps-c" style="width:32px">#</th>
+            <th>التاريخ</th>
+            <th>طريقة الدفع</th>
+            <th>ملاحظات</th>
+            <th class="ps-n" style="width:110px">المبلغ</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let p of ticket.payments; let i = index">
+            <td class="ps-c">{{ i + 1 }}</td>
+            <td class="ps-mono">{{ p.paidAt | date:'yyyy/MM/dd hh:mm a' }}</td>
+            <td>{{ getPaymentMethodName(p.paymentMethod) }}</td>
+            <td>{{ p.notes || '—' }}</td>
+            <td class="ps-n">{{ p.amount | number:'1.2-2' }} ج.م</td>
+          </tr>
+        </tbody>
+      </table>
+    </ng-container>
+  </app-print-sheet>
 
   <!-- MODAL: Complete Repair Modal (المرحلة 2) -->
   <div *ngIf="showCompleteRepairModal" class="no-print fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">

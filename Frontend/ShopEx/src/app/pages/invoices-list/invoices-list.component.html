@@ -1,78 +1,82 @@
-<div class="max-w-7xl mx-auto space-y-6">
+<div class="max-w-7xl mx-auto space-y-6" dir="rtl">
   <!-- Page Header & Action Button -->
   <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
     <div>
-      <h1 class="font-headline text-headline-lg text-light-on-surface tracking-tight font-bold text-2xl">Supplier Invoices</h1>
-      <p class="text-body-md text-light-on-surface-variant text-sm">
-        Manage accounts payable, monitor payment statuses, and review credit terms across all vendors.
+      <div class="flex items-center gap-2">
+        <span class="material-symbols-outlined text-primary text-[28px]">receipt_long</span>
+        <h1 class="font-headline text-headline-lg text-slate-900 tracking-tight font-bold text-2xl">فواتير الموردين</h1>
+      </div>
+      <p class="text-body-md text-slate-500 text-sm mt-1">
+        إدارة التزامات الموردين، ومتابعة حالات السداد وتواريخ استحقاق الفواتير الآجلة والنقدية.
       </p>
     </div>
     <div class="flex items-center gap-3">
-      <button (click)="fetchInvoices()" class="px-3.5 py-2 text-light-on-surface-variant bg-light-surface border border-outline rounded hover:bg-light-surface-variant text-sm font-medium flex items-center gap-1.5 shadow-sm transition-colors">
-        <span class="material-symbols-outlined text-[18px]">refresh</span>
-        <span>Refresh</span>
+      <button (click)="fetchInvoices(currentPage)" class="px-3.5 py-2 text-slate-600 bg-white border border-slate-300 rounded-xl hover:bg-slate-50 text-sm font-semibold flex items-center gap-1.5 shadow-sm transition-colors">
+        <span class="material-symbols-outlined text-[18px]">sync</span>
+        <span>تحديث</span>
       </button>
-      <a routerLink="/invoices/new" class="px-4 py-2.5 bg-primary text-on-primary rounded text-sm font-semibold inline-flex items-center gap-2 shadow hover:bg-blue-700 transition-colors">
+      <a routerLink="/invoices/new" class="px-4 py-2.5 bg-primary text-white rounded-xl text-sm font-bold inline-flex items-center gap-2 shadow-md hover:bg-blue-700 transition-all">
         <span class="material-symbols-outlined text-[20px]">add</span>
-        <span>+ New Invoice</span>
+        <span>+ إنشاء فاتورة جديدة</span>
       </a>
     </div>
   </div>
 
   <!-- Metric KPI Cards -->
   <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-    <div class="bg-light-surface p-4 rounded-lg border border-outline shadow-sm">
-      <span class="text-xs text-light-on-surface-variant uppercase tracking-wider font-semibold">Total Invoices</span>
-      <div class="text-2xl font-bold text-light-on-surface tabular-nums mt-1">{{ totalInvoicesCount }}</div>
-      <span class="text-xs text-light-on-surface-variant">Recorded invoices</span>
+    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+      <span class="text-xs text-slate-500 font-bold block mb-1">إجمالي عدد الفواتير</span>
+      <div class="text-2xl font-black text-slate-900 font-mono mt-1">{{ totalCount }}</div>
+      <span class="text-xs text-slate-400 mt-1 block">{{ hasFilters ? "فاتورة مطابقة للفلتر" : "فاتورة مسجلة بالنظام" }}</span>
     </div>
-    <div class="bg-light-surface p-4 rounded-lg border border-outline shadow-sm">
-      <span class="text-xs text-light-on-surface-variant uppercase tracking-wider font-semibold">Total Invoiced</span>
-      <div class="text-2xl font-bold text-primary tabular-nums mt-1">{{ totalInvoicedAmount | number:'1.2-2' }} EGP</div>
-      <span class="text-xs text-light-on-surface-variant">Cumulative amount</span>
+    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+      <span class="text-xs text-slate-500 font-bold block mb-1">إجمالي المشتريات</span>
+      <div class="text-2xl font-black text-primary font-mono mt-1">{{ totalInvoicedAmount | number:'1.2-2' }} ج.م</div>
+      <span class="text-xs text-slate-400 mt-1 block">القيمة التراكمية</span>
     </div>
-    <div class="bg-light-surface p-4 rounded-lg border border-outline shadow-sm">
-      <span class="text-xs text-light-on-surface-variant uppercase tracking-wider font-semibold">Paid to Date</span>
-      <div class="text-2xl font-bold text-success tabular-nums mt-1">{{ totalPaidAmount | number:'1.2-2' }} EGP</div>
-      <span class="text-xs text-success flex items-center gap-1 font-medium mt-0.5">
-        <span class="material-symbols-outlined text-[14px]">check</span> Settled amount
+    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+      <span class="text-xs text-slate-500 font-bold block mb-1">المدفوع والمسدد</span>
+      <div class="text-2xl font-black text-emerald-700 font-mono mt-1">{{ totalPaidAmount | number:'1.2-2' }} ج.م</div>
+      <span class="text-xs text-emerald-600 flex items-center gap-1 font-semibold mt-1">
+        <span class="material-symbols-outlined text-[14px]">check</span> تم سداده
       </span>
     </div>
-    <div class="bg-light-surface p-4 rounded-lg border border-outline shadow-sm">
-      <span class="text-xs text-light-on-surface-variant uppercase tracking-wider font-semibold">Remaining Due</span>
-      <div class="text-2xl font-bold text-error tabular-nums mt-1">{{ totalRemainingAmount | number:'1.2-2' }} EGP</div>
-      <span class="text-xs text-error font-medium mt-0.5">Requires settlement</span>
+    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+      <span class="text-xs text-slate-500 font-bold block mb-1">المتبقي المطلوب سداده</span>
+      <div class="text-2xl font-black text-rose-700 font-mono mt-1">{{ totalRemainingAmount | number:'1.2-2' }} ج.م</div>
+      <span class="text-xs text-rose-600 font-semibold mt-1 block">مستحقات آجلة معلقة</span>
     </div>
   </div>
 
   <!-- Error notification -->
-  <div *ngIf="errorMessage" class="p-4 rounded bg-error-container text-on-error-container border border-error/20 flex items-center gap-2 text-sm">
-    <span class="material-symbols-outlined text-error">error</span>
+  <div *ngIf="errorMessage" class="p-4 rounded-xl bg-red-50 text-red-700 border border-red-200 flex items-center gap-2 text-sm shadow-sm">
+    <span class="material-symbols-outlined text-red-600">error</span>
     <span>{{ errorMessage }}</span>
   </div>
 
   <!-- Invoices Table Container Card -->
-  <div class="bg-light-surface rounded-lg border border-outline shadow-sm overflow-hidden">
+  <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
     <!-- Filter Toolbar -->
-    <div class="p-4 border-b border-outline flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div class="p-4 border-b border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
       <div class="flex flex-1 items-center gap-3">
         <div class="relative flex-1 max-w-sm">
-          <span class="material-symbols-outlined absolute left-3 top-2.5 text-light-on-surface-variant text-[20px]">search</span>
-          <input [(ngModel)]="searchTerm" (ngModelChange)="applyFilter()" type="search" placeholder="Filter by invoice # or supplier..."
-                 class="w-full pl-10 pr-4 py-2 bg-light-surface-variant border border-outline rounded text-sm text-light-on-surface placeholder:text-light-on-surface-variant/60 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all">
+          <span class="material-symbols-outlined absolute right-3.5 top-2.5 text-slate-400 text-[20px]">search</span>
+          <input [(ngModel)]="searchTerm" (ngModelChange)="onSearchChange()" type="search" placeholder="بحث برقم الفاتورة أو اسم المورد..."
+                 class="w-full pr-10 pl-4 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all">
         </div>
 
         <!-- Status Quick Filter Dropdown -->
-        <select [(ngModel)]="statusFilter" (ngModelChange)="applyFilter()" class="px-3 py-2 bg-light-surface border border-outline rounded text-sm text-light-on-surface focus:outline-none focus:ring-1 focus:ring-primary">
-          <option value="ALL">All Statuses</option>
-          <option value="Unpaid">Unpaid</option>
-          <option value="PartiallyPaid">Partially Paid</option>
-          <option value="Paid">Paid</option>
+        <select [(ngModel)]="statusFilter" (ngModelChange)="onStatusChange()" class="px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">
+          <option value="ALL">جميع الحالات</option>
+          <option value="Unpaid">غير مدفوعة (Unpaid)</option>
+          <option value="PartiallyPaid">مدفوعة جزئياً (Partial)</option>
+          <option value="Paid">مدفوعة بالكامل (Paid)</option>
         </select>
       </div>
 
-      <div class="text-sm text-light-on-surface-variant">
-        Showing <span class="font-semibold text-light-on-surface">{{ filteredInvoices.length }}</span> invoice(s)
+      <div class="flex items-center gap-3 text-xs text-slate-500 font-semibold">
+        <button *ngIf="hasFilters" (click)="clearFilters()" class="text-primary hover:underline">مسح الفلاتر</button>
+        <span>إجمالي: <strong class="text-slate-900 font-mono">{{ totalCount }}</strong> فاتورة</span>
       </div>
     </div>
 
@@ -84,80 +88,100 @@
     </div>
 
     <!-- Empty State -->
-    <div *ngIf="!loading && filteredInvoices.length === 0" class="py-16 px-4 text-center">
-      <div class="w-16 h-16 mx-auto mb-3 rounded-full bg-light-surface-variant flex items-center justify-center text-light-on-surface-variant">
+    <div *ngIf="!loading && invoices.length === 0" class="py-16 px-4 text-center">
+      <div class="w-16 h-16 mx-auto mb-3 rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
         <span class="material-symbols-outlined text-[36px]">receipt</span>
       </div>
-      <h3 class="font-title text-title-lg text-light-on-surface font-semibold mb-1">No Invoices Found</h3>
-      <p class="text-body-md text-light-on-surface-variant max-w-md mx-auto mb-4 text-sm">No supplier invoices match your current filters. Create a new invoice to get started.</p>
-      <a routerLink="/invoices/new" class="px-4 py-2 bg-primary text-on-primary rounded text-sm font-semibold inline-flex items-center gap-1.5 shadow">
+      <h3 class="font-title text-base font-bold text-slate-800 mb-1">لا توجد فواتير مطابقة</h3>
+      <p class="text-xs text-slate-500 max-w-md mx-auto mb-4">لا توجد فواتير مسجلة تطابق معايير البحث الحالية.</p>
+      <a routerLink="/invoices/new" class="px-4 py-2 bg-primary text-white rounded-xl text-xs font-bold inline-flex items-center gap-1.5 shadow-sm">
         <span class="material-symbols-outlined text-[18px]">add</span>
-        <span>Create First Invoice</span>
+        <span>إنشاء أول فاتورة</span>
       </a>
     </div>
 
     <!-- Data Table -->
-    <div *ngIf="!loading && filteredInvoices.length > 0" class="overflow-x-auto">
-      <table class="w-full text-left border-collapse">
-        <thead class="bg-light-surface-variant border-b border-outline">
+    <div *ngIf="!loading && invoices.length > 0" class="overflow-x-auto">
+      <table class="w-full text-right border-collapse text-sm">
+        <thead class="bg-slate-50 border-b border-slate-200 text-xs text-slate-500 font-semibold">
           <tr>
-            <th scope="col" class="px-6 py-3.5 font-title text-title-md text-light-on-surface font-semibold">Invoice #</th>
-            <th scope="col" class="px-6 py-3.5 font-title text-title-md text-light-on-surface font-semibold">Supplier</th>
-            <th scope="col" class="px-4 py-3.5 font-title text-title-md text-light-on-surface font-semibold text-right">Total Amount</th>
-            <th scope="col" class="px-4 py-3.5 font-title text-title-md text-light-on-surface font-semibold text-right">Paid</th>
-            <th scope="col" class="px-4 py-3.5 font-title text-title-md text-light-on-surface font-semibold text-right">Remaining</th>
-            <th scope="col" class="px-4 py-3.5 font-title text-title-md text-light-on-surface font-semibold text-center">Status</th>
-            <th scope="col" class="px-4 py-3.5 font-title text-title-md text-light-on-surface font-semibold">Payment Type</th>
-            <th scope="col" class="px-4 py-3.5 font-title text-title-md text-light-on-surface font-semibold">Due Date</th>
-            <th scope="col" class="px-6 py-3.5 text-right font-title text-title-md text-light-on-surface font-semibold">Actions</th>
+            <th scope="col" class="px-6 py-3.5">رقم الفاتورة</th>
+            <th scope="col" class="px-6 py-3.5">المورد</th>
+            <th scope="col" class="px-4 py-3.5 text-left">إجمالي القيمة</th>
+            <th scope="col" class="px-4 py-3.5 text-left">المسدد</th>
+            <th scope="col" class="px-4 py-3.5 text-left">المتبقي</th>
+            <th scope="col" class="px-4 py-3.5 text-center">الحالة</th>
+            <th scope="col" class="px-4 py-3.5 text-center">نوع السداد</th>
+            <th scope="col" class="px-4 py-3.5 text-center">تاريخ الاستحقاق</th>
+            <th scope="col" class="px-6 py-3.5 text-left">الإجراءات</th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-outline-variant text-body-md text-light-on-surface">
-          <tr *ngFor="let inv of filteredInvoices" class="hover:bg-light-surface-variant/50 transition-colors">
+        <tbody class="divide-y divide-slate-100">
+          <tr *ngFor="let inv of invoices" class="hover:bg-slate-50/50 transition-colors">
             <td class="px-6 py-3.5 font-mono font-bold text-primary">
               <a [routerLink]="['/invoices', inv.id]" class="hover:underline flex items-center gap-1">
                 <span>{{ inv.invoiceNumber }}</span>
-                <span class="text-xs text-light-on-surface-variant font-normal">#{{ inv.id }}</span>
+                <span class="text-xs text-slate-400 font-normal">#{{ inv.id }}</span>
               </a>
             </td>
             <td class="px-6 py-3.5">
-              <div class="font-medium text-light-on-surface">{{ inv.rmsSupplierName || ('Supplier #' + inv.rmsSupplierID) }}</div>
-              <div class="text-xs text-light-on-surface-variant font-mono">ID: {{ inv.rmsSupplierID }}</div>
+              <div class="font-bold text-slate-900">{{ inv.rmsSupplierName || ('مورد #' + inv.rmsSupplierID) }}</div>
+              <div class="text-xs text-slate-400 font-mono">RMS Supplier #{{ inv.rmsSupplierID }}</div>
             </td>
-            <td class="px-4 py-3.5 font-mono text-sm font-semibold text-right">{{ inv.totalAmount | number:'1.2-2' }}</td>
-            <td class="px-4 py-3.5 font-mono text-sm text-right text-success">{{ inv.paidAmount | number:'1.2-2' }}</td>
-            <td class="px-4 py-3.5 font-mono text-sm font-bold text-right" [ngClass]="inv.remainingAmount > 0 ? 'text-error' : 'text-light-on-surface-variant'">
-              {{ inv.remainingAmount | number:'1.2-2' }}
+            <td class="px-4 py-3.5 font-mono font-bold text-left">{{ inv.totalAmount | number:'1.2-2' }} ج.م</td>
+            <td class="px-4 py-3.5 font-mono font-bold text-left text-emerald-700">{{ inv.paidAmount | number:'1.2-2' }} ج.م</td>
+            <td class="px-4 py-3.5 font-mono font-bold text-left" [ngClass]="inv.remainingAmount > 0 ? 'text-rose-700' : 'text-slate-400'">
+              {{ inv.remainingAmount | number:'1.2-2' }} ج.م
             </td>
             <td class="px-4 py-3.5 text-center">
-              <span *ngIf="inv.statusName === 'Paid' || inv.status === 3" class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-success-container text-on-success-container border border-success/20">
-                <span class="w-1.5 h-1.5 rounded-full bg-success"></span> Paid
+              <span *ngIf="inv.statusName === 'Paid' || inv.status === 3" class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-green-100 text-green-800 border border-green-300">
+                <span class="w-1.5 h-1.5 rounded-full bg-green-600"></span> مدفوعة
               </span>
-              <span *ngIf="inv.statusName === 'PartiallyPaid' || inv.status === 2" class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-container text-on-amber-container border border-amber/20">
-                <span class="w-1.5 h-1.5 rounded-full bg-amber"></span> Partial
+              <span *ngIf="inv.statusName === 'PartiallyPaid' || inv.status === 2" class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300">
+                <span class="w-1.5 h-1.5 rounded-full bg-amber-600"></span> جزئي
               </span>
-              <span *ngIf="inv.statusName === 'Unpaid' || inv.status === 1" class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-error-container text-on-error-container border border-error/20">
-                <span class="w-1.5 h-1.5 rounded-full bg-error"></span> Unpaid
-              </span>
-            </td>
-            <td class="px-4 py-3.5 text-sm">
-              <span class="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-xs font-medium">
-                {{ inv.paymentTypeName || (inv.paymentType === 1 ? 'Cash' : 'Credit') }}
+              <span *ngIf="inv.statusName === 'Unpaid' || inv.status === 1" class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-100 text-rose-800 border border-rose-300">
+                <span class="w-1.5 h-1.5 rounded-full bg-rose-600"></span> غير مسددة
               </span>
             </td>
-            <td class="px-4 py-3.5 font-mono text-xs text-light-on-surface-variant">
-              {{ inv.dueDate ? (inv.dueDate | date:'dd/MM/yyyy') : '—' }}
+            <td class="px-4 py-3.5 text-center text-xs">
+              <span class="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 font-semibold">
+                {{ inv.paymentType === 1 ? 'نقدي فوري' : 'آجل' }}
+              </span>
             </td>
-            <td class="px-6 py-3.5 text-right">
-              <a [routerLink]="['/invoices', inv.id]" class="px-3 py-1.5 text-primary border border-primary/30 rounded hover:bg-primary/5 text-sm font-medium inline-flex items-center gap-1 transition-colors">
+            <td class="px-4 py-3.5 font-mono text-xs text-center" [ngClass]="isOverdue(inv) ? 'text-rose-700 font-bold' : 'text-slate-600'">
+              {{ inv.dueDate ? (inv.dueDate | date:'yyyy/MM/dd') : '—' }}
+              <span *ngIf="isOverdue(inv)" class="block text-[10px]">متأخرة</span>
+            </td>
+            <td class="px-6 py-3.5 text-left">
+              <a [routerLink]="['/invoices', inv.id]" class="px-3 py-1.5 text-primary border border-primary/30 rounded-lg hover:bg-primary/5 text-xs font-bold inline-flex items-center gap-1 transition-colors">
                 <span class="material-symbols-outlined text-[16px]">visibility</span>
-                <span>View</span>
+                <span>عرض الفاتورة</span>
               </a>
             </td>
           </tr>
         </tbody>
       </table>
     </div>
+
+    <!-- Pagination -->
+    <div *ngIf="!loading && totalCount > 0" class="px-4 py-3 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-600">
+      <div class="flex items-center gap-2">
+        <span>عدد الصفوف:</span>
+        <select [(ngModel)]="pageSize" (ngModelChange)="onPageSizeChange()" class="px-2 py-1 bg-slate-50 border border-slate-300 rounded-lg">
+          <option [ngValue]="10">10</option>
+          <option [ngValue]="25">25</option>
+          <option [ngValue]="50">50</option>
+        </select>
+        <span>صفحة {{ currentPage }} من {{ totalPages }}</span>
+      </div>
+      <div class="flex items-center gap-1">
+        <button (click)="changePage(currentPage - 1)" [disabled]="currentPage === 1" class="px-2.5 py-1 border border-slate-300 rounded-lg disabled:opacity-40 hover:bg-slate-50">السابق</button>
+        <button *ngFor="let p of pageNumbers" (click)="changePage(p)"
+                class="px-2.5 py-1 border rounded-lg font-mono"
+                [ngClass]="p === currentPage ? 'bg-primary text-white border-primary' : 'border-slate-300 hover:bg-slate-50'">{{ p }}</button>
+        <button (click)="changePage(currentPage + 1)" [disabled]="currentPage === totalPages" class="px-2.5 py-1 border border-slate-300 rounded-lg disabled:opacity-40 hover:bg-slate-50">التالي</button>
+      </div>
+    </div>
   </div>
 </div>
-

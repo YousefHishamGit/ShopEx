@@ -1,14 +1,16 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterLink, ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { ApiService } from '../../services/api.service';
 import { SupplierInvoice, AddPaymentRequest } from '../../models/models';
+import { PrintService } from '../../shared/print/print.service';
+import { PrintSheetComponent } from '../../shared/print/print-sheet.component';
 
 @Component({
   selector: 'app-invoice-detail',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule, FormsModule, PrintSheetComponent],
   templateUrl: './invoice-detail.component.html'
 })
 export class InvoiceDetailComponent implements OnInit {
@@ -18,6 +20,7 @@ export class InvoiceDetailComponent implements OnInit {
   errorMessage: string = '';
   successMessage: string = '';
   autoPrint: boolean = false;
+  readonly today = new Date();
 
   // Payment Modal State
   showPaymentModal: boolean = false;
@@ -30,7 +33,8 @@ export class InvoiceDetailComponent implements OnInit {
   constructor(
     private api: ApiService,
     private route: ActivatedRoute,
-    private router: Router
+    private router: Router,
+    private printer: PrintService
   ) {}
 
   ngOnInit(): void {
@@ -72,8 +76,30 @@ export class InvoiceDetailComponent implements OnInit {
     });
   }
 
+  get isPaid(): boolean {
+    return !!this.invoice && this.invoice.remainingAmount <= 0;
+  }
+
+  get isPartial(): boolean {
+    return !!this.invoice && this.invoice.remainingAmount > 0 && this.invoice.paidAmount > 0;
+  }
+
+  get statusLabel(): string {
+    return this.isPaid ? 'مدفوعة بالكامل' : (this.isPartial ? 'مدفوعة جزئياً' : 'غير مدفوعة');
+  }
+
+  paymentMethodLabel(method?: string | null): string {
+    switch ((method || '').toLowerCase()) {
+      case 'cash': case 'نقدي': case '': return 'نقداً';
+      case 'banktransfer': return 'تحويل بنكي';
+      case 'card': return 'بطاقة';
+      case 'check': return 'شيك';
+      default: return method || 'نقداً';
+    }
+  }
+
   printInvoice(): void {
-    window.print();
+    this.printer.print();
   }
 
   goBack(): void {

@@ -1,6 +1,7 @@
-using ShopEx.Domain.Enum;
+﻿using ShopEx.Domain.Enum;
 using System;
 using System.Collections.Generic;
+using System.Text.Json.Serialization;
 
 namespace ShopEx.Application.DTOs.Consignment
 {
@@ -27,6 +28,8 @@ namespace ShopEx.Application.DTOs.Consignment
         public int ID { get; set; }
         public int ConsignmentID { get; set; }
         public int RMSItemID { get; set; }
+        public string? ItemDescription { get; set; }
+        public string? ItemLookupCode { get; set; }
         public decimal QuantityIssued { get; set; }
         public decimal UnitPrice { get; set; }
         public decimal UnitCost { get; set; }
@@ -49,11 +52,14 @@ namespace ShopEx.Application.DTOs.Consignment
         public int DealerID { get; set; }
         public string DealerName { get; set; } = string.Empty;
         public string DealerPhone { get; set; } = string.Empty;
+        public int? WarehouseID { get; set; }
+        public string? WarehouseName { get; set; }
 
         public DateTime IssueDate { get; set; }
         public int? AgreedDays { get; set; }
         public DateTime DueDate { get; set; }
 
+        [JsonConverter(typeof(JsonStringEnumConverter))]
         public ConsignmentStatus Status { get; set; }
         public string? Notes { get; set; }
 
@@ -85,6 +91,7 @@ namespace ShopEx.Application.DTOs.Consignment
         public int? AgreedDays { get; set; }
         public DateTime DueDate { get; set; }
 
+        [JsonConverter(typeof(JsonStringEnumConverter))]
         public ConsignmentStatus Status { get; set; }
         public int ItemsCount { get; set; }
 

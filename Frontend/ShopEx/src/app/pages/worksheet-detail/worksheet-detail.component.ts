@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink, ActivatedRoute } from '@angular/router';
 import { ApiService } from '../../services/api.service';
-import { Worksheet } from '../../models/models';
+import { Worksheet, StoreOption } from '../../models/models';
 
 @Component({
   selector: 'app-worksheet-detail',
@@ -22,9 +22,36 @@ export class WorksheetDetailComponent implements OnInit {
   showApproveModal: boolean = false;
   approving: boolean = false;
 
+  // Destination branch chosen at closing time ('' = keep each line's own branch)
+  stores: StoreOption[] = [];
+  destinationStoreId: number | null = null;
+
   constructor(private api: ApiService, private route: ActivatedRoute) {}
 
+  storeName(id?: number | null): string {
+    if (id == null) return '—';
+    return this.stores.find(s => s.storeId === id)?.storeName || `فرع #${id}`;
+  }
+
+  /** Quantity per receiving branch, reflecting the branch picked in the dialog. */
+  get branchSummary(): { storeId: number; name: string; lines: number; qty: number }[] {
+    const map = new Map<number, { storeId: number; name: string; lines: number; qty: number }>();
+    for (const po of this.worksheet?.purchaseOrders || []) {
+      const sid = this.destinationStoreId ?? po.storeID ?? 0;
+      const row = map.get(sid) || { storeId: sid, name: this.storeName(sid || null), lines: 0, qty: 0 };
+      row.lines++;
+      row.qty += po.quantityOrdered || 0;
+      map.set(sid, row);
+    }
+    return Array.from(map.values());
+  }
+
+  get canApprove(): boolean {
+    return !!this.worksheet?.purchaseOrders?.length && this.branchSummary.every(b => b.storeId > 0);
+  }
+
   ngOnInit(): void {
+    this.api.getStores().subscribe({ next: d => this.stores = d || [] });
     this.route.paramMap.subscribe(params => {
       const idParam = params.get('id');
       if (idParam) {
@@ -51,6 +78,8 @@ export class WorksheetDetailComponent implements OnInit {
   }
 
   openApproveModal(): void {
+    this.errorMessage = '';
+    this.destinationStoreId = null;
     this.showApproveModal = true;
   }
 
@@ -60,11 +89,11 @@ export class WorksheetDetailComponent implements OnInit {
 
   confirmApprove(): void {
     this.approving = true;
-    this.api.approveWorksheet(this.worksheetId).subscribe({
+    this.api.approveWorksheet(this.worksheetId, this.destinationStoreId).subscribe({
       next: (res) => {
         this.approving = false;
         this.showApproveModal = false;
-        this.successMessage = `Worksheet #${this.worksheetId} approved successfully (Status changed to 2 - Approved)!`;
+        this.successMessage = `تم إقفال أمر الشراء #${this.worksheetId} واعتماده، وصرف الكميات من المخزن الرئيسي إلى الفرع المحدد.`;
         this.fetchWorksheet();
         setTimeout(() => this.successMessage = '', 4000);
       },

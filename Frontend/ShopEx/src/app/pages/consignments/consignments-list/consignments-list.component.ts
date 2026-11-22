@@ -2,7 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { ConsignmentService } from '../../../services/consignment.service';
+import { ConsignmentService, PAYMENT_METHODS } from '../../../services/consignment.service';
 import {
   ConsignmentSummary,
   Dealer,
@@ -24,7 +24,7 @@ export class ConsignmentsListComponent implements OnInit {
   errorMessage = '';
 
   // Filters
-  selectedStatus: string = 'ALL';
+  selectedStatus: string = 'Open';
   selectedDealerId: number | null = null;
   searchQuery: string = '';
 
@@ -50,7 +50,17 @@ export class ConsignmentsListComponent implements OnInit {
     notes: ''
   };
 
-  constructor(private consignmentService: ConsignmentService) {}
+  paymentMethods = PAYMENT_METHODS;
+  paymentMode: 'full' | 'half' | 'custom' = 'full';
+
+  constructor(private consignmentService: ConsignmentService) { }
+
+  setPaymentMode(mode: 'full' | 'half' | 'custom'): void {
+    this.paymentMode = mode;
+    const remaining = this.paymentTargetConsignment?.remainingAmount || 0;
+    if (mode === 'full') this.paymentRequest.amount = remaining;
+    else if (mode === 'half') this.paymentRequest.amount = Math.round((remaining / 2) * 100) / 100;
+  }
 
   ngOnInit(): void {
     this.loadDealers();
@@ -67,10 +77,11 @@ export class ConsignmentsListComponent implements OnInit {
   loadConsignments(): void {
     this.loading = true;
     this.errorMessage = '';
-    const statusParam = this.selectedStatus === 'OVERDUE' ? 'Open' : this.selectedStatus;
 
+    // Only the dealer is filtered server-side: the status filters are applied locally so the
+    // summary cards always reflect every consignment of the selected dealer (and no extra requests are needed).
     this.consignmentService
-      .getConsignments(this.selectedDealerId || undefined, statusParam)
+      .getConsignments(this.selectedDealerId || undefined)
       .subscribe({
         next: (data) => {
           this.consignments = data || [];
@@ -104,10 +115,8 @@ export class ConsignmentsListComponent implements OnInit {
       list = list.filter((c) => this.isOpen(c.status));
     } else if (this.selectedStatus === 'Closed') {
       list = list.filter((c) => this.isClosed(c.status));
-    }
-
-    if (this.selectedDealerId) {
-      list = list.filter((c) => c.dealerID === this.selectedDealerId);
+    } else if (this.selectedStatus === 'Cancelled') {
+      list = list.filter((c) => this.isCancelled(c.status));
     }
 
     if (this.searchQuery && this.searchQuery.trim()) {
@@ -154,7 +163,10 @@ export class ConsignmentsListComponent implements OnInit {
 
   onFilterStatus(status: string): void {
     this.selectedStatus = status;
-    this.loadConsignments();
+  }
+
+  trackById(_: number, item: { id: number }): number {
+    return item.id;
   }
 
   onFilterDealer(): void {
@@ -208,6 +220,7 @@ export class ConsignmentsListComponent implements OnInit {
       notes: ''
     };
     this.paymentError = '';
+    this.paymentMode = 'full';
     this.showPaymentModal = true;
   }
 
@@ -222,6 +235,10 @@ export class ConsignmentsListComponent implements OnInit {
       this.paymentError = 'يرجى إدخال مبلغ صحيح أكبر من صفر.';
       return;
     }
+    if (this.paymentRequest.amount > this.paymentTargetConsignment.remainingAmount + 0.001) {
+      this.paymentError = 'المبلغ أكبر من المتبقي للتحصيل على هذا الإذن.';
+      return;
+    }
 
     this.savingPayment = true;
     this.paymentError = '';
@@ -233,6 +250,7 @@ export class ConsignmentsListComponent implements OnInit {
           this.savingPayment = false;
           this.closePaymentModal();
           this.loadConsignments();
+          this.loadDealers();
         },
         error: (err) => {
           this.paymentError = err.error?.message || 'حدث خطأ أثناء تسجيل الدفعة.';

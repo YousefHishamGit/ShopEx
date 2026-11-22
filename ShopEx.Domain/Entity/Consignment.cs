@@ -18,6 +18,9 @@ namespace ShopEx.Domain.Entity
         
         
 
+        // المخزن الذي صُرفت منه البضاعة (ترجع إليه عند المرتجع/الإلغاء)
+        public int? WarehouseID { get; set; }
+
         public DateTime IssueDate { get; set; } = DateTime.Now;
         public int? AgreedDays { get; set; }            
         public DateTime DueDate { get; set; }           

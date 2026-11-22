@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using ShopEx.Application.interfaces.RMS.Repositories;
 using ShopEx.Domain.RMSEntity;
 using ShopEx.Infrastructure.Persistence.RMS;
@@ -21,10 +21,54 @@ namespace ShopEx.Infrastructure.Repositories.RMS
 
         public async Task<IEnumerable<Item>> GetItemsBySupplierIdAsync(int supplierId)
         {
-            
             return await _context.Items
                 .Where(i => i.SupplierID == supplierId)
                 .ToListAsync();
+        }
+
+        public async Task<Item?> GetByIdAsync(int id)
+        {
+            return await _context.Items.FindAsync(id);
+        }
+
+        public async Task<Dictionary<int, Item>> GetByIdsAsync(IEnumerable<int> ids)
+        {
+            var list = ids.Distinct().ToList();
+            if (list.Count == 0) return new Dictionary<int, Item>();
+            return await _context.Items.AsNoTracking()
+                .Where(i => list.Contains(i.ID))
+                .ToDictionaryAsync(i => i.ID);
+        }
+
+        public async Task<Item?> GetByLookupCodeAsync(string lookupCode)
+        {
+            if (string.IsNullOrWhiteSpace(lookupCode)) return null;
+            return await _context.Items.FirstOrDefaultAsync(i => i.ItemLookupCode == lookupCode.Trim());
+        }
+
+        public Task<List<int>> SearchIdsAsync(string term, int limit = 1000)
+        {
+            term = term.Trim();
+            return _context.Items.AsNoTracking()
+                .Where(i => (i.Description != null && i.Description.Contains(term)) ||
+                            (i.ItemLookupCode != null && i.ItemLookupCode.Contains(term)) ||
+                            i.ID.ToString() == term)
+                .Select(i => i.ID)
+                .Take(limit)
+                .ToListAsync();
+        }
+
+        public async Task<IEnumerable<Item>> SearchItemsAsync(string? query, int limit = 50)
+        {
+            var q = _context.Items.AsQueryable();
+            if (!string.IsNullOrWhiteSpace(query))
+            {
+                var term = query.Trim();
+                q = q.Where(i => (!string.IsNullOrEmpty(i.Description) && i.Description.Contains(term)) ||
+                                 (!string.IsNullOrEmpty(i.ItemLookupCode) && i.ItemLookupCode.Contains(term)) ||
+                                 i.ID.ToString().Contains(term));
+            }
+            return await q.OrderBy(i => i.Description).Take(limit).ToListAsync();
         }
     }
 }

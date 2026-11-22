@@ -12,6 +12,14 @@ import {
   AddConsignmentPaymentRequest
 } from '../models/models';
 
+export const PAYMENT_METHODS = [
+  { value: 'نقدي', label: 'كاش', icon: 'payments' },
+  { value: 'تحويل بنكي / فودافون كاش', label: 'تحويل / إنستاباي', icon: 'account_balance' },
+  { value: 'شيك', label: 'شيك', icon: 'receipt_long' }
+];
+
+export const AGREED_DAYS_OPTIONS = [7, 15, 30, 45, 60];
+
 @Injectable({
   providedIn: 'root'
 })

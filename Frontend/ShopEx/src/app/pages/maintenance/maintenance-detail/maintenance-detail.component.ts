@@ -12,11 +12,14 @@ import {
   DeliverTicketRequest,
   AddTicketPaymentRequest
 } from '../../../models/models';
+import { PrintService } from '../../../shared/print/print.service';
+import { PrintSheetComponent } from '../../../shared/print/print-sheet.component';
+import { TabbedSelectComponent, TabbedSelectItem } from '../../../components/tabbed-select/tabbed-select.component';
 
 @Component({
   selector: 'app-maintenance-detail',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule, FormsModule, RouterLink, TabbedSelectComponent, PrintSheetComponent],
   templateUrl: './maintenance-detail.component.html'
 })
 export class MaintenanceDetailComponent implements OnInit {
@@ -25,6 +28,23 @@ export class MaintenanceDetailComponent implements OnInit {
   loading: boolean = true;
   errorMessage: string = '';
   successMessage: string = '';
+
+  // Quick standard operations with tabs & pagination
+  standardOperations: TabbedSelectItem[] = [
+    { id: 1, title: 'تغيير شاشة كاملة أصلية', category: 'شاشات', price: 650, icon: 'smartphone' },
+    { id: 2, title: 'تغيير باغة شاشة (Glass Only)', category: 'شاشات', price: 300, icon: 'smartphone' },
+    { id: 3, title: 'تغيير بطارية أصلية مع ضمان', category: 'بطاريات', price: 350, icon: 'battery_charging_full' },
+    { id: 4, title: 'صيانة سوكيت ومسار الشحن', category: 'شحن وباور', price: 180, icon: 'power' },
+    { id: 5, title: 'تغيير آيسي الشحن U2 / Tristar', category: 'شحن وباور', price: 450, icon: 'memory' },
+    { id: 6, title: 'تغيير فلاتة سماعة ومايك داخلي', category: 'صوتيات', price: 150, icon: 'mic' },
+    { id: 7, title: 'تغيير جرس خارجي / سبيكر', category: 'صوتيات', price: 160, icon: 'volume_up' },
+    { id: 8, title: 'تغيير كاميرا خلفية أصلية', category: 'كاميرات', price: 500, icon: 'photo_camera' },
+    { id: 9, title: 'تغيير كاميرا أمامية / سنسور', category: 'كاميرات', price: 300, icon: 'camera_front' },
+    { id: 10, title: 'سوفت وير وفك تشفير وفورمات', category: 'سوفت وير', price: 150, icon: 'terminal' },
+    { id: 11, title: 'تنظيف جاف ومعالجة دخول ماء وسوائل', category: 'صيانة عامة', price: 200, icon: 'water_drop' },
+    { id: 12, title: 'تغيير شاسيه وظهر كامل (Housing)', category: 'صيانة عامة', price: 400, icon: 'aspect_ratio' }
+  ];
+  selectedOperationId: number | null = null;
 
   // Stage 2: Add Operation model («عملت كذا وسعرها كذا»)
   newOperation: AddTicketOperationRequest = {
@@ -63,7 +83,8 @@ export class MaintenanceDetailComponent implements OnInit {
 
   constructor(
     private route: ActivatedRoute,
-    private maintenanceService: MaintenanceService
+    private maintenanceService: MaintenanceService,
+    private printer: PrintService
   ) {}
 
   ngOnInit(): void {
@@ -90,10 +111,22 @@ export class MaintenanceDetailComponent implements OnInit {
     });
   }
 
+  onSelectStandardOperation(item: TabbedSelectItem): void {
+    this.selectedOperationId = Number(item.id);
+    this.newOperation.operationName = item.title;
+    this.newOperation.cost = item.price || 0;
+  }
+
+  onClearStandardOperation(): void {
+    this.selectedOperationId = null;
+    this.newOperation.operationName = '';
+    this.newOperation.cost = 0;
+  }
+
   // Stage 2: إضافة عملية إصلاح وتكلفتها
   onAddOperation(): void {
     if (!this.newOperation.operationName.trim()) {
-      this.showMessage('يرجى كتابة اسم أو وصف العملية المنفذة.', true);
+      this.showMessage('يرجى كتابة اسم أو وصف العملية المنفذة أو اختيارها من القائمة.', true);
       return;
     }
 
@@ -108,6 +141,7 @@ export class MaintenanceDetailComponent implements OnInit {
         this.ticket = updatedTicket;
         this.addingOperation = false;
         this.newOperation = { operationName: '', cost: 0, notes: '' };
+        this.selectedOperationId = null;
         this.showMessage('تم تسجيل عملية الإصلاح بنجاح.', false);
       },
       error: (err) => {
@@ -218,7 +252,7 @@ export class MaintenanceDetailComponent implements OnInit {
 
   // طباعة الإيصال
   printReceipt(): void {
-    window.print();
+    this.printer.print();
   }
 
   private showMessage(msg: string, isError: boolean): void {

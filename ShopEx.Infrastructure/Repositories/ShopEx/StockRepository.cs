@@ -26,18 +26,24 @@ namespace ShopEx.Infrastructure.Repositories.ShopEx
                       .FirstOrDefaultAsync(b => b.WarehouseID == warehouseId && b.RMSItemID == rmsItemId, ct);
         }
 
-        public Task<List<StockBalance>> GetBalancesByWarehouseAsync(int warehouseId, bool lowStockOnly = false, CancellationToken ct = default)
+        public async Task<(List<StockBalance> Items, int TotalCount)> GetInStockBalancesPagedAsync(
+            int warehouseId, IReadOnlyCollection<int>? itemIds, int page, int pageSize, CancellationToken ct = default)
         {
             var query = _db.StockBalances
-                           .Include(b => b.Warehouse)
-                           .Where(b => b.WarehouseID == warehouseId);
+                           .AsNoTracking()
+                           .Where(b => b.WarehouseID == warehouseId && b.QuantityOnHand > 0);
 
-            if (lowStockOnly)
+            if (itemIds != null)
             {
-                query = query.Where(b => b.ReorderLevel.HasValue && b.QuantityOnHand <= b.ReorderLevel.Value);
+                query = query.Where(b => itemIds.Contains(b.RMSItemID));
             }
 
-            return query.OrderBy(b => b.RMSItemID).ToListAsync(ct);
+            var total = await query.CountAsync(ct);
+            var items = await query.OrderBy(b => b.RMSItemID)
+                                   .Skip((page - 1) * pageSize)
+                                   .Take(pageSize)
+                                   .ToListAsync(ct);
+            return (items, total);
         }
 
         public Task<List<StockBalance>> GetBalancesByItemAsync(int rmsItemId, CancellationToken ct = default)
@@ -49,37 +55,18 @@ namespace ShopEx.Infrastructure.Repositories.ShopEx
                       .ToListAsync(ct);
         }
 
-        public Task<List<StockMovement>> GetMovementsAsync(
-            int? warehouseId = null,
-            int? rmsItemId = null,
-            DateTime? fromDate = null,
-            DateTime? toDate = null,
-            CancellationToken ct = default)
+        public Task<List<StockMovement>> GetRecentMovementsAsync(int? warehouseId, int take, CancellationToken ct = default)
         {
-            IQueryable<StockMovement> query = _db.StockMovements.Include(m => m.Warehouse);
+            IQueryable<StockMovement> query = _db.StockMovements.AsNoTracking().Include(m => m.Warehouse);
 
             if (warehouseId.HasValue)
             {
                 query = query.Where(m => m.WarehouseID == warehouseId.Value);
             }
 
-            if (rmsItemId.HasValue)
-            {
-                query = query.Where(m => m.RMSItemID == rmsItemId.Value);
-            }
-
-            if (fromDate.HasValue)
-            {
-                query = query.Where(m => m.MovementDate >= fromDate.Value);
-            }
-
-            if (toDate.HasValue)
-            {
-                query = query.Where(m => m.MovementDate <= toDate.Value);
-            }
-
             return query.OrderByDescending(m => m.MovementDate)
                         .ThenByDescending(m => m.ID)
+                        .Take(take)
                         .ToListAsync(ct);
         }
 

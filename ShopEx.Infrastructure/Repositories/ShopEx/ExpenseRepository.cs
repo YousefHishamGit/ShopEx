@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
+using ShopEx.Application.DTOs.Expense;
 using ShopEx.Application.interfaces.ShopEx.Repositories;
 using ShopEx.Domain.Entity;
-using ShopEx.Domain.Enum;
 using ShopEx.Infrastructure.Persistence.ShopDb;
 using System;
 using System.Collections.Generic;
@@ -21,7 +21,7 @@ namespace ShopEx.Infrastructure.Repositories.ShopEx
         }
 
         // ================================================================
-        // 1. بنود المصروفات (Expense Categories)
+        // 1. بنود المصروفات
         // ================================================================
 
         public Task<List<ExpenseCategory>> GetCategoriesAsync(bool includeInactive = false, CancellationToken ct = default)
@@ -29,11 +29,20 @@ namespace ShopEx.Infrastructure.Repositories.ShopEx
             var query = _db.ExpenseCategories.AsNoTracking();
 
             if (!includeInactive)
-            {
                 query = query.Where(c => c.IsActive);
-            }
 
             return query.OrderBy(c => c.Name).ToListAsync(ct);
+        }
+
+        public async Task<Dictionary<int, (int Count, decimal Total)>> GetCategoryTotalsAsync(CancellationToken ct = default)
+        {
+            var rows = await _db.Expenses
+                .AsNoTracking()
+                .GroupBy(e => e.ExpenseCategoryId)
+                .Select(g => new { Id = g.Key, Count = g.Count(), Total = g.Sum(x => x.Amount) })
+                .ToListAsync(ct);
+
+            return rows.ToDictionary(r => r.Id, r => (r.Count, r.Total));
         }
 
         public Task<ExpenseCategory?> GetCategoryByIdAsync(int id, CancellationToken ct = default)
@@ -46,9 +55,9 @@ namespace ShopEx.Infrastructure.Repositories.ShopEx
             if (string.IsNullOrWhiteSpace(name))
                 return Task.FromResult<ExpenseCategory?>(null);
 
+            // الـ collation الافتراضي في SQL Server غير حساس لحالة الأحرف، والمقارنة المباشرة تستفيد من الـ unique index
             var trimmedName = name.Trim();
-            return _db.ExpenseCategories
-                      .FirstOrDefaultAsync(c => c.Name.ToLower() == trimmedName.ToLower(), ct);
+            return _db.ExpenseCategories.FirstOrDefaultAsync(c => c.Name == trimmedName, ct);
         }
 
         public async Task AddCategoryAsync(ExpenseCategory category, CancellationToken ct = default)
@@ -62,48 +71,88 @@ namespace ShopEx.Infrastructure.Repositories.ShopEx
         }
 
         // ================================================================
-        // 2. حركات المصروفات (Expenses)
+        // 2. حركات المصروفات
         // ================================================================
 
-        public Task<List<Expense>> GetExpensesAsync(
-            int? storeId = null,
-            int? categoryId = null,
-            DateTime? fromDate = null,
-            DateTime? toDate = null,
-            ExpensePaymentMethod? paymentMethod = null,
-            CancellationToken ct = default)
+        private IQueryable<Expense> Filtered(ExpenseFilter f)
         {
-            var query = _db.Expenses
-                           .Include(e => e.ExpenseCategory)
-                           .AsNoTracking()
-                           .AsQueryable();
+            var query = _db.Expenses.AsNoTracking().AsQueryable();
 
-            if (storeId.HasValue)
+            if (f.StoreId.HasValue)
+                query = query.Where(e => e.StoreId == f.StoreId.Value);
+
+            if (f.CategoryId.HasValue)
+                query = query.Where(e => e.ExpenseCategoryId == f.CategoryId.Value);
+
+            if (f.PaymentMethod.HasValue)
+                query = query.Where(e => e.PaymentMethod == f.PaymentMethod.Value);
+
+            // الفلترة بالأيام الكاملة: من بداية يوم "من" وحتى نهاية يوم "إلى" (شاملاً)
+            if (f.FromDate.HasValue)
             {
-                query = query.Where(e => e.StoreId == storeId.Value);
+                var from = f.FromDate.Value.Date;
+                query = query.Where(e => e.ExpenseDate >= from);
             }
 
-            if (categoryId.HasValue)
+            if (f.ToDate.HasValue)
             {
-                query = query.Where(e => e.ExpenseCategoryId == categoryId.Value);
+                var toExclusive = f.ToDate.Value.Date.AddDays(1);
+                query = query.Where(e => e.ExpenseDate < toExclusive);
             }
 
-            if (paymentMethod.HasValue)
+            if (!string.IsNullOrWhiteSpace(f.Search))
             {
-                query = query.Where(e => e.PaymentMethod == paymentMethod.Value);
+                var s = f.Search.Trim();
+                query = query.Where(e =>
+                    (e.Recipient != null && e.Recipient.Contains(s)) ||
+                    (e.ReceiptNumber != null && e.ReceiptNumber.Contains(s)) ||
+                    (e.Notes != null && e.Notes.Contains(s)) ||
+                    e.ExpenseCategory.Name.Contains(s));
             }
 
-            if (fromDate.HasValue)
-            {
-                query = query.Where(e => e.ExpenseDate >= fromDate.Value);
-            }
+            return query;
+        }
 
-            if (toDate.HasValue)
-            {
-                query = query.Where(e => e.ExpenseDate <= toDate.Value);
-            }
+        public Task<List<Expense>> GetExpensesAsync(ExpenseFilter filter, CancellationToken ct = default)
+        {
+            return Filtered(filter)
+                .Include(e => e.ExpenseCategory)
+                .OrderByDescending(e => e.ExpenseDate).ThenByDescending(e => e.Id)
+                .ToListAsync(ct);
+        }
 
-            return query.OrderByDescending(e => e.ExpenseDate).ToListAsync(ct);
+        public Task<List<Expense>> GetExpensesPageAsync(ExpenseFilter filter, int skip, int take, CancellationToken ct = default)
+        {
+            return Filtered(filter)
+                .Include(e => e.ExpenseCategory)
+                .OrderByDescending(e => e.ExpenseDate).ThenByDescending(e => e.Id)
+                .Skip(skip).Take(take)
+                .ToListAsync(ct);
+        }
+
+        public async Task<(decimal Total, int Count)> GetTotalsAsync(ExpenseFilter filter, CancellationToken ct = default)
+        {
+            var row = await Filtered(filter)
+                .GroupBy(_ => 1)
+                .Select(g => new { Total = g.Sum(x => x.Amount), Count = g.Count() })
+                .FirstOrDefaultAsync(ct);
+
+            return row == null ? (0m, 0) : (row.Total, row.Count);
+        }
+
+        public Task<List<ExpenseByCategorySummaryDto>> GetCategoryBreakdownAsync(ExpenseFilter filter, CancellationToken ct = default)
+        {
+            return Filtered(filter)
+                .GroupBy(e => new { e.ExpenseCategoryId, e.ExpenseCategory.Name })
+                .Select(g => new ExpenseByCategorySummaryDto
+                {
+                    CategoryId = g.Key.ExpenseCategoryId,
+                    CategoryName = g.Key.Name,
+                    TotalAmount = g.Sum(x => x.Amount),
+                    Count = g.Count()
+                })
+                .OrderByDescending(x => x.TotalAmount)
+                .ToListAsync(ct);
         }
 
         public Task<Expense?> GetExpenseByIdAsync(int id, CancellationToken ct = default)
@@ -126,38 +175,6 @@ namespace ShopEx.Infrastructure.Repositories.ShopEx
         public void DeleteExpense(Expense expense)
         {
             _db.Expenses.Remove(expense);
-        }
-
-        public Task<decimal> GetTotalExpensesAmountAsync(
-            int? storeId = null,
-            int? categoryId = null,
-            DateTime? fromDate = null,
-            DateTime? toDate = null,
-            CancellationToken ct = default)
-        {
-            var query = _db.Expenses.AsNoTracking().AsQueryable();
-
-            if (storeId.HasValue)
-            {
-                query = query.Where(e => e.StoreId == storeId.Value);
-            }
-
-            if (categoryId.HasValue)
-            {
-                query = query.Where(e => e.ExpenseCategoryId == categoryId.Value);
-            }
-
-            if (fromDate.HasValue)
-            {
-                query = query.Where(e => e.ExpenseDate >= fromDate.Value);
-            }
-
-            if (toDate.HasValue)
-            {
-                query = query.Where(e => e.ExpenseDate <= toDate.Value);
-            }
-
-            return query.SumAsync(e => e.Amount, ct);
         }
     }
 }

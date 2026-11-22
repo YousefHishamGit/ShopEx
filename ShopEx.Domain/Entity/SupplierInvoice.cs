@@ -12,6 +12,16 @@ namespace ShopEx.Domain.Entity
         public int ID { get; set; }
         public int RMSSupplierID { get; set; }
         public DateTime InvoiceDate { get; set; }= DateTime.Now;
+        /// <summary>Sum of the item lines, before any discount.</summary>
+        public decimal SubTotal { get; set; }
+
+        public SupplierDiscountType DiscountType { get; set; } = SupplierDiscountType.None;
+        /// <summary>The percentage (0-100) or the fixed amount entered by the user.</summary>
+        public decimal DiscountValue { get; set; }
+        /// <summary>The resolved discount in currency (always an amount).</summary>
+        public decimal DiscountAmount { get; set; }
+
+        /// <summary>Net payable amount (SubTotal - DiscountAmount). Payments/remaining are measured against this.</summary>
         public decimal TotalAmount { get; set; }
         public string InvoiceNumber { get; set; }
         public string? Notes { get; set; }

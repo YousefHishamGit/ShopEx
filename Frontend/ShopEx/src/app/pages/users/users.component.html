@@ -1,0 +1,290 @@
+<div class="max-w-7xl mx-auto space-y-6" dir="rtl">
+  <!-- Header -->
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <div>
+      <h1 class="text-2xl font-bold text-light-on-surface">المستخدمون والصلاحيات</h1>
+      <p class="text-sm text-light-on-surface-variant mt-1">إضافة موظفي الفروع والمديرين، وتغيير كلمات المرور، وتعطيل الحسابات أو حذفها</p>
+    </div>
+    <button type="button" (click)="openAddModal()"
+            class="inline-flex items-center gap-2 px-5 py-2.5 bg-primary text-on-primary font-bold rounded-lg hover:bg-primary/90 shadow transition-all text-sm">
+      <span class="material-symbols-outlined text-[20px]">person_add</span>
+      <span>إضافة مستخدم</span>
+    </button>
+  </div>
+
+  <!-- Stats -->
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+    <div class="bg-light-surface p-4 rounded-xl border border-outline shadow-sm">
+      <div class="text-xs text-light-on-surface-variant">إجمالي المستخدمين</div>
+      <div class="text-2xl font-extrabold text-light-on-surface mt-1">{{ users.length }}</div>
+    </div>
+    <div class="bg-light-surface p-4 rounded-xl border border-outline shadow-sm">
+      <div class="text-xs text-light-on-surface-variant">مديرو HQ</div>
+      <div class="text-2xl font-extrabold text-primary mt-1">{{ adminsCount }}</div>
+    </div>
+    <div class="bg-light-surface p-4 rounded-xl border border-outline shadow-sm">
+      <div class="text-xs text-light-on-surface-variant">موظفو الفروع</div>
+      <div class="text-2xl font-extrabold text-success mt-1">{{ employeesCount }}</div>
+    </div>
+    <div class="bg-light-surface p-4 rounded-xl border border-outline shadow-sm">
+      <div class="text-xs text-light-on-surface-variant">حسابات معطلة</div>
+      <div class="text-2xl font-extrabold text-error mt-1">{{ disabledCount }}</div>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="bg-light-surface p-4 rounded-xl border border-outline shadow-sm flex flex-wrap items-center gap-3">
+    <div class="relative flex-1 min-w-[220px]">
+      <span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-[20px]">search</span>
+      <input type="text" [(ngModel)]="searchQuery" (ngModelChange)="applyFilters()" name="search"
+             placeholder="بحث بالاسم أو اسم المستخدم أو الهاتف أو الفرع"
+             class="w-full pr-10 pl-3.5 py-2.5 border border-outline rounded-lg text-sm bg-light-surface focus:outline-none focus:border-primary transition-all">
+    </div>
+    <select [(ngModel)]="roleFilter" (ngModelChange)="applyFilters()" name="roleFilter"
+            class="px-3.5 py-2.5 border border-outline rounded-lg text-sm bg-light-surface focus:outline-none focus:border-primary transition-all">
+      <option value="all">كل الأدوار</option>
+      <option [ngValue]="UserRole.Admin">مدير (HQ)</option>
+      <option [ngValue]="UserRole.Employee">موظف فرع</option>
+    </select>
+  </div>
+
+  <!-- Error -->
+  <div *ngIf="errorMessage" class="p-4 bg-error-container text-on-error-container rounded-xl border border-error/20 flex items-center gap-3">
+    <span class="material-symbols-outlined text-error">error</span>
+    <span class="text-sm font-medium">{{ errorMessage }}</span>
+  </div>
+
+  <!-- Table -->
+  <div class="bg-light-surface rounded-xl border border-outline shadow-sm overflow-hidden">
+    <div *ngIf="loading" class="p-10 text-center text-sm text-light-on-surface-variant">جاري التحميل...</div>
+
+    <div *ngIf="!loading && filteredUsers.length === 0 && !errorMessage" class="p-10 text-center text-sm text-light-on-surface-variant">
+      لا يوجد مستخدمون مطابقون.
+    </div>
+
+    <div class="overflow-x-auto" *ngIf="!loading && filteredUsers.length > 0">
+      <table class="w-full text-sm text-right">
+        <thead class="bg-light-surface-variant text-xs text-light-on-surface-variant">
+          <tr>
+            <th class="px-4 py-3 font-semibold">الاسم</th>
+            <th class="px-4 py-3 font-semibold">اسم المستخدم</th>
+            <th class="px-4 py-3 font-semibold">الهاتف</th>
+            <th class="px-4 py-3 font-semibold">الدور</th>
+            <th class="px-4 py-3 font-semibold">الفرع</th>
+            <th class="px-4 py-3 font-semibold">الحالة</th>
+            <th class="px-4 py-3 font-semibold">آخر دخول</th>
+            <th class="px-4 py-3 font-semibold text-center">إجراءات</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-outline">
+          <tr *ngFor="let u of filteredUsers; trackBy: trackUser" class="hover:bg-light-surface-variant/50 transition-colors" [class.opacity-60]="!u.isActive">
+            <td class="px-4 py-3 font-bold text-light-on-surface">
+              {{ u.name }}
+              <span *ngIf="u.id === currentUserId" class="mr-1 text-[10px] px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-500 font-semibold">أنت</span>
+            </td>
+            <td class="px-4 py-3 text-light-on-surface-variant" dir="ltr" style="text-align: right">{{ u.username }}</td>
+            <td class="px-4 py-3 text-light-on-surface-variant" dir="ltr" style="text-align: right">{{ u.phone }}</td>
+            <td class="px-4 py-3">
+              <span class="px-2.5 py-0.5 rounded-full text-[11px] font-semibold border"
+                    [ngClass]="u.role === UserRole.Admin ? 'bg-blue-50 text-primary border-blue-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'">
+                {{ u.role === UserRole.Admin ? 'مدير (HQ)' : 'موظف فرع' }}
+              </span>
+            </td>
+            <td class="px-4 py-3 text-light-on-surface-variant">{{ u.storeName || (u.storeId ? 'فرع #' + u.storeId : '—') }}</td>
+            <td class="px-4 py-3">
+              <span class="px-2.5 py-0.5 rounded-full text-[11px] font-semibold border"
+                    [ngClass]="u.isActive ? 'bg-success-container text-on-success-container border-success/20' : 'bg-error-container text-on-error-container border-error/20'">
+                {{ u.isActive ? 'فعال' : 'معطل' }}
+              </span>
+            </td>
+            <td class="px-4 py-3 text-xs text-light-on-surface-variant">
+              {{ u.lastLoginAt ? (u.lastLoginAt | date:'yyyy/MM/dd hh:mm a') : 'لم يسجل دخول بعد' }}
+            </td>
+            <td class="px-4 py-3">
+              <div class="flex items-center justify-center gap-1">
+                <button type="button" (click)="openPasswordModal(u)" title="تغيير كلمة المرور"
+                        class="p-2 rounded-lg text-slate-500 hover:text-primary hover:bg-slate-100 transition-colors">
+                  <span class="material-symbols-outlined text-[20px]">key</span>
+                </button>
+                <button type="button" (click)="toggleActive(u)" [disabled]="u.id === currentUserId || togglingId !== null"
+                        [title]="u.isActive ? 'تعطيل الحساب' : 'تفعيل الحساب'"
+                        class="p-2 rounded-lg text-slate-500 hover:text-amber hover:bg-slate-100 transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
+                  <span class="material-symbols-outlined text-[20px]">{{ u.isActive ? 'block' : 'check_circle' }}</span>
+                </button>
+                <button type="button" (click)="openDeleteModal(u)" [disabled]="u.id === currentUserId" title="حذف المستخدم"
+                        class="p-2 rounded-lg text-slate-500 hover:text-error hover:bg-error-container transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
+                  <span class="material-symbols-outlined text-[20px]">delete</span>
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ============ Add user modal ============ -->
+<div *ngIf="showAddModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" dir="rtl" (click)="closeAddModal()">
+  <form (ngSubmit)="submitAdd()" (click)="$event.stopPropagation()" autocomplete="off"
+        class="bg-light-surface rounded-2xl border border-outline shadow-2xl w-full max-w-xl overflow-hidden max-h-[92vh] flex flex-col">
+    <div class="px-6 py-4 border-b border-outline flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-blue-50 text-primary flex items-center justify-center">
+          <span class="material-symbols-outlined text-[22px]">person_add</span>
+        </div>
+        <h3 class="font-bold text-base text-light-on-surface">إضافة مستخدم جديد</h3>
+      </div>
+      <button type="button" (click)="closeAddModal()" class="text-gray-400 hover:text-gray-600 p-1" aria-label="إغلاق">
+        <span class="material-symbols-outlined text-[20px]">close</span>
+      </button>
+    </div>
+
+    <div class="p-6 space-y-4 text-xs overflow-y-auto">
+      <div *ngIf="addError" role="alert" class="p-3 bg-error/10 border border-error/20 text-error rounded-xl">{{ addError }}</div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label class="block font-semibold text-light-on-surface mb-1">الاسم <span class="text-error">*</span></label>
+          <input type="text" name="name" [(ngModel)]="addForm.name" maxlength="150" required
+                 class="w-full px-3.5 py-2.5 border border-outline rounded-lg text-sm bg-light-surface focus:outline-none focus:border-primary transition-all">
+        </div>
+        <div>
+          <label class="block font-semibold text-light-on-surface mb-1">الهاتف <span class="text-error">*</span></label>
+          <input type="tel" name="phone" [(ngModel)]="addForm.phone" maxlength="30" required dir="ltr" style="text-align: right"
+                 class="w-full px-3.5 py-2.5 border border-outline rounded-lg text-sm bg-light-surface focus:outline-none focus:border-primary transition-all">
+        </div>
+        <div>
+          <label class="block font-semibold text-light-on-surface mb-1">اسم المستخدم <span class="text-error">*</span></label>
+          <input type="text" name="username" [(ngModel)]="addForm.username" maxlength="50" required dir="ltr" style="text-align: right"
+                 autocomplete="off" autocapitalize="off" spellcheck="false"
+                 class="w-full px-3.5 py-2.5 border border-outline rounded-lg text-sm bg-light-surface focus:outline-none focus:border-primary transition-all">
+        </div>
+        <div>
+          <label class="block font-semibold text-light-on-surface mb-1">كلمة المرور <span class="text-error">*</span></label>
+          <div class="relative">
+            <input [type]="showAddPassword ? 'text' : 'password'" name="password" [(ngModel)]="addForm.password" maxlength="100" required
+                   dir="ltr" style="text-align: right" autocomplete="new-password"
+                   class="w-full pl-10 pr-3.5 py-2.5 border border-outline rounded-lg text-sm bg-light-surface focus:outline-none focus:border-primary transition-all">
+            <button type="button" (click)="showAddPassword = !showAddPassword"
+                    class="absolute left-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-primary" [attr.aria-label]="showAddPassword ? 'إخفاء' : 'إظهار'">
+              <span class="material-symbols-outlined text-[18px]">{{ showAddPassword ? 'visibility_off' : 'visibility' }}</span>
+            </button>
+          </div>
+        </div>
+        <div>
+          <label class="block font-semibold text-light-on-surface mb-1">الدور <span class="text-error">*</span></label>
+          <select name="role" [(ngModel)]="addForm.role"
+                  class="w-full px-3.5 py-2.5 border border-outline rounded-lg text-sm bg-light-surface focus:outline-none focus:border-primary transition-all">
+            <option [ngValue]="UserRole.Employee">موظف فرع (Employee)</option>
+            <option [ngValue]="UserRole.Admin">مدير HQ (Admin)</option>
+          </select>
+        </div>
+        <div>
+          <label class="block font-semibold text-light-on-surface mb-1">
+            الفرع <span *ngIf="addForm.role === UserRole.Employee" class="text-error">*</span>
+          </label>
+          <select name="storeId" [(ngModel)]="addForm.storeId"
+                  class="w-full px-3.5 py-2.5 border border-outline rounded-lg text-sm bg-light-surface focus:outline-none focus:border-primary transition-all">
+            <option [ngValue]="null">{{ addForm.role === UserRole.Employee ? '— اختر الفرع —' : 'HQ (بدون فرع)' }}</option>
+            <option *ngFor="let s of stores" [ngValue]="s.id">{{ s.name }}</option>
+          </select>
+        </div>
+      </div>
+
+      <p class="text-[11px] text-light-on-surface-variant leading-relaxed">
+        موظف الفرع يستطيع فقط: استلام الأجهزة وتسليم الجاهز منها وتقفيل رصيد فرعه. المدير لديه كل الصلاحيات.
+      </p>
+    </div>
+
+    <div class="px-6 py-4 border-t border-outline flex items-center justify-end gap-3 bg-light-surface-variant/40">
+      <button type="button" (click)="closeAddModal()" [disabled]="submittingAdd"
+              class="px-5 py-2.5 border border-outline hover:bg-light-surface-variant rounded-lg text-sm text-light-on-surface-variant font-medium transition-colors">
+        إلغاء
+      </button>
+      <button type="submit" [disabled]="submittingAdd"
+              class="inline-flex items-center gap-2 px-6 py-2.5 bg-primary text-on-primary font-bold rounded-lg hover:bg-primary/90 disabled:opacity-60 shadow transition-all text-sm">
+        <span *ngIf="submittingAdd" class="inline-block animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></span>
+        <span>حفظ المستخدم</span>
+      </button>
+    </div>
+  </form>
+</div>
+
+<!-- ============ Change password modal ============ -->
+<div *ngIf="passwordTarget" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" dir="rtl" (click)="closePasswordModal()">
+  <form (ngSubmit)="submitPassword()" (click)="$event.stopPropagation()" autocomplete="off"
+        class="bg-light-surface rounded-2xl border border-outline shadow-2xl w-full max-w-md overflow-hidden">
+    <div class="px-6 py-4 border-b border-outline flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-amber-container text-amber flex items-center justify-center">
+          <span class="material-symbols-outlined text-[22px]">key</span>
+        </div>
+        <div>
+          <h3 class="font-bold text-base text-light-on-surface">تغيير كلمة المرور</h3>
+          <p class="text-xs text-light-on-surface-variant">{{ passwordTarget.name }} ({{ passwordTarget.username }})</p>
+        </div>
+      </div>
+      <button type="button" (click)="closePasswordModal()" class="text-gray-400 hover:text-gray-600 p-1" aria-label="إغلاق">
+        <span class="material-symbols-outlined text-[20px]">close</span>
+      </button>
+    </div>
+
+    <div class="p-6 space-y-4 text-xs">
+      <div *ngIf="passwordError" role="alert" class="p-3 bg-error/10 border border-error/20 text-error rounded-xl">{{ passwordError }}</div>
+
+      <div>
+        <label class="block font-semibold text-light-on-surface mb-1">كلمة المرور الجديدة</label>
+        <div class="relative">
+          <input [type]="showNewPassword ? 'text' : 'password'" name="newPassword" [(ngModel)]="newPassword" maxlength="100" required
+                 dir="ltr" style="text-align: right" autocomplete="new-password"
+                 class="w-full pl-10 pr-3.5 py-2.5 border border-outline rounded-lg text-sm bg-light-surface focus:outline-none focus:border-primary transition-all">
+          <button type="button" (click)="showNewPassword = !showNewPassword"
+                  class="absolute left-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-primary" [attr.aria-label]="showNewPassword ? 'إخفاء' : 'إظهار'">
+            <span class="material-symbols-outlined text-[18px]">{{ showNewPassword ? 'visibility_off' : 'visibility' }}</span>
+          </button>
+        </div>
+        <p class="mt-1.5 text-[11px] text-light-on-surface-variant">6 أحرف على الأقل. سيتم إنهاء كل جلسات هذا المستخدم الحالية.</p>
+      </div>
+    </div>
+
+    <div class="px-6 py-4 border-t border-outline flex items-center justify-end gap-3 bg-light-surface-variant/40">
+      <button type="button" (click)="closePasswordModal()" [disabled]="submittingPassword"
+              class="px-5 py-2.5 border border-outline hover:bg-light-surface-variant rounded-lg text-sm text-light-on-surface-variant font-medium transition-colors">
+        إلغاء
+      </button>
+      <button type="submit" [disabled]="submittingPassword"
+              class="inline-flex items-center gap-2 px-6 py-2.5 bg-primary text-on-primary font-bold rounded-lg hover:bg-primary/90 disabled:opacity-60 shadow transition-all text-sm">
+        <span *ngIf="submittingPassword" class="inline-block animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></span>
+        <span>حفظ</span>
+      </button>
+    </div>
+  </form>
+</div>
+
+<!-- ============ Delete confirmation modal ============ -->
+<div *ngIf="deleteTarget" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" dir="rtl" (click)="closeDeleteModal()">
+  <div (click)="$event.stopPropagation()" class="bg-light-surface rounded-2xl border border-outline shadow-2xl w-full max-w-md overflow-hidden">
+    <div class="p-6 space-y-3 text-center">
+      <div class="mx-auto w-12 h-12 rounded-full bg-error-container text-error flex items-center justify-center">
+        <span class="material-symbols-outlined text-[26px]">delete</span>
+      </div>
+      <h3 class="font-bold text-base text-light-on-surface">حذف المستخدم</h3>
+      <p class="text-sm text-light-on-surface-variant leading-relaxed">
+        سيتم حذف حساب <span class="font-bold text-light-on-surface">{{ deleteTarget.name }}</span> نهائياً ولا يمكن التراجع.
+        لو تريد إيقافه مؤقتاً فقط، استخدم «تعطيل» بدلاً من الحذف.
+      </p>
+    </div>
+    <div class="px-6 py-4 border-t border-outline flex items-center justify-center gap-3 bg-light-surface-variant/40">
+      <button type="button" (click)="closeDeleteModal()" [disabled]="submittingDelete"
+              class="px-5 py-2.5 border border-outline hover:bg-light-surface-variant rounded-lg text-sm text-light-on-surface-variant font-medium transition-colors">
+        إلغاء
+      </button>
+      <button type="button" (click)="confirmDelete()" [disabled]="submittingDelete"
+              class="inline-flex items-center gap-2 px-6 py-2.5 bg-error text-on-error font-bold rounded-lg hover:bg-error/90 disabled:opacity-60 shadow transition-all text-sm">
+        <span *ngIf="submittingDelete" class="inline-block animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></span>
+        <span>نعم، احذف</span>
+      </button>
+    </div>
+  </div>
+</div>

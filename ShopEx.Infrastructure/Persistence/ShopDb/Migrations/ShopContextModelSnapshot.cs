@@ -527,6 +527,9 @@ namespace ShopEx.Infrastructure.Persistence.ShopDb.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
+                    b.Property<int?>("StoreId")
+                        .HasColumnType("int");
+
                     b.Property<string>("TicketNumber")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -539,6 +542,8 @@ namespace ShopEx.Infrastructure.Persistence.ShopDb.Migrations
                     b.HasIndex("ReceivedAt");
 
                     b.HasIndex("Status");
+
+                    b.HasIndex("StoreId");
 
                     b.HasIndex("TicketNumber")
                         .IsUnique();
@@ -708,6 +713,21 @@ namespace ShopEx.Infrastructure.Persistence.ShopDb.Migrations
                     b.Property<int?>("CreditDays")
                         .HasColumnType("int");
 
+                    b.Property<decimal>("DiscountAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("DiscountType")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasDefaultValue("None");
+
+                    b.Property<decimal>("DiscountValue")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<DateTime?>("DueDate")
                         .HasColumnType("datetime2");
 
@@ -729,6 +749,10 @@ namespace ShopEx.Infrastructure.Persistence.ShopDb.Migrations
                     b.Property<int>("RMSSupplierID")
                         .HasColumnType("int");
 
+                    b.Property<decimal>("SubTotal")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<string>("SupplierInvoiceStatus")
                         .IsRequired()
                         .HasColumnType("nvarchar(450)");
@@ -749,6 +773,8 @@ namespace ShopEx.Infrastructure.Persistence.ShopDb.Migrations
                     b.ToTable("SupplierInvoices", null, t =>
                         {
                             t.HasCheckConstraint("CK_SupplierInvoices_CreditDays", "[CreditDays] IS NULL OR [CreditDays] > 0");
+
+                            t.HasCheckConstraint("CK_SupplierInvoices_DiscountAmount", "[DiscountAmount] >= 0");
 
                             t.HasCheckConstraint("CK_SupplierInvoices_TotalAmount", "[TotalAmount] >= 0");
                         });
@@ -959,6 +985,69 @@ namespace ShopEx.Infrastructure.Persistence.ShopDb.Migrations
                             t.HasCheckConstraint("CK_SupplierReturnItems_Quantity", "[Quantity] > 0");
 
                             t.HasCheckConstraint("CK_SupplierReturnItems_UnitPrice", "[UnitPrice] >= 0");
+                        });
+                });
+
+            modelBuilder.Entity("ShopEx.Domain.Entity.User", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETDATE()");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<DateTime?>("LastLoginAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<string>("Password")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Phone")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<int>("Role")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("SecurityStamp")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int?>("StoreId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Username")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StoreId");
+
+                    b.HasIndex("Username")
+                        .IsUnique();
+
+                    b.ToTable("Users", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Users_EmployeeHasStore", "[Role] = 1 OR [StoreId] IS NOT NULL");
                         });
                 });
 

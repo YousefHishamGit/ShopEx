@@ -43,6 +43,8 @@ export class StockComponent implements OnInit, OnDestroy {
   readonly pageSize = 20;
   totalCount = 0;
   totalPages = 0;
+  totalQuantity = 0;
+  totalCost = 0;
 
   loading: boolean = false;
   errorMessage: string = '';
@@ -132,6 +134,8 @@ export class StockComponent implements OnInit, OnDestroy {
         this.balances = res.items || [];
         this.totalCount = res.totalCount;
         this.totalPages = res.totalPages;
+        this.totalQuantity = res.totalQuantity;
+        this.totalCost = res.totalCost;
         this.loading = false;
       },
       error: (err) => {

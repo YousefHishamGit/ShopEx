@@ -14,7 +14,7 @@ namespace ShopEx.Application.interfaces.ShopEx.Services
         // الاستعلامات
         Task<MaintenanceTicketResponse?> GetByIdAsync(int id, CancellationToken ct = default);
         Task<MaintenanceTicketResponse?> GetByTicketNumberAsync(string ticketNumber, CancellationToken ct = default);
-        Task<List<MaintenanceTicketSummaryResponse>> GetAllAsync(MaintenanceStatus? status = null, string? customerPhone = null, CancellationToken ct = default);
+        Task<List<MaintenanceTicketSummaryResponse>> GetAllAsync(MaintenanceStatus? status = null, string? customerPhone = null, int? storeId = null, CancellationToken ct = default);
 
         // المرحلة الثانية: تسجيل الإصلاحات والعمليات
         Task<MaintenanceTicketResponse> AddOperationAsync(int ticketId, AddTicketOperationRequest request, CancellationToken ct = default);

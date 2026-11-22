@@ -67,6 +67,10 @@ export interface SupplierInvoice {
   invoiceNumber: string;
   invoiceDate: string;
   dueDate?: string;
+  subTotal?: number;
+  discountType?: number;   // 0 none, 1 percent, 2 amount
+  discountValue?: number;
+  discountAmount?: number;
   paymentType: number;
   paymentTypeName?: string;
   creditDays?: number;
@@ -102,6 +106,8 @@ export interface SupplierInvoiceStatement {
   id: number;
   invoiceNumber: string;
   invoiceDate: string;
+  subTotal?: number;
+  discountAmount?: number;
   totalAmount: number;
   paidAmount: number;
   remainingAmount: number;
@@ -182,6 +188,8 @@ export interface CreateInvoiceRequest {
   paymentType: number; // 1 = Cash, 2 = Credit
   creditDays?: number;
   notes?: string;
+  discountType?: number;   // 0 none, 1 percent, 2 amount
+  discountValue?: number;
   initialPayment?: number;
   initialPaymentMethod?: string;
   dueDate?: string;
@@ -279,6 +287,8 @@ export interface MaintenancePayment {
 export interface MaintenanceTicketSummary {
   id: number;
   ticketNumber: string;
+  storeId?: number | null;
+  storeName?: string | null;
   customerName: string;
   customerPhone: string;
   deviceName: string;
@@ -295,6 +305,8 @@ export interface MaintenanceTicket {
   id: number;
   ticketNumber: string;
   receivedBy: string;
+  storeId?: number | null;
+  storeName?: string | null;
   customerName: string;
   customerPhone: string;
   deviceName: string;
@@ -396,6 +408,8 @@ export interface PagedStockBalances {
   page: number;
   pageSize: number;
   totalCount: number;
+  totalQuantity: number;
+  totalCost: number;
   totalPages: number;
 }
 
@@ -987,4 +1001,47 @@ export interface ExpenseSummaryDto {
   totalPages: number;
   items: ExpenseResponse[];
   categorySummaries: ExpenseByCategorySummaryDto[];
+}
+
+// ============================================
+// Users & Auth Models (المستخدمون وتسجيل الدخول)
+// ============================================
+
+export enum UserRole {
+  Admin = 1,     // موظف HQ — كل الصلاحيات
+  Employee = 2   // موظف فرع — استلام/تسليم صيانة وتقفيل رصيد فرعه فقط
+}
+
+export interface AppUser {
+  id: number;
+  name: string;
+  phone: string;
+  role: UserRole;
+  roleName: string;
+  username: string;
+  storeId?: number | null;
+  storeName?: string | null;
+  isActive: boolean;
+  createdAt: string;
+  lastLoginAt?: string | null;
+}
+
+export interface LoginRequest {
+  username: string;
+  password: string;
+}
+
+export interface LoginResponse {
+  token: string;
+  expiresAt: string;
+  user: AppUser;
+}
+
+export interface CreateUserRequest {
+  name: string;
+  phone: string;
+  role: UserRole;
+  username: string;
+  password: string;
+  storeId?: number | null;
 }

@@ -3,23 +3,27 @@
   <p class="text-sm text-light-on-surface-variant">جاري تحميل بيانات تذكرة الصيانة...</p>
 </div>
 
-<div *ngIf="!loading && errorMessage && !ticket" class="p-6 bg-error-container text-on-error-container rounded-xl text-center" dir="rtl">
+<div *ngIf="!loading && errorMessage && !ticket"
+  class="p-6 bg-error-container text-on-error-container rounded-xl text-center" dir="rtl">
   <span class="material-symbols-outlined text-error text-[48px] mb-2">error</span>
   <h3 class="text-lg font-bold">حدث خطأ</h3>
   <p class="text-sm mt-1 mb-4">{{ errorMessage }}</p>
-  <a routerLink="/maintenance" class="inline-flex items-center gap-1.5 px-4 py-2 bg-primary text-on-primary rounded-lg text-sm">
+  <a routerLink="/maintenance"
+    class="inline-flex items-center gap-1.5 px-4 py-2 bg-primary text-on-primary rounded-lg text-sm">
     <span>العودة لقائمة الصيانة</span>
   </a>
 </div>
 
 <div *ngIf="!loading && ticket" class="space-y-6" dir="rtl">
   <!-- Toast Messages (No-Print) -->
-  <div *ngIf="successMessage" class="no-print p-4 bg-emerald-50 text-emerald-800 rounded-xl border border-emerald-200 flex items-center gap-2">
+  <div *ngIf="successMessage"
+    class="no-print p-4 bg-emerald-50 text-emerald-800 rounded-xl border border-emerald-200 flex items-center gap-2">
     <span class="material-symbols-outlined text-emerald-600">check_circle</span>
     <span class="text-sm font-medium">{{ successMessage }}</span>
   </div>
 
-  <div *ngIf="errorMessage" class="no-print p-4 bg-error-container text-on-error-container rounded-xl border border-error/20 flex items-center gap-2">
+  <div *ngIf="errorMessage"
+    class="no-print p-4 bg-error-container text-on-error-container rounded-xl border border-error/20 flex items-center gap-2">
     <span class="material-symbols-outlined text-error">error</span>
     <span class="text-sm font-medium">{{ errorMessage }}</span>
   </div>
@@ -27,7 +31,9 @@
   <!-- Top Action Bar (No-Print) -->
   <div class="no-print flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
     <div class="flex items-center gap-3">
-      <a routerLink="/maintenance" class="p-2 hover:bg-light-surface rounded-lg text-light-on-surface-variant transition-colors" title="الرجوع للقائمة">
+      <a routerLink="/maintenance"
+        class="p-2 hover:bg-light-surface rounded-lg text-light-on-surface-variant transition-colors"
+        title="الرجوع للقائمة">
         <span class="material-symbols-outlined text-[24px]">arrow_forward</span>
       </a>
       <div>
@@ -46,23 +52,25 @@
 
     <!-- Quick Action Buttons -->
     <div class="flex items-center gap-2 flex-wrap">
-      <button (click)="printReceipt()" class="px-4 py-2 bg-light-surface border border-outline hover:bg-light-surface-variant rounded-lg text-sm font-medium text-light-on-surface flex items-center gap-1.5 transition-colors shadow-sm">
+      <button (click)="printReceipt()"
+        class="px-4 py-2 bg-light-surface border border-outline hover:bg-light-surface-variant rounded-lg text-sm font-medium text-light-on-surface flex items-center gap-1.5 transition-colors shadow-sm">
         <span class="material-symbols-outlined text-[18px]">print</span>
         <span>طباعة الإيصال</span>
       </button>
 
       <!-- Stage 2 Button: Complete Repair (if not already completed/delivered) -->
-      <button *ngIf="ticket.status !== MaintenanceStatus.Completed && ticket.status !== MaintenanceStatus.Delivered && ticket.status !== MaintenanceStatus.Cancelled"
-              (click)="openCompleteRepairModal()"
-              class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium flex items-center gap-1.5 transition-colors shadow-sm">
+      <button
+        *ngIf="ticket.status !== MaintenanceStatus.Completed && ticket.status !== MaintenanceStatus.Delivered && ticket.status !== MaintenanceStatus.Cancelled"
+        (click)="openCompleteRepairModal()"
+        class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium flex items-center gap-1.5 transition-colors shadow-sm">
         <span class="material-symbols-outlined text-[18px]">check_circle</span>
         <span>تم الإصلاح وجاهز للتسليم</span>
       </button>
 
       <!-- Stage 3 Button: Deliver to customer -->
       <button *ngIf="ticket.status !== MaintenanceStatus.Delivered && ticket.status !== MaintenanceStatus.Cancelled"
-              (click)="openDeliveryModal()"
-              class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium flex items-center gap-1.5 transition-colors shadow-sm">
+        (click)="openDeliveryModal()"
+        class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium flex items-center gap-1.5 transition-colors shadow-sm">
         <span class="material-symbols-outlined text-[18px]">task_alt</span>
         <span>تسليم الجهاز للعميل والتحصيل</span>
       </button>
@@ -74,7 +82,8 @@
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 relative">
       <!-- Stage 1 -->
       <div class="flex items-center gap-3 p-3 rounded-lg bg-blue-50/70 border border-blue-200">
-        <div class="w-10 h-10 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-sm shrink-0">
+        <div
+          class="w-10 h-10 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-sm shrink-0">
           <span class="material-symbols-outlined text-[20px]">check</span>
         </div>
         <div>
@@ -85,36 +94,52 @@
       </div>
 
       <!-- Stage 2 -->
-      <div [class]="ticket.status === MaintenanceStatus.Completed || ticket.status === MaintenanceStatus.Delivered ? 'bg-purple-50/70 border-purple-200' : (ticket.status === MaintenanceStatus.UnderRepair ? 'bg-amber-50/70 border-amber-200' : 'bg-gray-50 border-gray-200')"
-           class="flex items-center gap-3 p-3 rounded-lg border transition-colors">
-        <div [class]="ticket.status === MaintenanceStatus.Completed || ticket.status === MaintenanceStatus.Delivered ? 'bg-purple-600 text-white' : (ticket.status === MaintenanceStatus.UnderRepair ? 'bg-amber-500 text-white' : 'bg-gray-300 text-gray-600')"
-             class="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm shrink-0">
-          <span *ngIf="ticket.status === MaintenanceStatus.Completed || ticket.status === MaintenanceStatus.Delivered" class="material-symbols-outlined text-[20px]">check</span>
-          <span *ngIf="ticket.status !== MaintenanceStatus.Completed && ticket.status !== MaintenanceStatus.Delivered">2</span>
+      <div
+        [class]="ticket.status === MaintenanceStatus.Completed || ticket.status === MaintenanceStatus.Delivered ? 'bg-purple-50/70 border-purple-200' : (ticket.status === MaintenanceStatus.UnderRepair ? 'bg-amber-50/70 border-amber-200' : 'bg-gray-50 border-gray-200')"
+        class="flex items-center gap-3 p-3 rounded-lg border transition-colors">
+        <div
+          [class]="ticket.status === MaintenanceStatus.Completed || ticket.status === MaintenanceStatus.Delivered ? 'bg-purple-600 text-white' : (ticket.status === MaintenanceStatus.UnderRepair ? 'bg-amber-500 text-white' : 'bg-gray-300 text-gray-600')"
+          class="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm shrink-0">
+          <span *ngIf="ticket.status === MaintenanceStatus.Completed || ticket.status === MaintenanceStatus.Delivered"
+            class="material-symbols-outlined text-[20px]">check</span>
+          <span
+            *ngIf="ticket.status !== MaintenanceStatus.Completed && ticket.status !== MaintenanceStatus.Delivered">2</span>
         </div>
         <div>
-          <div class="text-xs font-semibold" [class]="ticket.status === MaintenanceStatus.Completed || ticket.status === MaintenanceStatus.Delivered ? 'text-purple-800' : 'text-gray-700'">المرحلة 2: الإصلاح والتكلفة</div>
+          <div class="text-xs font-semibold"
+            [class]="ticket.status === MaintenanceStatus.Completed || ticket.status === MaintenanceStatus.Delivered ? 'text-purple-800' : 'text-gray-700'">
+            المرحلة 2: الإصلاح والتكلفة</div>
           <div class="text-sm font-bold text-light-on-surface">
-            {{ ticket.status === MaintenanceStatus.Completed || ticket.status === MaintenanceStatus.Delivered ? 'تم الإصلاح بنجاح' : (ticket.status === MaintenanceStatus.UnderRepair ? 'قيد العمل على الجهاز' : 'بانتظار بدء الإصلاح') }}
+            {{ ticket.status === MaintenanceStatus.Completed || ticket.status === MaintenanceStatus.Delivered ? 'تم
+            الإصلاح بنجاح' : (ticket.status === MaintenanceStatus.UnderRepair ? 'قيد العمل على الجهاز' : 'بانتظار بدء
+            الإصلاح') }}
           </div>
-          <div *ngIf="ticket.repairedAt" class="text-[11px] text-gray-500">{{ ticket.repairedAt | date:'MM/dd, h:mm a' }}</div>
+          <div *ngIf="ticket.repairedAt" class="text-[11px] text-gray-500">{{ ticket.repairedAt | date:'MM/dd, h:mm a'
+            }}</div>
         </div>
       </div>
 
       <!-- Stage 3 -->
-      <div [class]="ticket.status === MaintenanceStatus.Delivered ? 'bg-emerald-50/70 border-emerald-200' : 'bg-gray-50 border-gray-200'"
-           class="flex items-center gap-3 p-3 rounded-lg border transition-colors">
-        <div [class]="ticket.status === MaintenanceStatus.Delivered ? 'bg-emerald-600 text-white' : 'bg-gray-300 text-gray-600'"
-             class="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm shrink-0">
-          <span *ngIf="ticket.status === MaintenanceStatus.Delivered" class="material-symbols-outlined text-[20px]">check</span>
+      <div
+        [class]="ticket.status === MaintenanceStatus.Delivered ? 'bg-emerald-50/70 border-emerald-200' : 'bg-gray-50 border-gray-200'"
+        class="flex items-center gap-3 p-3 rounded-lg border transition-colors">
+        <div
+          [class]="ticket.status === MaintenanceStatus.Delivered ? 'bg-emerald-600 text-white' : 'bg-gray-300 text-gray-600'"
+          class="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm shrink-0">
+          <span *ngIf="ticket.status === MaintenanceStatus.Delivered"
+            class="material-symbols-outlined text-[20px]">check</span>
           <span *ngIf="ticket.status !== MaintenanceStatus.Delivered">3</span>
         </div>
         <div>
-          <div class="text-xs font-semibold" [class]="ticket.status === MaintenanceStatus.Delivered ? 'text-emerald-800' : 'text-gray-700'">المرحلة 3: التسليم والدفع</div>
+          <div class="text-xs font-semibold"
+            [class]="ticket.status === MaintenanceStatus.Delivered ? 'text-emerald-800' : 'text-gray-700'">المرحلة 3:
+            التسليم والدفع</div>
           <div class="text-sm font-bold text-light-on-surface">
-            {{ ticket.status === MaintenanceStatus.Delivered ? 'تم تسليم الجهاز وتحصيل المبلغ' : (ticket.status === MaintenanceStatus.Completed ? 'جاهز للتسليم للعميل' : 'بانتظار اكتمال الإصلاح') }}
+            {{ ticket.status === MaintenanceStatus.Delivered ? 'تم تسليم الجهاز وتحصيل المبلغ' : (ticket.status ===
+            MaintenanceStatus.Completed ? 'جاهز للتسليم للعميل' : 'بانتظار اكتمال الإصلاح') }}
           </div>
-          <div *ngIf="ticket.deliveredAt" class="text-[11px] text-gray-500">{{ ticket.deliveredAt | date:'MM/dd, h:mm a' }}</div>
+          <div *ngIf="ticket.deliveredAt" class="text-[11px] text-gray-500">{{ ticket.deliveredAt | date:'MM/dd, h:mm a'
+            }}</div>
         </div>
       </div>
     </div>
@@ -145,7 +170,8 @@
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
       <!-- Customer Info -->
       <div class="bg-light-surface-container/40 p-4 rounded-xl border border-outline/70 space-y-2">
-        <div class="text-xs font-bold text-light-on-surface-variant pb-1 border-b border-outline/50 flex items-center gap-1.5">
+        <div
+          class="text-xs font-bold text-light-on-surface-variant pb-1 border-b border-outline/50 flex items-center gap-1.5">
           <span class="material-symbols-outlined text-[16px] text-primary">person</span>
           <span>بيانات العميل</span>
         </div>
@@ -157,6 +183,10 @@
           <span class="text-light-on-surface-variant">رقم الهاتف:</span>
           <span class="font-bold text-light-on-surface dir-ltr text-right">{{ ticket.customerPhone }}</span>
         </div>
+        <div *ngIf="ticket.storeName" class="flex justify-between text-sm py-1">
+          <span class="text-light-on-surface-variant">الفرع:</span>
+          <span class="text-light-on-surface font-medium">{{ ticket.storeName }}</span>
+        </div>
         <div *ngIf="ticket.receivedBy" class="flex justify-between text-sm py-1">
           <span class="text-light-on-surface-variant">الموظف المستلم:</span>
           <span class="text-light-on-surface font-medium">{{ ticket.receivedBy }}</span>
@@ -165,7 +195,8 @@
 
       <!-- Device Info -->
       <div class="bg-light-surface-container/40 p-4 rounded-xl border border-outline/70 space-y-2">
-        <div class="text-xs font-bold text-light-on-surface-variant pb-1 border-b border-outline/50 flex items-center gap-1.5">
+        <div
+          class="text-xs font-bold text-light-on-surface-variant pb-1 border-b border-outline/50 flex items-center gap-1.5">
           <span class="material-symbols-outlined text-[16px] text-primary">smartphone</span>
           <span>بيانات الجهاز المستلم</span>
         </div>
@@ -212,29 +243,24 @@
       <div class="flex items-center justify-between pb-2 border-b border-outline">
         <div class="flex items-center gap-2">
           <span class="material-symbols-outlined text-purple-700 text-[22px]">build</span>
-          <h3 class="text-base font-bold text-light-on-surface">المرحلة الثانية: عمليات وقطع الصيانة المنفذة («عملت كذا وسعرها كذا»)</h3>
+          <h3 class="text-base font-bold text-light-on-surface">المرحلة الثانية: عمليات وقطع الصيانة المنفذة</h3>
         </div>
       </div>
 
       <!-- Quick Add Operation Form (No-Print) -->
-      <div *ngIf="ticket.status !== MaintenanceStatus.Delivered" class="no-print bg-purple-50/50 p-4 rounded-xl border border-purple-200/80 space-y-3">
+      <div *ngIf="ticket.status !== MaintenanceStatus.Delivered"
+        class="no-print bg-purple-50/50 p-4 rounded-xl border border-purple-200/80 space-y-3">
         <div class="flex items-center justify-between">
           <div class="text-xs font-bold text-purple-900 flex items-center gap-1.5">
             <span class="material-symbols-outlined text-[18px]">add_task</span>
-            <span>تسجيل إصلاح جديد / قطعة مستبدلة («عملت كذا وسعرها كذا»)</span>
+            <span>تسجيل إصلاح جديد / قطعة مستبدلة</span>
           </div>
 
           <!-- Quick Tabbed Selection Trigger -->
           <div class="w-64">
-            <app-tabbed-select
-              [items]="standardOperations"
-              [selectedId]="selectedOperationId"
-              placeholder="اختيار إصلاح / قطعة جاهزة..."
-              title="دليل عمليات وقطع الصيانة الشائعة"
-              defaultIcon="build"
-              [pageSize]="10"
-              (select)="onSelectStandardOperation($event)"
-              (clear)="onClearStandardOperation()">
+            <app-tabbed-select [items]="standardOperations" [selectedId]="selectedOperationId"
+              placeholder="اختيار إصلاح / قطعة جاهزة..." title="دليل عمليات وقطع الصيانة الشائعة" defaultIcon="build"
+              [pageSize]="10" (select)="onSelectStandardOperation($event)" (clear)="onClearStandardOperation()">
             </app-tabbed-select>
           </div>
         </div>
@@ -245,10 +271,9 @@
             <label class="block text-xs font-semibold text-purple-900 mb-1">
               اسم العملية أو الإصلاح <span class="text-error">*</span>
             </label>
-            <input type="text"
-                   [(ngModel)]="newOperation.operationName"
-                   placeholder="مثال: تغيير شاشة أصلية، صيانة مسار شحن، لحام آيسي"
-                   class="w-full px-3 py-2 border border-outline rounded-lg text-sm bg-light-surface focus:outline-none focus:border-purple-600">
+            <input type="text" [(ngModel)]="newOperation.operationName"
+              placeholder="مثال: تغيير شاشة أصلية، صيانة مسار شحن، لحام آيسي"
+              class="w-full px-3 py-2 border border-outline rounded-lg text-sm bg-light-surface focus:outline-none focus:border-purple-600">
           </div>
 
           <!-- Cost -->
@@ -256,28 +281,23 @@
             <label class="block text-xs font-semibold text-purple-900 mb-1">
               التكلفة (ج.م) <span class="text-error">*</span>
             </label>
-            <input type="number"
-                   [(ngModel)]="newOperation.cost"
-                   min="0"
-                   placeholder="0.00"
-                   class="w-full px-3 py-2 border border-outline rounded-lg text-sm bg-light-surface focus:outline-none focus:border-purple-600 font-bold font-mono">
+            <input type="number" [(ngModel)]="newOperation.cost" min="0" placeholder="0.00"
+              class="w-full px-3 py-2 border border-outline rounded-lg text-sm bg-light-surface focus:outline-none focus:border-purple-600 font-bold font-mono">
           </div>
 
           <!-- Notes -->
           <div class="sm:col-span-3">
             <label class="block text-xs font-semibold text-purple-900 mb-1">ملاحظات الفني</label>
-            <input type="text"
-                   [(ngModel)]="newOperation.notes"
-                   placeholder="ملاحظات اختيارية"
-                   class="w-full px-3 py-2 border border-outline rounded-lg text-sm bg-light-surface focus:outline-none focus:border-purple-600">
+            <input type="text" [(ngModel)]="newOperation.notes" placeholder="ملاحظات اختيارية"
+              class="w-full px-3 py-2 border border-outline rounded-lg text-sm bg-light-surface focus:outline-none focus:border-purple-600">
           </div>
         </div>
 
         <div class="flex justify-end pt-1">
-          <button (click)="onAddOperation()"
-                  [disabled]="addingOperation"
-                  class="px-5 py-2 bg-purple-700 hover:bg-purple-800 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors shadow-sm disabled:opacity-50">
-            <span *ngIf="addingOperation" class="inline-block animate-spin w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full"></span>
+          <button (click)="onAddOperation()" [disabled]="addingOperation"
+            class="px-5 py-2 bg-purple-700 hover:bg-purple-800 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors shadow-sm disabled:opacity-50">
+            <span *ngIf="addingOperation"
+              class="inline-block animate-spin w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full"></span>
             <span *ngIf="!addingOperation" class="material-symbols-outlined text-[16px]">add</span>
             <span>إضافة إلى الفاتورة</span>
           </button>
@@ -287,13 +307,15 @@
       <!-- Operations Table -->
       <div class="border border-outline rounded-xl overflow-hidden">
         <table class="w-full text-sm text-right">
-          <thead class="bg-light-surface-container text-xs font-semibold text-light-on-surface-variant border-b border-outline">
+          <thead
+            class="bg-light-surface-container text-xs font-semibold text-light-on-surface-variant border-b border-outline">
             <tr>
               <th class="py-2.5 px-4 w-12 text-center">#</th>
               <th class="py-2.5 px-4">اسم العملية / الإصلاح («عملت كذا»)</th>
               <th class="py-2.5 px-4">ملاحظات</th>
               <th class="py-2.5 px-4 text-left">التكلفة («سعرها كذا»)</th>
-              <th *ngIf="ticket.status !== MaintenanceStatus.Delivered" class="no-print py-2.5 px-4 text-center w-16">حذف</th>
+              <th *ngIf="ticket.status !== MaintenanceStatus.Delivered" class="no-print py-2.5 px-4 text-center w-16">
+                حذف</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-outline">
@@ -303,13 +325,15 @@
               <td class="py-3 px-4 text-xs text-light-on-surface-variant">{{ op.notes || '-' }}</td>
               <td class="py-3 px-4 text-left font-bold text-light-on-surface">{{ op.cost | number:'1.2-2' }} ج.م</td>
               <td *ngIf="ticket.status !== MaintenanceStatus.Delivered" class="no-print py-3 px-4 text-center">
-                <button (click)="onDeleteOperation(op.id)" class="text-error hover:bg-error-container p-1 rounded transition-colors" title="حذف العملية">
+                <button (click)="onDeleteOperation(op.id)"
+                  class="text-error hover:bg-error-container p-1 rounded transition-colors" title="حذف العملية">
                   <span class="material-symbols-outlined text-[18px]">delete</span>
                 </button>
               </td>
             </tr>
             <tr *ngIf="ticket.operations.length === 0">
-              <td [attr.colspan]="ticket.status !== MaintenanceStatus.Delivered ? 5 : 4" class="py-6 text-center text-xs text-light-on-surface-variant">
+              <td [attr.colspan]="ticket.status !== MaintenanceStatus.Delivered ? 5 : 4"
+                class="py-6 text-center text-xs text-light-on-surface-variant">
                 لم يتم تسجيل أي عمليات صيانة منفذة حتى الآن.
               </td>
             </tr>
@@ -324,7 +348,8 @@
         </table>
       </div>
 
-      <div *ngIf="ticket.repairNotes" class="p-3 bg-purple-50 rounded-lg border border-purple-200 text-xs text-purple-900">
+      <div *ngIf="ticket.repairNotes"
+        class="p-3 bg-purple-50 rounded-lg border border-purple-200 text-xs text-purple-900">
         <span class="font-bold">ملاحظات انتهاء الإصلاح: </span>
         <span>{{ ticket.repairNotes }}</span>
       </div>
@@ -339,8 +364,8 @@
         </div>
 
         <button *ngIf="ticket.status !== MaintenanceStatus.Delivered && ticket.remainingAmount > 0"
-                (click)="openPaymentModal()"
-                class="no-print text-xs font-bold text-emerald-700 hover:bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-300 flex items-center gap-1 transition-colors">
+          (click)="openPaymentModal()"
+          class="no-print text-xs font-bold text-emerald-700 hover:bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-300 flex items-center gap-1 transition-colors">
           <span class="material-symbols-outlined text-[16px]">add_card</span>
           <span>إضافة دفعة</span>
         </button>
@@ -362,8 +387,9 @@
 
         <!-- Remaining Amount -->
         <div [class]="ticket.remainingAmount > 0 ? 'bg-rose-50 border-rose-200' : 'bg-gray-50 border-gray-200'"
-             class="p-4 rounded-xl border text-center">
-          <div class="text-xs font-medium" [class]="ticket.remainingAmount > 0 ? 'text-rose-700' : 'text-gray-600'">المتبقي للتحصيل</div>
+          class="p-4 rounded-xl border text-center">
+          <div class="text-xs font-medium" [class]="ticket.remainingAmount > 0 ? 'text-rose-700' : 'text-gray-600'">
+            المتبقي للتحصيل</div>
           <div class="text-xl font-bold mt-1" [class]="ticket.remainingAmount > 0 ? 'text-rose-800' : 'text-gray-700'">
             {{ ticket.remainingAmount | number:'1.2-2' }} ج.م
           </div>
@@ -373,7 +399,8 @@
       <!-- Payments Table -->
       <div *ngIf="ticket.payments.length > 0" class="border border-outline rounded-xl overflow-hidden">
         <table class="w-full text-sm text-right">
-          <thead class="bg-light-surface-container text-xs font-semibold text-light-on-surface-variant border-b border-outline">
+          <thead
+            class="bg-light-surface-container text-xs font-semibold text-light-on-surface-variant border-b border-outline">
             <tr>
               <th class="py-2.5 px-4 w-12 text-center">#</th>
               <th class="py-2.5 px-4">المبلغ</th>
@@ -386,15 +413,18 @@
             <tr *ngFor="let p of ticket.payments; let idx = index" class="hover:bg-light-surface-variant/40">
               <td class="py-2.5 px-4 text-center text-xs text-gray-500 font-mono">{{ idx + 1 }}</td>
               <td class="py-2.5 px-4 font-bold text-emerald-700">{{ p.amount | number:'1.2-2' }} ج.م</td>
-              <td class="py-2.5 px-4 text-xs text-light-on-surface font-medium">{{ getPaymentMethodName(p.paymentMethod) }}</td>
-              <td class="py-2.5 px-4 text-xs text-light-on-surface-variant">{{ p.paidAt | date:'yyyy/MM/dd, h:mm a' }}</td>
+              <td class="py-2.5 px-4 text-xs text-light-on-surface font-medium">{{ getPaymentMethodName(p.paymentMethod)
+                }}</td>
+              <td class="py-2.5 px-4 text-xs text-light-on-surface-variant">{{ p.paidAt | date:'yyyy/MM/dd, h:mm a' }}
+              </td>
               <td class="py-2.5 px-4 text-xs text-light-on-surface-variant">{{ p.notes || '-' }}</td>
             </tr>
           </tbody>
         </table>
       </div>
 
-      <div *ngIf="ticket.deliveryNotes" class="p-3 bg-emerald-50 rounded-lg border border-emerald-200 text-xs text-emerald-900">
+      <div *ngIf="ticket.deliveryNotes"
+        class="p-3 bg-emerald-50 rounded-lg border border-emerald-200 text-xs text-emerald-900">
         <span class="font-bold">ملاحظات التسليم للعميل: </span>
         <span>{{ ticket.deliveryNotes }}</span>
       </div>
@@ -402,10 +432,7 @@
   </div>
 
   <!-- ================= OFFICIAL PRINT RECEIPT (A4) ================= -->
-  <app-print-sheet
-    title="إيصال صيانة"
-    [docNumber]="ticket.ticketNumber"
-    [status]="getStatusArabicName(ticket.status)"
+  <app-print-sheet title="إيصال صيانة" [docNumber]="ticket.ticketNumber" [status]="getStatusArabicName(ticket.status)"
     subtitle="مركز ShopEx للصيانة"
     [signatures]="['توقيع المستلم / الفني', 'توقيع العميل بالاستلام والمعاينة', 'الاعتماد والختم']">
 
@@ -415,17 +442,22 @@
         <div class="ps-box-body">
           <div class="ps-kv"><span>اسم العميل:</span><strong>{{ ticket.customerName }}</strong></div>
           <div class="ps-kv"><span>الهاتف:</span><strong class="ps-mono">{{ ticket.customerPhone }}</strong></div>
-          <div class="ps-kv"><span>تاريخ الاستلام:</span><strong class="ps-mono">{{ ticket.receivedAt | date:'yyyy/MM/dd hh:mm a' }}</strong></div>
-          <div class="ps-kv" *ngIf="ticket.receivedBy"><span>الموظف المستلم:</span><strong>{{ ticket.receivedBy }}</strong></div>
+          <div class="ps-kv"><span>تاريخ الاستلام:</span><strong class="ps-mono">{{ ticket.receivedAt | date:'yyyy/MM/dd
+              hh:mm a' }}</strong></div>
+          <div class="ps-kv" *ngIf="ticket.storeName"><span>الفرع:</span><strong>{{ ticket.storeName }}</strong></div>
+          <div class="ps-kv" *ngIf="ticket.receivedBy"><span>الموظف المستلم:</span><strong>{{ ticket.receivedBy
+              }}</strong></div>
         </div>
       </div>
       <div class="ps-box">
         <div class="ps-box-title">بيانات الجهاز</div>
         <div class="ps-box-body">
           <div class="ps-kv"><span>الجهاز:</span><strong>{{ ticket.deviceName }}</strong></div>
-          <div class="ps-kv" *ngIf="ticket.brand || ticket.model"><span>الماركة / الموديل:</span><strong>{{ ticket.brand }} {{ ticket.model }}</strong></div>
+          <div class="ps-kv" *ngIf="ticket.brand || ticket.model"><span>الماركة / الموديل:</span><strong>{{ ticket.brand
+              }} {{ ticket.model }}</strong></div>
           <div class="ps-kv" *ngIf="ticket.color"><span>اللون:</span><strong>{{ ticket.color }}</strong></div>
-          <div class="ps-kv" *ngIf="ticket.serialNumber"><span>السيريال / IMEI:</span><strong class="ps-mono">{{ ticket.serialNumber }}</strong></div>
+          <div class="ps-kv" *ngIf="ticket.serialNumber"><span>السيريال / IMEI:</span><strong class="ps-mono">{{
+              ticket.serialNumber }}</strong></div>
         </div>
       </div>
     </div>
@@ -475,9 +507,18 @@
       </div>
       <div class="ps-totals">
         <table>
-          <tr><td>إجمالي التكلفة</td><td>{{ ticket.totalCost | number:'1.2-2' }} ج.م</td></tr>
-          <tr><td>المدفوع</td><td>{{ ticket.paidAmount | number:'1.2-2' }} ج.م</td></tr>
-          <tr class="ps-grand"><td>المتبقي</td><td>{{ ticket.remainingAmount | number:'1.2-2' }} ج.م</td></tr>
+          <tr>
+            <td>إجمالي التكلفة</td>
+            <td>{{ ticket.totalCost | number:'1.2-2' }} ج.م</td>
+          </tr>
+          <tr>
+            <td>المدفوع</td>
+            <td>{{ ticket.paidAmount | number:'1.2-2' }} ج.م</td>
+          </tr>
+          <tr class="ps-grand">
+            <td>المتبقي</td>
+            <td>{{ ticket.remainingAmount | number:'1.2-2' }} ج.م</td>
+          </tr>
         </table>
       </div>
     </div>
@@ -508,7 +549,8 @@
   </app-print-sheet>
 
   <!-- MODAL: Complete Repair Modal (المرحلة 2) -->
-  <div *ngIf="showCompleteRepairModal" class="no-print fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+  <div *ngIf="showCompleteRepairModal"
+    class="no-print fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
     <div class="bg-light-surface rounded-2xl max-w-lg w-full p-6 border border-outline shadow-xl space-y-4">
       <div class="flex items-center justify-between pb-3 border-b border-outline">
         <div class="flex items-center gap-2">
@@ -521,25 +563,26 @@
       </div>
 
       <p class="text-xs text-light-on-surface-variant">
-        عند تأكيد إتمام الصيانة، ستتحول حالة التذكرة إلى <b>«تم الإصلاح (جاهز للتسليم)»</b>، ويمكنك إخطار العميل باستلام جهازه.
+        عند تأكيد إتمام الصيانة، ستتحول حالة التذكرة إلى <b>«تم الإصلاح (جاهز للتسليم)»</b>، ويمكنك إخطار العميل باستلام
+        جهازه.
       </p>
 
       <div>
         <label class="block text-xs font-semibold text-light-on-surface mb-1.5">ملاحظات الإصلاح النهائية للفني</label>
-        <textarea [(ngModel)]="repairNotes"
-                  rows="3"
-                  placeholder="مثال: تم تغيير الشاشة بنجاح واختبار اللمس والألوان والجهاز جاهز..."
-                  class="w-full px-3.5 py-2.5 border border-outline rounded-lg text-sm bg-light-surface focus:outline-none focus:border-purple-600"></textarea>
+        <textarea [(ngModel)]="repairNotes" rows="3"
+          placeholder="مثال: تم تغيير الشاشة بنجاح واختبار اللمس والألوان والجهاز جاهز..."
+          class="w-full px-3.5 py-2.5 border border-outline rounded-lg text-sm bg-light-surface focus:outline-none focus:border-purple-600"></textarea>
       </div>
 
       <div class="flex justify-end gap-2 pt-2">
-        <button (click)="showCompleteRepairModal = false" class="px-4 py-2 border border-outline hover:bg-light-surface-variant rounded-lg text-xs font-medium text-light-on-surface-variant">
+        <button (click)="showCompleteRepairModal = false"
+          class="px-4 py-2 border border-outline hover:bg-light-surface-variant rounded-lg text-xs font-medium text-light-on-surface-variant">
           إلغاء
         </button>
-        <button (click)="onCompleteRepair()"
-                [disabled]="completingRepair"
-                class="px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-sm">
-          <span *ngIf="completingRepair" class="inline-block animate-spin w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full"></span>
+        <button (click)="onCompleteRepair()" [disabled]="completingRepair"
+          class="px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-sm">
+          <span *ngIf="completingRepair"
+            class="inline-block animate-spin w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full"></span>
           <span>تأكيد إتمام الإصلاح</span>
         </button>
       </div>
@@ -547,7 +590,8 @@
   </div>
 
   <!-- MODAL: Delivery & Payment Modal (المرحلة 3) -->
-  <div *ngIf="showDeliveryModal" class="no-print fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+  <div *ngIf="showDeliveryModal"
+    class="no-print fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
     <div class="bg-light-surface rounded-2xl max-w-lg w-full p-6 border border-outline shadow-xl space-y-4">
       <div class="flex items-center justify-between pb-3 border-b border-outline">
         <div class="flex items-center gap-2">
@@ -559,7 +603,8 @@
         </button>
       </div>
 
-      <div class="bg-emerald-50 p-3 rounded-lg border border-emerald-200 text-xs text-emerald-900 flex justify-between items-center">
+      <div
+        class="bg-emerald-50 p-3 rounded-lg border border-emerald-200 text-xs text-emerald-900 flex justify-between items-center">
         <span>المبلغ المتبقي المطلوب سداده:</span>
         <span class="text-sm font-bold text-emerald-800">{{ ticket.remainingAmount | number:'1.2-2' }} ج.م</span>
       </div>
@@ -568,17 +613,15 @@
         <!-- Payment Amount -->
         <div>
           <label class="block text-xs font-semibold text-light-on-surface mb-1.5">المبلغ المحصل الآن (ج.م)</label>
-          <input type="number"
-                 [(ngModel)]="deliveryForm.paymentAmount"
-                 min="0"
-                 class="w-full px-3.5 py-2.5 border border-outline rounded-lg text-sm bg-light-surface focus:outline-none focus:border-emerald-600 font-bold">
+          <input type="number" [(ngModel)]="deliveryForm.paymentAmount" min="0"
+            class="w-full px-3.5 py-2.5 border border-outline rounded-lg text-sm bg-light-surface focus:outline-none focus:border-emerald-600 font-bold">
         </div>
 
         <!-- Payment Method -->
         <div>
           <label class="block text-xs font-semibold text-light-on-surface mb-1.5">طريقة الدفع</label>
           <select [(ngModel)]="deliveryForm.paymentMethod"
-                  class="w-full px-3.5 py-2.5 border border-outline rounded-lg text-sm bg-light-surface focus:outline-none focus:border-emerald-600">
+            class="w-full px-3.5 py-2.5 border border-outline rounded-lg text-sm bg-light-surface focus:outline-none focus:border-emerald-600">
             <option [ngValue]="MaintenancePaymentMethod.Cash">نقدي (Cash)</option>
             <option [ngValue]="MaintenancePaymentMethod.CreditCard">بطاقة بنكية (Credit Card)</option>
             <option [ngValue]="MaintenancePaymentMethod.ElectronicWallet">محفظة إلكترونية (Vodafone / InstaPay)</option>
@@ -588,21 +631,21 @@
         <!-- Delivery Notes -->
         <div>
           <label class="block text-xs font-semibold text-light-on-surface mb-1.5">ملاحظات التسليم</label>
-          <input type="text"
-                 [(ngModel)]="deliveryForm.deliveryNotes"
-                 placeholder="مثال: تم تسليم الجهاز للعميل شخصياً وتمت التجربة بنجاح"
-                 class="w-full px-3.5 py-2.5 border border-outline rounded-lg text-sm bg-light-surface focus:outline-none focus:border-emerald-600">
+          <input type="text" [(ngModel)]="deliveryForm.deliveryNotes"
+            placeholder="مثال: تم تسليم الجهاز للعميل شخصياً وتمت التجربة بنجاح"
+            class="w-full px-3.5 py-2.5 border border-outline rounded-lg text-sm bg-light-surface focus:outline-none focus:border-emerald-600">
         </div>
       </div>
 
       <div class="flex justify-end gap-2 pt-2">
-        <button (click)="showDeliveryModal = false" class="px-4 py-2 border border-outline hover:bg-light-surface-variant rounded-lg text-xs font-medium text-light-on-surface-variant">
+        <button (click)="showDeliveryModal = false"
+          class="px-4 py-2 border border-outline hover:bg-light-surface-variant rounded-lg text-xs font-medium text-light-on-surface-variant">
           إلغاء
         </button>
-        <button (click)="onDeliver()"
-                [disabled]="delivering"
-                class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-sm">
-          <span *ngIf="delivering" class="inline-block animate-spin w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full"></span>
+        <button (click)="onDeliver()" [disabled]="delivering"
+          class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-sm">
+          <span *ngIf="delivering"
+            class="inline-block animate-spin w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full"></span>
           <span>تسليم وتحصيل</span>
         </button>
       </div>
@@ -610,7 +653,8 @@
   </div>
 
   <!-- MODAL: Add Payment Modal -->
-  <div *ngIf="showPaymentModal" class="no-print fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+  <div *ngIf="showPaymentModal"
+    class="no-print fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
     <div class="bg-light-surface rounded-2xl max-w-md w-full p-6 border border-outline shadow-xl space-y-4">
       <div class="flex items-center justify-between pb-3 border-b border-outline">
         <div class="flex items-center gap-2">
@@ -626,17 +670,15 @@
         <!-- Amount -->
         <div>
           <label class="block text-xs font-semibold text-light-on-surface mb-1.5">المبلغ (ج.م) *</label>
-          <input type="number"
-                 [(ngModel)]="paymentForm.amount"
-                 min="0.01"
-                 class="w-full px-3.5 py-2.5 border border-outline rounded-lg text-sm bg-light-surface focus:outline-none focus:border-emerald-600 font-bold">
+          <input type="number" [(ngModel)]="paymentForm.amount" min="0.01"
+            class="w-full px-3.5 py-2.5 border border-outline rounded-lg text-sm bg-light-surface focus:outline-none focus:border-emerald-600 font-bold">
         </div>
 
         <!-- Payment Method -->
         <div>
           <label class="block text-xs font-semibold text-light-on-surface mb-1.5">طريقة الدفع</label>
           <select [(ngModel)]="paymentForm.paymentMethod"
-                  class="w-full px-3.5 py-2.5 border border-outline rounded-lg text-sm bg-light-surface focus:outline-none focus:border-emerald-600">
+            class="w-full px-3.5 py-2.5 border border-outline rounded-lg text-sm bg-light-surface focus:outline-none focus:border-emerald-600">
             <option [ngValue]="MaintenancePaymentMethod.Cash">نقدي (Cash)</option>
             <option [ngValue]="MaintenancePaymentMethod.CreditCard">بطاقة بنكية (Credit Card)</option>
             <option [ngValue]="MaintenancePaymentMethod.ElectronicWallet">محفظة إلكترونية (Vodafone / InstaPay)</option>
@@ -646,21 +688,20 @@
         <!-- Notes -->
         <div>
           <label class="block text-xs font-semibold text-light-on-surface mb-1.5">ملاحظات الدفعة</label>
-          <input type="text"
-                 [(ngModel)]="paymentForm.notes"
-                 placeholder="مثال: دفعة تحت الحساب"
-                 class="w-full px-3.5 py-2.5 border border-outline rounded-lg text-sm bg-light-surface focus:outline-none focus:border-emerald-600">
+          <input type="text" [(ngModel)]="paymentForm.notes" placeholder="مثال: دفعة تحت الحساب"
+            class="w-full px-3.5 py-2.5 border border-outline rounded-lg text-sm bg-light-surface focus:outline-none focus:border-emerald-600">
         </div>
       </div>
 
       <div class="flex justify-end gap-2 pt-2">
-        <button (click)="showPaymentModal = false" class="px-4 py-2 border border-outline hover:bg-light-surface-variant rounded-lg text-xs font-medium text-light-on-surface-variant">
+        <button (click)="showPaymentModal = false"
+          class="px-4 py-2 border border-outline hover:bg-light-surface-variant rounded-lg text-xs font-medium text-light-on-surface-variant">
           إلغاء
         </button>
-        <button (click)="onAddPayment()"
-                [disabled]="addingPayment"
-                class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-sm">
-          <span *ngIf="addingPayment" class="inline-block animate-spin w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full"></span>
+        <button (click)="onAddPayment()" [disabled]="addingPayment"
+          class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-sm">
+          <span *ngIf="addingPayment"
+            class="inline-block animate-spin w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full"></span>
           <span>تسجيل الدفعة</span>
         </button>
       </div>

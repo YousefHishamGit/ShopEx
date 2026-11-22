@@ -1,4 +1,5 @@
 using ShopEx.Application.DTOs.Maintenance;
+using ShopEx.Application.interfaces.RMS.Repositories;
 using ShopEx.Application.interfaces.ShopEx.Repositories;
 using ShopEx.Application.interfaces.ShopEx.Services;
 using ShopEx.Domain.Entity;
@@ -15,11 +16,14 @@ namespace ShopEx.Application.Services.ShopEx
     {
         private readonly IMaintenanceTicketRepository _ticketRepository;
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IStoreRepository _storeRepository;
 
         public MaintenanceTicketService(
             IMaintenanceTicketRepository ticketRepository,
-            IUnitOfWork unitOfWork)
+            IUnitOfWork unitOfWork,
+            IStoreRepository storeRepository)
         {
+            _storeRepository = storeRepository ?? throw new ArgumentNullException(nameof(storeRepository));
             _ticketRepository = ticketRepository ?? throw new ArgumentNullException(nameof(ticketRepository));
             _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
         }
@@ -45,6 +49,7 @@ namespace ShopEx.Application.Services.ShopEx
             {
                 TicketNumber = ticketNumber,
                 ReceivedBy = request.ReceivedBy?.Trim() ?? string.Empty,
+                StoreId = request.StoreId,
                 CustomerName = request.CustomerName.Trim(),
                 CustomerPhone = request.CustomerPhone.Trim(),
                 DeviceName = request.DeviceName.Trim(),
@@ -75,13 +80,13 @@ namespace ShopEx.Application.Services.ShopEx
             await _ticketRepository.AddAsync(ticket, ct);
             await _unitOfWork.SaveChangesAsync(ct);
 
-            return MapToResponse(ticket);
+            return await ToResponseAsync(ticket, ct);
         }
 
         public async Task<MaintenanceTicketResponse?> GetByIdAsync(int id, CancellationToken ct = default)
         {
             var ticket = await _ticketRepository.GetByIdAsync(id, ct);
-            return ticket == null ? null : MapToResponse(ticket);
+            return ticket == null ? null : await ToResponseAsync(ticket, ct);
         }
 
         public async Task<MaintenanceTicketResponse?> GetByTicketNumberAsync(string ticketNumber, CancellationToken ct = default)
@@ -90,30 +95,42 @@ namespace ShopEx.Application.Services.ShopEx
                 throw new ArgumentException("رقم التذكرة مطلوب.", nameof(ticketNumber));
 
             var ticket = await _ticketRepository.GetByTicketNumberAsync(ticketNumber.Trim(), ct);
-            return ticket == null ? null : MapToResponse(ticket);
+            return ticket == null ? null : await ToResponseAsync(ticket, ct);
         }
 
         public async Task<List<MaintenanceTicketSummaryResponse>> GetAllAsync(
             MaintenanceStatus? status = null,
             string? customerPhone = null,
+            int? storeId = null,
             CancellationToken ct = default)
         {
             List<MaintenanceTicket> tickets;
 
             if (status.HasValue)
             {
-                tickets = await _ticketRepository.GetByStatusAsync(status.Value, ct);
+                tickets = await _ticketRepository.GetByStatusAsync(status.Value, storeId, ct);
             }
             else if (!string.IsNullOrWhiteSpace(customerPhone))
             {
-                tickets = await _ticketRepository.GetByCustomerPhoneAsync(customerPhone.Trim(), ct);
+                tickets = await _ticketRepository.GetByCustomerPhoneAsync(customerPhone.Trim(), storeId, ct);
             }
             else
             {
-                tickets = await _ticketRepository.GetAllAsync(ct);
+                tickets = await _ticketRepository.GetAllAsync(storeId, ct);
             }
 
-            return tickets.Select(MapToSummaryResponse).ToList();
+            var names = tickets.Any(t => t.StoreId.HasValue)
+                ? await _storeRepository.GetNamesAsync(ct)
+                : new Dictionary<int, string>();
+
+            return tickets
+                .Select(t =>
+                {
+                    var dto = MapToSummaryResponse(t);
+                    dto.StoreName = StoreNameOf(names, t.StoreId);
+                    return dto;
+                })
+                .ToList();
         }
 
         // المرحلة الثانية: تسجيل الإصلاحات والعمليات المنفذة (عملت كذا وسعرها كذا)
@@ -158,7 +175,7 @@ namespace ShopEx.Application.Services.ShopEx
             _ticketRepository.Update(ticket);
             await _unitOfWork.SaveChangesAsync(ct);
 
-            return MapToResponse(ticket);
+            return await ToResponseAsync(ticket, ct);
         }
 
         public async Task<MaintenanceTicketResponse> DeleteOperationAsync(int ticketId, int operationId, CancellationToken ct = default)
@@ -177,7 +194,7 @@ namespace ShopEx.Application.Services.ShopEx
             _ticketRepository.RemoveOperation(operation);
             await _unitOfWork.SaveChangesAsync(ct);
 
-            return MapToResponse(ticket);
+            return await ToResponseAsync(ticket, ct);
         }
 
         public async Task<MaintenanceTicketResponse> CompleteRepairAsync(int ticketId, CompleteRepairRequest? request = null, CancellationToken ct = default)
@@ -222,7 +239,7 @@ namespace ShopEx.Application.Services.ShopEx
             _ticketRepository.Update(ticket);
             await _unitOfWork.SaveChangesAsync(ct);
 
-            return MapToResponse(ticket);
+            return await ToResponseAsync(ticket, ct);
         }
 
         // المرحلة الثالثة: الدفع والتسليم للعميل
@@ -254,7 +271,7 @@ namespace ShopEx.Application.Services.ShopEx
             _ticketRepository.Update(ticket);
             await _unitOfWork.SaveChangesAsync(ct);
 
-            return MapToResponse(ticket);
+            return await ToResponseAsync(ticket, ct);
         }
 
         public async Task<MaintenanceTicketResponse> DeliverTicketAsync(int ticketId, DeliverTicketRequest? request = null, CancellationToken ct = default)
@@ -304,7 +321,7 @@ namespace ShopEx.Application.Services.ShopEx
             _ticketRepository.Update(ticket);
             await _unitOfWork.SaveChangesAsync(ct);
 
-            return MapToResponse(ticket);
+            return await ToResponseAsync(ticket, ct);
         }
 
         public async Task<MaintenanceTicketResponse> UpdateStatusAsync(int ticketId, MaintenanceStatus newStatus, CancellationToken ct = default)
@@ -327,8 +344,19 @@ namespace ShopEx.Application.Services.ShopEx
             _ticketRepository.Update(ticket);
             await _unitOfWork.SaveChangesAsync(ct);
 
-            return MapToResponse(ticket);
+            return await ToResponseAsync(ticket, ct);
         }
+
+        private async Task<MaintenanceTicketResponse> ToResponseAsync(MaintenanceTicket ticket, CancellationToken ct)
+        {
+            var dto = MapToResponse(ticket);
+            if (ticket.StoreId.HasValue)
+                dto.StoreName = StoreNameOf(await _storeRepository.GetNamesAsync(ct), ticket.StoreId);
+            return dto;
+        }
+
+        private static string? StoreNameOf(Dictionary<int, string> names, int? storeId)
+            => storeId.HasValue ? (names.TryGetValue(storeId.Value, out var n) ? n : $"فرع #{storeId}") : null;
 
         private static MaintenanceTicketResponse MapToResponse(MaintenanceTicket ticket)
         {
@@ -337,6 +365,7 @@ namespace ShopEx.Application.Services.ShopEx
                 Id = ticket.Id,
                 TicketNumber = ticket.TicketNumber,
                 ReceivedBy = ticket.ReceivedBy,
+                StoreId = ticket.StoreId,
                 CustomerName = ticket.CustomerName,
                 CustomerPhone = ticket.CustomerPhone,
                 DeviceName = ticket.DeviceName,
@@ -385,6 +414,7 @@ namespace ShopEx.Application.Services.ShopEx
             {
                 Id = ticket.Id,
                 TicketNumber = ticket.TicketNumber,
+                StoreId = ticket.StoreId,
                 CustomerName = ticket.CustomerName,
                 CustomerPhone = ticket.CustomerPhone,
                 DeviceName = ticket.DeviceName,

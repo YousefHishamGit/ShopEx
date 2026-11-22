@@ -173,6 +173,8 @@ namespace ShopEx.Application.Services.RMS
                     ID = inv.ID,
                     InvoiceNumber = inv.InvoiceNumber,
                     InvoiceDate = inv.InvoiceDate,
+                    SubTotal = inv.SubTotal,
+                    DiscountAmount = inv.DiscountAmount,
                     TotalAmount = inv.TotalAmount,
                     PaidAmount = inv.PaidAmount,
                     RemainingAmount = inv.RemainingAmount,

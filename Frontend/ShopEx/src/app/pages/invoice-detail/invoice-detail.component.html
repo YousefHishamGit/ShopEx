@@ -86,7 +86,7 @@
         <div class="text-2xl font-black text-light-on-surface tabular-nums mt-1 font-mono">
           {{ invoice.totalAmount | number:'1.2-2' }} <span class="text-xs font-normal text-slate-500">ج.م</span>
         </div>
-        <span class="text-[11px] text-light-on-surface-variant">شامل الضريبة والبنود</span>
+        <span class="text-[11px] text-light-on-surface-variant">{{ hasDiscount ? ('بعد خصم ' + (invoice.discountAmount | number:'1.2-2') + ' ج.م') : 'إجمالي البنود' }}</span>
       </div>
 
       <div class="bg-green-50/60 p-4 rounded-xl border border-green-200">
@@ -207,7 +207,15 @@
         <div class="w-full sm:w-72 space-y-2">
           <div class="flex items-center justify-between text-xs text-light-on-surface-variant">
             <span>إجمالي البنود:</span>
-            <span class="font-mono font-bold">{{ invoice.totalAmount | number:'1.2-2' }} ج.م</span>
+            <span class="font-mono font-bold">{{ (hasDiscount ? invoice.subTotal : invoice.totalAmount) | number:'1.2-2' }} ج.م</span>
+          </div>
+          <div *ngIf="hasDiscount" class="flex items-center justify-between text-xs text-rose-600">
+            <span>الخصم{{ invoice.discountType === 1 ? ' (' + invoice.discountValue + '%)' : '' }}:</span>
+            <span class="font-mono font-bold">- {{ invoice.discountAmount | number:'1.2-2' }} ج.م</span>
+          </div>
+          <div *ngIf="hasDiscount" class="flex items-center justify-between text-xs font-bold text-slate-800">
+            <span>الصافي بعد الخصم:</span>
+            <span class="font-mono">{{ invoice.totalAmount | number:'1.2-2' }} ج.م</span>
           </div>
           <div class="flex items-center justify-between text-xs text-green-700">
             <span>المسدد (Paid):</span>
@@ -320,7 +328,9 @@
       </div>
       <div class="ps-totals">
         <table>
-          <tr><td>إجمالي الفاتورة</td><td>{{ invoice.totalAmount | number:'1.2-2' }} ج.م</td></tr>
+          <tr *ngIf="hasDiscount"><td>إجمالي البنود</td><td>{{ invoice.subTotal | number:'1.2-2' }} ج.م</td></tr>
+          <tr *ngIf="hasDiscount"><td>الخصم{{ invoice.discountType === 1 ? ' (' + invoice.discountValue + '%)' : '' }}</td><td>- {{ invoice.discountAmount | number:'1.2-2' }} ج.م</td></tr>
+          <tr><td>{{ hasDiscount ? 'الصافي بعد الخصم' : 'إجمالي الفاتورة' }}</td><td>{{ invoice.totalAmount | number:'1.2-2' }} ج.م</td></tr>
           <tr><td>المسدد</td><td>{{ invoice.paidAmount | number:'1.2-2' }} ج.م</td></tr>
           <tr class="ps-grand"><td>المتبقي</td><td>{{ invoice.remainingAmount | number:'1.2-2' }} ج.م</td></tr>
         </table>

@@ -15,14 +15,14 @@ export class MaintenanceListComponent implements OnInit {
   tickets: MaintenanceTicketSummary[] = [];
   filteredTickets: MaintenanceTicketSummary[] = [];
   searchTerm: string = '';
-  selectedStatus: string = 'ALL';
+  selectedStatus: string = '1';
   loading: boolean = true;
   errorMessage: string = '';
 
   // Enums for template usage
   MaintenanceStatus = MaintenanceStatus;
 
-  constructor(private maintenanceService: MaintenanceService) {}
+  constructor(private maintenanceService: MaintenanceService) { }
 
   ngOnInit(): void {
     this.fetchTickets();

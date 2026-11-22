@@ -75,8 +75,34 @@ namespace ShopEx.Application.Services.ShopEx
                 throw new InvalidOperationException($"Invoice number '{invoiceNumber}' already exists for supplier with ID {request.RMSSupplierID}.");
 
             
-            var totalAmount = Math.Round(
+            var subTotal = Math.Round(
                 request.Items.Sum(i => i.Quantity * i.UnitPrice), 2, MidpointRounding.AwayFromZero);
+
+            // Invoice-level discount (percentage or fixed amount) -> resolved to an amount
+            var discountValue = Math.Round(request.DiscountValue ?? 0m, 2, MidpointRounding.AwayFromZero);
+            var discountType = discountValue > 0 ? request.DiscountType : SupplierDiscountType.None;
+            decimal discountAmount = 0m;
+
+            if (discountType == SupplierDiscountType.Percent)
+            {
+                if (discountValue > 100)
+                    throw new ArgumentException("Discount percentage cannot exceed 100.", nameof(request.DiscountValue));
+                discountAmount = Math.Round(subTotal * discountValue / 100m, 2, MidpointRounding.AwayFromZero);
+            }
+            else if (discountType == SupplierDiscountType.Amount)
+            {
+                discountAmount = discountValue;
+            }
+            else
+            {
+                discountValue = 0m;
+            }
+
+            if (discountAmount > subTotal)
+                throw new ArgumentException(
+                    $"Discount ({discountAmount:N2}) cannot exceed the invoice subtotal ({subTotal:N2}).", nameof(request.DiscountValue));
+
+            var totalAmount = subTotal - discountAmount;   // net payable
 
            
             var isCredit = request.PaymentType == SupplierPaymentType.Credit;
@@ -115,6 +141,10 @@ namespace ShopEx.Application.Services.ShopEx
                 RMSSupplierID = request.RMSSupplierID,
                 InvoiceNumber = invoiceNumber,
                 InvoiceDate = invoiceDate,
+                SubTotal = subTotal,
+                DiscountType = discountType,
+                DiscountValue = discountValue,
+                DiscountAmount = discountAmount,
                 TotalAmount = totalAmount,
                 Notes = notes,
                 PaymentType = request.PaymentType,
@@ -157,6 +187,9 @@ namespace ShopEx.Application.Services.ShopEx
                 targetWarehouseId = defaultWh.ID;
             }
 
+            // Spread the discount over the items so stock cost matches what is actually payable
+            var costFactor = subTotal > 0 ? totalAmount / subTotal : 1m;
+
             // Merge duplicate item lines so each item is processed once against stock
             var stockLines = request.Items
                 .GroupBy(i => i.RMSItemID)
@@ -164,7 +197,7 @@ namespace ShopEx.Application.Services.ShopEx
                 {
                     RMSItemID = g.Key,
                     Quantity = g.Sum(x => x.Quantity),
-                    UnitPrice = g.Sum(x => x.Quantity * x.UnitPrice) / g.Sum(x => x.Quantity)
+                    UnitPrice = g.Sum(x => x.Quantity * x.UnitPrice) / g.Sum(x => x.Quantity) * costFactor
                 })
                 .ToList();
 
@@ -332,6 +365,10 @@ namespace ShopEx.Application.Services.ShopEx
                 RMSSupplierID = invoice.RMSSupplierID,
                 InvoiceNumber = invoice.InvoiceNumber,
                 InvoiceDate = invoice.InvoiceDate,
+                SubTotal = invoice.SubTotal,
+                DiscountType = invoice.DiscountType,
+                DiscountValue = invoice.DiscountValue,
+                DiscountAmount = invoice.DiscountAmount,
                 TotalAmount = invoice.TotalAmount,
                 Notes = invoice.Notes,
                 SupplierInvoiceStatus = invoice.SupplierInvoiceStatus,

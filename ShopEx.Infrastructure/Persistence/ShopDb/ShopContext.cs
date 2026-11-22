@@ -40,6 +40,8 @@ namespace ShopEx.Infrastructure.Persistence.ShopDb
         public DbSet<Balance> Balances => Set<Balance>();
         public DbSet<BalanceClosure> BalanceClosures => Set<BalanceClosure>();
 
+        public DbSet<User> Users => Set<User>();
+
         public DbSet<ExpenseCategory> ExpenseCategories => Set<ExpenseCategory>();
         public DbSet<Expense> Expenses => Set<Expense>();
 

@@ -9,6 +9,8 @@ namespace ShopEx.Application.DTOs.Maintenance
         public int Id { get; set; }
         public string TicketNumber { get; set; } = string.Empty;
         public string ReceivedBy { get; set; } = string.Empty;
+        public int? StoreId { get; set; }
+        public string? StoreName { get; set; }
 
         // المرحلة الأولى: الاستلام وبيانات الجهاز
         public string CustomerName { get; set; } = string.Empty;

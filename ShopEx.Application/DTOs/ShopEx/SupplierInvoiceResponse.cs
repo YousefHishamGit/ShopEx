@@ -11,6 +11,10 @@ namespace ShopEx.Application.DTOs.ShopEx
         public string? RMSSupplierName { get; set; }
         public string InvoiceNumber { get; set; } = string.Empty;
         public DateTime InvoiceDate { get; set; }
+        public decimal SubTotal { get; set; }
+        public SupplierDiscountType DiscountType { get; set; }
+        public decimal DiscountValue { get; set; }
+        public decimal DiscountAmount { get; set; }
         public decimal TotalAmount { get; set; }
         public string? Notes { get; set; }
         public SupplierInvoiceStatus SupplierInvoiceStatus { get; set; }

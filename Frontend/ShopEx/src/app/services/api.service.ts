@@ -215,6 +215,8 @@ export class ApiService {
       invoiceDate: request.invoiceDate ? request.invoiceDate : undefined,
       notes: request.notes?.trim() || undefined,
       paymentType: Number(request.paymentType),
+      discountType: Number(request.discountType || 0),
+      discountValue: request.discountType ? Number(request.discountValue || 0) : undefined,
       creditDays: (!isCash && request.creditDays && Number(request.creditDays) > 0) ? Number(request.creditDays) : undefined,
       initialPayment: isCash ? undefined : (request.initialPayment && Number(request.initialPayment) > 0 ? Number(request.initialPayment) : undefined),
       initialPaymentMethod: request.initialPaymentMethod?.trim() || (isCash ? 'Cash' : undefined),

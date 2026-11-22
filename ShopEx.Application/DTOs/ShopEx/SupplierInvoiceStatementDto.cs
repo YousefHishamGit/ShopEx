@@ -11,6 +11,8 @@ namespace ShopEx.Application.DTOs.ShopEx
         public int ID { get; set; }
         public string InvoiceNumber { get; set; }
         public DateTime InvoiceDate { get; set; }
+        public decimal SubTotal { get; set; }
+        public decimal DiscountAmount { get; set; }
         public decimal TotalAmount { get; set; }
         public decimal PaidAmount { get; set; }
         public decimal RemainingAmount { get; set; }

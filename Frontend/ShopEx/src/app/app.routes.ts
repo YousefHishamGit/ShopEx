@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { adminGuard, employeeGuard, guestGuard } from './core/auth.guard';
 
 // Every page is lazy-loaded so the initial bundle only contains the app shell.
 const suppliersList = () => import('./pages/suppliers-list/suppliers-list.component').then(m => m.SuppliersListComponent);
@@ -19,29 +20,58 @@ const customerStatementsList = () => import('./pages/customer-statements/custome
 const customerStatementDetail = () => import('./pages/customer-statements/customer-statement-detail/customer-statement-detail.component').then(m => m.CustomerStatementDetailComponent);
 const balances = () => import('./pages/balances/balances.component').then(m => m.BalancesComponent);
 const expenses = () => import('./pages/expenses/expenses.component').then(m => m.ExpensesComponent);
+const users = () => import('./pages/users/users.component').then(m => m.UsersComponent);
+const login = () => import('./pages/login/login.component').then(m => m.LoginComponent);
+const receiveDevice = () => import('./pages/branch/receive-device/receive-device.component').then(m => m.ReceiveDeviceComponent);
+const deliverDevice = () => import('./pages/branch/deliver-device/deliver-device.component').then(m => m.DeliverDeviceComponent);
+const closeBalance = () => import('./pages/branch/close-balance/close-balance.component').then(m => m.CloseBalanceComponent);
 
 export const routes: Routes = [
-  { path: '', redirectTo: 'suppliers', pathMatch: 'full' },
-  { path: 'suppliers', loadComponent: suppliersList },
-  { path: 'suppliers/:id', loadComponent: supplierStatement },
-  { path: 'suppliers/:id/statement', loadComponent: supplierStatement },
-  { path: 'suppliers/:id/items', loadComponent: supplierItems },
-  { path: 'worksheets', loadComponent: openWorksheet },
-  { path: 'worksheets/new', loadComponent: openWorksheet },
-  { path: 'invoices', loadComponent: invoicesList },
-  { path: 'invoices/new', loadComponent: createInvoice },
-  { path: 'invoices/:id', loadComponent: invoiceDetail },
-  { path: 'maintenance', loadComponent: maintenanceList },
-  { path: 'maintenance/new', loadComponent: maintenanceCreate },
-  { path: 'maintenance/:id', loadComponent: maintenanceDetail },
-  { path: 'stock', loadComponent: stock },
-  { path: 'supplier-returns', redirectTo: 'suppliers', pathMatch: 'full' },
-  { path: 'consignments', loadComponent: consignmentsList },
-  { path: 'consignments/new', loadComponent: createConsignment },
-  { path: 'consignments/:id', loadComponent: consignmentDetail },
-  { path: 'customer-statements', loadComponent: customerStatementsList },
-  { path: 'customer-statements/:id', loadComponent: customerStatementDetail },
-  { path: 'balances', loadComponent: balances },
-  { path: 'expenses', loadComponent: expenses },
-  { path: '**', redirectTo: 'suppliers' }
+  // Public
+  { path: 'login', canActivate: [guestGuard], loadComponent: login },
+
+  // Branch employee area: the only pages an Employee can open
+  {
+    path: 'branch',
+    canActivate: [employeeGuard],
+    children: [
+      { path: '', redirectTo: 'receive', pathMatch: 'full' },
+      { path: 'receive', loadComponent: receiveDevice },
+      { path: 'deliver', loadComponent: deliverDevice },
+      { path: 'balance', loadComponent: closeBalance }
+    ]
+  },
+
+  // HQ area: Admin only (every route below is guarded by the parent)
+  {
+    path: '',
+    canActivate: [adminGuard],
+    children: [
+      { path: '', redirectTo: 'suppliers', pathMatch: 'full' },
+      { path: 'suppliers', loadComponent: suppliersList },
+      { path: 'suppliers/:id', loadComponent: supplierStatement },
+      { path: 'suppliers/:id/statement', loadComponent: supplierStatement },
+      { path: 'suppliers/:id/items', loadComponent: supplierItems },
+      { path: 'worksheets', loadComponent: openWorksheet },
+      { path: 'worksheets/new', loadComponent: openWorksheet },
+      { path: 'invoices', loadComponent: invoicesList },
+      { path: 'invoices/new', loadComponent: createInvoice },
+      { path: 'invoices/:id', loadComponent: invoiceDetail },
+      { path: 'maintenance', loadComponent: maintenanceList },
+      { path: 'maintenance/new', loadComponent: maintenanceCreate },
+      { path: 'maintenance/:id', loadComponent: maintenanceDetail },
+      { path: 'stock', loadComponent: stock },
+      { path: 'supplier-returns', redirectTo: 'suppliers', pathMatch: 'full' },
+      { path: 'consignments', loadComponent: consignmentsList },
+      { path: 'consignments/new', loadComponent: createConsignment },
+      { path: 'consignments/:id', loadComponent: consignmentDetail },
+      { path: 'customer-statements', loadComponent: customerStatementsList },
+      { path: 'customer-statements/:id', loadComponent: customerStatementDetail },
+      { path: 'balances', loadComponent: balances },
+      { path: 'expenses', loadComponent: expenses },
+      { path: 'users', loadComponent: users }
+    ]
+  },
+
+  { path: '**', redirectTo: '' }
 ];

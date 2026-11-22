@@ -82,6 +82,8 @@ export class SupplierStatementComponent implements OnInit {
   newInitialPayment: number = 0;
   newInitialPaymentMethod: string = 'نقدي';
   newNotes: string = '';
+  newDiscountType: number = 0;   // 0 none, 1 percent, 2 amount
+  newDiscountValue: number = 0;
 
   invoiceItems: {
     rmsItemID: number;
@@ -836,8 +838,37 @@ export class SupplierStatementComponent implements OnInit {
     }
   }
 
-  get computedTotal(): number {
+  /** Sum of the item lines before discount. */
+  get computedSubTotal(): number {
     return this.invoiceItems.reduce((acc, cur) => acc + ((cur.quantity || 0) * (cur.unitPrice || 0)), 0);
+  }
+
+  /** Discount resolved to an amount (never more than the subtotal). */
+  get computedDiscount(): number {
+    const sub = this.computedSubTotal;
+    const v = Number(this.newDiscountValue) || 0;
+    if (this.newDiscountType === 1) return Math.min(sub, Math.round(sub * Math.min(v, 100)) / 100);
+    if (this.newDiscountType === 2) return Math.min(sub, v);
+    return 0;
+  }
+
+  get newDiscountError(): string {
+    const v = Number(this.newDiscountValue) || 0;
+    if (this.newDiscountType === 1 && (v < 0 || v > 100)) return 'النسبة يجب أن تكون بين 0 و 100.';
+    if (this.newDiscountType === 2 && v < 0) return 'مبلغ الخصم لا يمكن أن يكون سالباً.';
+    if (this.newDiscountType === 2 && v > this.computedSubTotal) return 'الخصم أكبر من إجمالي الفاتورة.';
+    return '';
+  }
+
+  onDiscountChange(): void {
+    if (this.newPaymentType === 1) {
+      this.newInitialPayment = this.computedTotal;
+    }
+  }
+
+  /** Net payable = subtotal - discount. Cash payment and balances are based on this. */
+  get computedTotal(): number {
+    return Math.round((this.computedSubTotal - this.computedDiscount) * 100) / 100;
   }
 
   submitNewInvoice(): void {
@@ -853,6 +884,11 @@ export class SupplierStatementComponent implements OnInit {
       return;
     }
 
+    if (this.newDiscountError) {
+      this.invoiceError = this.newDiscountError;
+      return;
+    }
+
     const isCash = Number(this.newPaymentType) === 1;
     const initialPaymentAmount = isCash ? this.computedTotal : (this.newInitialPayment > 0 ? Number(this.newInitialPayment) : undefined);
 
@@ -864,6 +900,8 @@ export class SupplierStatementComponent implements OnInit {
       creditDays: isCash ? undefined : (this.newCreditDays > 0 ? Number(this.newCreditDays) : undefined),
       dueDate: (!isCash && this.newDueDate) ? this.newDueDate : undefined,
       notes: this.newNotes?.trim() || undefined,
+      discountType: this.newDiscountType,
+      discountValue: this.newDiscountType ? Number(this.newDiscountValue) || 0 : undefined,
       initialPayment: initialPaymentAmount,
       initialPaymentMethod: isCash ? (this.newInitialPaymentMethod || 'نقدي') : (initialPaymentAmount && initialPaymentAmount > 0 ? this.newInitialPaymentMethod : undefined),
       items: this.invoiceItems.map(i => ({
@@ -897,6 +935,8 @@ export class SupplierStatementComponent implements OnInit {
     this.newCreditDays = 30;
     this.newInitialPayment = 0;
     this.newNotes = '';
+    this.newDiscountType = 0;
+    this.newDiscountValue = 0;
     this.invoiceItems = [
       { rmsItemID: 0, description: '', quantity: 1, unitPrice: 0 }
     ];

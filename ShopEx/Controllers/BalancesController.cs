@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -5,6 +6,7 @@ using ShopEx.Application.DTOs.Balance;
 using ShopEx.Application.interfaces.ShopEx.Services;
 using ShopEx.Domain.Enum;
 using ShopEx.Infrastructure.Persistence.RMS;
+using ShopEx.Security;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -15,6 +17,7 @@ namespace ShopEx.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    // الافتراضي: Admin فقط (FallbackPolicy). الموظف مسموح له فقط: رصيد فرعه (grouped/ledger) وتقفيل رصيد فرعه (close-store).
     public class BalancesController : ControllerBase
     {
         private readonly IBalanceService _balanceService;
@@ -48,12 +51,19 @@ namespace ShopEx.Controllers
         /// استرجاع رصيد كل فرع مجمعاً لكل وسيلة دفع (سطر واحد يجمع الـ 1000 والـ 1500 ليصبح 2500)
         /// </summary>
         [HttpGet("grouped")]
+        [Authorize(Roles = AppRoles.AdminOrEmployee)]
         [ProducesResponseType(typeof(List<StoreBalanceGroupDto>), StatusCodes.Status200OK)]
         public async Task<IActionResult> GetGrouped(
             [FromQuery] int? storeId,
             [FromQuery] BalanceType? balanceType,
             CancellationToken ct)
         {
+            if (!User.IsAdmin())
+            {
+                if (User.StoreId() is not int ownStore) return Forbid();
+                storeId = ownStore;
+            }
+
             var list = await _balanceService.GetGroupedBalancesAsync(storeId, balanceType, ct);
             return Ok(list);
         }
@@ -65,10 +75,27 @@ namespace ShopEx.Controllers
         /// تسجيل التقفيل اليومي للفرع مباشرة بدون الحاجة لتحديد شحنة معينة
         /// </summary>
         [HttpPost("close-store")]
+        [Authorize(Roles = AppRoles.AdminOrEmployee)]
         [ProducesResponseType(typeof(List<BalanceClosureResponse>), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> CloseStore([FromBody] CloseStoreBalanceRequest request, CancellationToken ct)
         {
+            if (request == null)
+            {
+                return BadRequest(new { message = "بيانات التقفيل مطلوبة." });
+            }
+
+            if (!User.IsAdmin())
+            {
+                if (User.StoreId() is not int ownStore) return Forbid();
+
+                // الموظف يقفل رصيد فرعه فقط (من التوكن)، بوقت السيرفر، ويُسجل اسمه في الملاحظات
+                request.StoreId = ownStore;
+                request.ClosedAt = null;
+                var note = request.Notes?.Trim();
+                request.Notes = string.IsNullOrEmpty(note) ? $"[{User.UserName()}]" : $"[{User.UserName()}] {note}";
+            }
+
             try
             {
                 var result = await _balanceService.CloseByStoreAsync(request, ct);
@@ -95,6 +122,7 @@ namespace ShopEx.Controllers
         /// استرجاع كشف الحركات والتحويلات التفصيلية (كل شحنة وتقفيل على حدة مرتبة زمنياً)
         /// </summary>
         [HttpGet("ledger")]
+        [Authorize(Roles = AppRoles.AdminOrEmployee)]
         [ProducesResponseType(typeof(List<BalanceTransactionItemDto>), StatusCodes.Status200OK)]
         public async Task<IActionResult> GetLedger(
             [FromQuery] int? storeId,
@@ -103,6 +131,12 @@ namespace ShopEx.Controllers
             [FromQuery] DateTime? toDate,
             CancellationToken ct)
         {
+            if (!User.IsAdmin())
+            {
+                if (User.StoreId() is not int ownStore) return Forbid();
+                storeId = ownStore;
+            }
+
             var list = await _balanceService.GetLedgerAsync(storeId, balanceType, fromDate, toDate, ct);
             return Ok(list);
         }

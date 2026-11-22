@@ -7,6 +7,8 @@ namespace ShopEx.Application.DTOs.Maintenance
     {
         public int Id { get; set; }
         public string TicketNumber { get; set; } = string.Empty;
+        public int? StoreId { get; set; }
+        public string? StoreName { get; set; }
         public string CustomerName { get; set; } = string.Empty;
         public string CustomerPhone { get; set; } = string.Empty;
         public string DeviceName { get; set; } = string.Empty;

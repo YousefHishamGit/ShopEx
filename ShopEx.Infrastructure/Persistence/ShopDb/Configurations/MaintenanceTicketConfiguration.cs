@@ -96,6 +96,7 @@ namespace ShopEx.Infrastructure.Persistence.ShopDb.Configurations
 
             builder.HasIndex(x => x.CustomerPhone);
             builder.HasIndex(x => x.Status);
+            builder.HasIndex(x => x.StoreId);
             builder.HasIndex(x => x.ReceivedAt);
         }
     }

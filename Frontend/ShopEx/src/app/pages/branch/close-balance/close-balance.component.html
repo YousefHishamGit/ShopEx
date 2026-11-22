@@ -1,0 +1,126 @@
+<div class="max-w-5xl mx-auto space-y-6" dir="rtl">
+  <!-- Header -->
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <div>
+      <h1 class="text-2xl font-bold text-light-on-surface">تقفيل الرصيد</h1>
+      <p class="text-sm text-light-on-surface-variant mt-1">
+        سجّل المبلغ الذي استخدمته من رصيد فرعك<span *ngIf="branchName"> ({{ branchName }})</span> لكل وسيلة دفع
+      </p>
+    </div>
+    <button type="button" (click)="load()" [disabled]="loading"
+      class="inline-flex items-center gap-2 px-4 py-2 border border-outline hover:bg-light-surface-variant rounded-lg text-sm text-light-on-surface-variant font-medium transition-colors">
+      <span class="material-symbols-outlined text-[20px]">refresh</span>
+      <span>تحديث</span>
+    </button>
+  </div>
+
+  <div *ngIf="errorMessage" role="alert"
+    class="p-4 bg-error-container text-on-error-container rounded-xl border border-error/20 flex items-center gap-3">
+    <span class="material-symbols-outlined text-error">error</span>
+    <span class="text-sm font-medium">{{ errorMessage }}</span>
+  </div>
+
+  <div *ngIf="loading" class="p-10 text-center text-sm text-light-on-surface-variant">جاري التحميل...</div>
+
+  <div *ngIf="!loading && !errorMessage && groups.length === 0"
+    class="bg-light-surface rounded-xl border border-outline shadow-sm p-10 text-center text-sm text-light-on-surface-variant">
+    لا توجد أرصدة مشحونة لفرعك حتى الآن.
+  </div>
+
+  <!-- Wallets -->
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" *ngIf="!loading && groups.length > 0">
+    <div *ngFor="let g of groups; trackBy: trackGroup"
+      class="bg-light-surface rounded-xl border border-outline shadow-sm p-5 space-y-4">
+      <div class="font-bold text-light-on-surface">{{ g.balanceTypeName }}</div>
+
+      <div>
+        <div class="text-xs text-light-on-surface-variant">الرصيد المتاح</div>
+        <div class="text-2xl font-extrabold"
+          [ngClass]="g.currentBalance > 0 ? 'text-success' : 'text-light-on-surface-variant'">
+          {{ g.currentBalance | number:'1.2-2' }} <span class="text-sm font-semibold">ج.م</span>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2 text-center text-xs">
+        <div class="p-2 rounded-lg bg-light-surface-variant">
+          <div class="text-light-on-surface-variant">إجمالي المشحون</div>
+          <div class="font-bold text-light-on-surface">{{ g.totalCharged | number:'1.2-2' }}</div>
+        </div>
+        <div class="p-2 rounded-lg bg-light-surface-variant">
+          <div class="text-light-on-surface-variant">إجمالي المستخدم</div>
+          <div class="font-bold text-light-on-surface">{{ g.totalUsed | number:'1.2-2' }}</div>
+        </div>
+      </div>
+
+      <button type="button" (click)="openModal(g)" [disabled]="g.currentBalance <= 0"
+        class="w-full inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-primary text-on-primary font-bold rounded-lg hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed shadow transition-all text-sm">
+        <span class="material-symbols-outlined text-[20px]">done_all</span>
+        <span>تقفيل استهلاك</span>
+      </button>
+    </div>
+  </div>
+
+
+</div>
+
+<!-- ============ Close modal ============ -->
+<div *ngIf="target" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" dir="rtl"
+  (click)="closeModal()">
+  <form (ngSubmit)="submit()" (click)="$event.stopPropagation()"
+    class="bg-light-surface rounded-2xl border border-outline shadow-2xl w-full max-w-md overflow-hidden">
+    <div class="px-6 py-4 border-b border-outline flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
+          <span class="material-symbols-outlined text-[22px]">done_all</span>
+        </div>
+        <div>
+          <h3 class="font-bold text-base text-light-on-surface">تقفيل استهلاك</h3>
+          <p class="text-xs text-light-on-surface-variant">{{ target.balanceTypeName }}</p>
+        </div>
+      </div>
+      <button type="button" (click)="closeModal()" class="text-gray-400 hover:text-gray-600 p-1" aria-label="إغلاق">
+        <span class="material-symbols-outlined text-[20px]">close</span>
+      </button>
+    </div>
+
+    <div class="p-6 space-y-4 text-xs">
+      <div *ngIf="modalError" role="alert" class="p-3 bg-error/10 border border-error/20 text-error rounded-xl">{{
+        modalError }}</div>
+
+      <div class="p-4 bg-light-surface-variant/50 border border-outline rounded-xl flex items-center justify-between">
+        <span class="text-amber-700 font-bold">الرصيد المتاح</span>
+        <span class="text-sm font-extrabold text-amber-700">{{ target.currentBalance | number:'1.2-2' }} ج.م</span>
+      </div>
+
+      <div>
+        <label class="block font-semibold text-light-on-surface mb-1">المبلغ الذي استخدمته (ج.م)</label>
+        <input type="number" name="amountUsed" [(ngModel)]="amountUsed" min="0.01" [max]="target.currentBalance"
+          step="0.01" required autofocus
+          class="w-full px-3.5 py-2.5 border border-outline rounded-lg text-sm bg-light-surface focus:outline-none focus:border-primary transition-all">
+        <p *ngIf="amountUsed" class="mt-1.5 text-[11px] text-light-on-surface-variant">
+          المتبقي بعد التقفيل: <span class="font-bold" [class.text-error]="remainingAfter < 0">{{ remainingAfter |
+            number:'1.2-2' }} ج.م</span>
+        </p>
+      </div>
+
+      <div>
+        <label class="block font-semibold text-light-on-surface mb-1">ملاحظات (اختياري)</label>
+        <input type="text" name="notes" [(ngModel)]="notes" maxlength="400"
+          class="w-full px-3.5 py-2.5 border border-outline rounded-lg text-sm bg-light-surface focus:outline-none focus:border-primary transition-all">
+      </div>
+    </div>
+
+    <div class="px-6 py-4 border-t border-outline flex items-center justify-end gap-3 bg-light-surface-variant/40">
+      <button type="button" (click)="closeModal()" [disabled]="submitting"
+        class="px-5 py-2.5 border border-outline hover:bg-light-surface-variant rounded-lg text-sm text-light-on-surface-variant font-medium transition-colors">
+        إلغاء
+      </button>
+      <button type="submit" [disabled]="submitting"
+        class="inline-flex items-center gap-2 px-6 py-2.5 bg-primary text-on-primary font-bold rounded-lg hover:bg-primary/90 disabled:opacity-60 shadow transition-all text-sm">
+        <span *ngIf="submitting"
+          class="inline-block animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></span>
+        <span>تأكيد التقفيل</span>
+      </button>
+    </div>
+  </form>
+</div>

@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using ShopEx.Domain.Entity;
+using ShopEx.Domain.Enum;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -17,6 +18,7 @@ namespace ShopEx.Infrastructure.Persistence.ShopDb.Configurations
             builder.ToTable("SupplierInvoices", t =>
             {
                 t.HasCheckConstraint("CK_SupplierInvoices_TotalAmount", "[TotalAmount] >= 0");
+                t.HasCheckConstraint("CK_SupplierInvoices_DiscountAmount", "[DiscountAmount] >= 0");
                 t.HasCheckConstraint("CK_SupplierInvoices_CreditDays", "[CreditDays] IS NULL OR [CreditDays] > 0");
             });
 
@@ -38,6 +40,21 @@ namespace ShopEx.Infrastructure.Persistence.ShopDb.Configurations
 
             builder.Property(x => x.TotalAmount)
                    .HasPrecision(18, 2);
+
+            builder.Property(x => x.SubTotal)
+                   .HasPrecision(18, 2);
+
+            builder.Property(x => x.DiscountValue)
+                   .HasPrecision(18, 2);
+
+            builder.Property(x => x.DiscountAmount)
+                   .HasPrecision(18, 2);
+
+            builder.Property(x => x.DiscountType)
+                   .HasConversion<string>()
+                   .HasMaxLength(20)
+                   .HasDefaultValue(SupplierDiscountType.None)
+                   .IsRequired();
 
             builder.Property(x => x.SupplierInvoiceStatus)
                    .HasConversion<string>()

@@ -76,6 +76,10 @@ export class InvoiceDetailComponent implements OnInit {
     });
   }
 
+  get hasDiscount(): boolean {
+    return !!this.invoice && (this.invoice.discountAmount || 0) > 0;
+  }
+
   get isPaid(): boolean {
     return !!this.invoice && this.invoice.remainingAmount <= 0;
   }

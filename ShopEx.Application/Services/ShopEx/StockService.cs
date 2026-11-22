@@ -203,7 +203,13 @@ namespace ShopEx.Application.Services.ShopEx
                 rows.Add(row);
             }
 
-            return new PagedStockBalanceResponse { Items = rows, Page = page, PageSize = pageSize, TotalCount = total };
+            var (totalQty, totalCost) = await _stockRepository.GetInStockTotalsAsync(warehouseId, ct);
+
+            return new PagedStockBalanceResponse
+            {
+                Items = rows, Page = page, PageSize = pageSize, TotalCount = total,
+                TotalQuantity = totalQty, TotalCost = totalCost
+            };
         }
 
         public async Task<StockBalanceResponse?> GetItemBalanceAsync(int warehouseId, int rmsItemId, CancellationToken ct = default)

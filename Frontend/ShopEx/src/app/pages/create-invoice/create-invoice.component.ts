@@ -35,6 +35,8 @@ export class CreateInvoiceComponent implements OnInit {
   creditDays: number = 30;
   notes: string = '';
   initialPayment: number = 0;
+  discountType: number = 0;   // 0 none, 1 percent, 2 amount
+  discountValue: number = 0;
   initialPaymentMethod: string = 'نقدي';
 
   items: ExtendedInvoiceItem[] = [];
@@ -231,12 +233,32 @@ export class CreateInvoiceComponent implements OnInit {
     }
   }
 
+  /** Sum of item lines before discount (the server does not apply the tax column). */
+  get subTotal(): number {
+    return this.items.reduce((sum, item) => sum + (item.quantity || 0) * (item.unitPrice || 0), 0);
+  }
+
+  get discountAmount(): number {
+    const sub = this.subTotal;
+    const v = Number(this.discountValue) || 0;
+    if (this.discountType === 1) return Math.min(sub, Math.round(sub * Math.min(v, 100)) / 100);
+    if (this.discountType === 2) return Math.min(sub, v);
+    return 0;
+  }
+
+  get discountError(): string {
+    const v = Number(this.discountValue) || 0;
+    if (this.discountType === 1 && (v < 0 || v > 100)) return 'النسبة يجب أن تكون بين 0 و 100.';
+    if (this.discountType === 2 && v < 0) return 'مبلغ الخصم لا يمكن أن يكون سالباً.';
+    if (this.discountType === 2 && v > this.subTotal) return 'الخصم أكبر من إجمالي الفاتورة.';
+    return '';
+  }
+
+  onDiscountChange(): void { /* totals are getters; nothing to recompute */ }
+
+  /** Net payable = subtotal - discount. */
   get totalAmount(): number {
-    return this.items.reduce((sum, item) => {
-      const line = (item.quantity || 0) * (item.unitPrice || 0);
-      const tax = line * ((item.taxRate || 0) / 100);
-      return sum + line + tax;
-    }, 0);
+    return Math.round((this.subTotal - this.discountAmount) * 100) / 100;
   }
 
   generateInvoiceNumber(): void {
@@ -268,6 +290,12 @@ export class CreateInvoiceComponent implements OnInit {
       return;
     }
 
+    if (this.discountError) {
+      this.errorMessage = this.discountError;
+      this.toast.error(this.errorMessage);
+      return;
+    }
+
     const isCash = this.paymentType === 1;
     const initialPaymentAmount = isCash ? this.totalAmount : (this.initialPayment > 0 ? this.initialPayment : undefined);
 
@@ -279,6 +307,8 @@ export class CreateInvoiceComponent implements OnInit {
       paymentType: this.paymentType,
       creditDays: isCash ? undefined : (this.creditDays > 0 ? this.creditDays : undefined),
       notes: this.notes.trim(),
+      discountType: this.discountType,
+      discountValue: this.discountType ? Number(this.discountValue) || 0 : undefined,
       initialPayment: initialPaymentAmount,
       initialPaymentMethod: isCash ? (this.initialPaymentMethod || 'نقدي') : (this.initialPayment > 0 ? this.initialPaymentMethod : undefined),
       items: this.items.map(i => ({

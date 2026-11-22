@@ -11,6 +11,9 @@ namespace ShopEx.Domain.Entity
         public string TicketNumber { get; set; } = string.Empty;
         public string ReceivedBy { get; set; } = string.Empty;
 
+        /// <summary>الفرع الذي استلم الجهاز (معرّف الفرع في RMS). null للتذاكر القديمة.</summary>
+        public int? StoreId { get; set; }
+
         public string CustomerName { get; set; } = string.Empty;
         public string CustomerPhone { get; set; } = string.Empty;
 

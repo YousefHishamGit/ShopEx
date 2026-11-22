@@ -31,18 +31,18 @@ export class MaintenanceDetailComponent implements OnInit {
 
   // Quick standard operations with tabs & pagination
   standardOperations: TabbedSelectItem[] = [
-    { id: 1, title: 'تغيير شاشة كاملة أصلية', category: 'شاشات', price: 650, icon: 'smartphone' },
-    { id: 2, title: 'تغيير باغة شاشة (Glass Only)', category: 'شاشات', price: 300, icon: 'smartphone' },
-    { id: 3, title: 'تغيير بطارية أصلية مع ضمان', category: 'بطاريات', price: 350, icon: 'battery_charging_full' },
-    { id: 4, title: 'صيانة سوكيت ومسار الشحن', category: 'شحن وباور', price: 180, icon: 'power' },
-    { id: 5, title: 'تغيير آيسي الشحن U2 / Tristar', category: 'شحن وباور', price: 450, icon: 'memory' },
-    { id: 6, title: 'تغيير فلاتة سماعة ومايك داخلي', category: 'صوتيات', price: 150, icon: 'mic' },
-    { id: 7, title: 'تغيير جرس خارجي / سبيكر', category: 'صوتيات', price: 160, icon: 'volume_up' },
-    { id: 8, title: 'تغيير كاميرا خلفية أصلية', category: 'كاميرات', price: 500, icon: 'photo_camera' },
-    { id: 9, title: 'تغيير كاميرا أمامية / سنسور', category: 'كاميرات', price: 300, icon: 'camera_front' },
-    { id: 10, title: 'سوفت وير وفك تشفير وفورمات', category: 'سوفت وير', price: 150, icon: 'terminal' },
-    { id: 11, title: 'تنظيف جاف ومعالجة دخول ماء وسوائل', category: 'صيانة عامة', price: 200, icon: 'water_drop' },
-    { id: 12, title: 'تغيير شاسيه وظهر كامل (Housing)', category: 'صيانة عامة', price: 400, icon: 'aspect_ratio' }
+    { id: 1, title: 'تغيير شاشة كاملة أصلية', category: 'شاشات', icon: 'smartphone' },
+    { id: 2, title: 'تغيير باغة شاشة (Glass Only)', category: 'شاشات', icon: 'smartphone' },
+    { id: 3, title: 'تغيير بطارية أصلية مع ضمان', category: 'بطاريات', icon: 'battery_charging_full' },
+    { id: 4, title: 'صيانة سوكيت ومسار الشحن', category: 'شحن وباور', icon: 'power' },
+    { id: 5, title: 'تغيير آيسي الشحن U2 / Tristar', category: 'شحن وباور', icon: 'memory' },
+    { id: 6, title: 'تغيير فلاتة سماعة ومايك داخلي', category: 'صوتيات', icon: 'mic' },
+    { id: 7, title: 'تغيير جرس خارجي / سبيكر', category: 'صوتيات', icon: 'volume_up' },
+    { id: 8, title: 'تغيير كاميرا خلفية أصلية', category: 'كاميرات', icon: 'photo_camera' },
+    { id: 9, title: 'تغيير كاميرا أمامية / سنسور', category: 'كاميرات', icon: 'camera_front' },
+    { id: 10, title: 'سوفت وير وفك تشفير وفورمات', category: 'سوفت وير', icon: 'terminal' },
+    { id: 11, title: 'تنظيف جاف ومعالجة دخول ماء وسوائل', category: 'صيانة عامة', icon: 'water_drop' },
+    { id: 12, title: 'تغيير شاسيه وظهر كامل (Housing)', category: 'صيانة عامة', icon: 'aspect_ratio' }
   ];
   selectedOperationId: number | null = null;
 
@@ -85,7 +85,7 @@ export class MaintenanceDetailComponent implements OnInit {
     private route: ActivatedRoute,
     private maintenanceService: MaintenanceService,
     private printer: PrintService
-  ) {}
+  ) { }
 
   ngOnInit(): void {
     const idParam = this.route.snapshot.paramMap.get('id');

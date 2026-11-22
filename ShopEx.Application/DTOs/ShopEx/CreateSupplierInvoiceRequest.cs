@@ -28,6 +28,13 @@ namespace ShopEx.Application.DTOs.ShopEx
         [Range(1, int.MaxValue, ErrorMessage = "Credit days must be greater than 0.")]
         public int? CreditDays { get; set; }
 
+        /// <summary>None / Percent / Amount. The discount applies to the invoice as a whole.</summary>
+        public SupplierDiscountType DiscountType { get; set; } = SupplierDiscountType.None;
+
+        /// <summary>Percentage (0-100) when DiscountType is Percent, a fixed amount when Amount.</summary>
+        [Range(0, double.MaxValue, ErrorMessage = "Discount value cannot be negative.")]
+        public decimal? DiscountValue { get; set; }
+
         public decimal? InitialPayment { get; set; }
         public string? InitialPaymentMethod { get; set; }
 

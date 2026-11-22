@@ -97,6 +97,7 @@ namespace ShopEx.Infrastructure.Repositories.ShopEx
                     RMSSupplierID = x.Invoice.RMSSupplierID,
                     InvoiceNumber = x.Invoice.InvoiceNumber,
                     InvoiceDate = x.Invoice.InvoiceDate,
+                    DiscountAmount = x.Invoice.DiscountAmount,
                     TotalAmount = x.Invoice.TotalAmount,
                     SupplierInvoiceStatus = x.Invoice.SupplierInvoiceStatus,
                     PaymentType = x.Invoice.PaymentType,

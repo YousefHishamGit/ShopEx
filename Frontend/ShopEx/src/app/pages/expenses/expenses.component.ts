@@ -53,7 +53,7 @@ export class ExpensesComponent implements OnInit, OnDestroy {
     paymentMethod: undefined as number | undefined,
     search: ''
   };
-  datePreset: DatePreset = 'all';
+  datePreset: DatePreset = 'month';
 
   loading = false;
   private loadSub?: Subscription;
@@ -95,7 +95,7 @@ export class ExpensesComponent implements OnInit, OnDestroy {
   constructor(
     private expenseService: ExpenseService,
     private toast: ToastService
-  ) {}
+  ) { }
 
   ngOnInit(): void {
     this.searchSub = this.searchInput$.pipe(debounceTime(350)).subscribe(() => {
@@ -108,7 +108,7 @@ export class ExpensesComponent implements OnInit, OnDestroy {
         this.stores = s || [];
         this.storesMap = new Map(this.stores.map((x) => [x.id, x.name]));
       },
-      error: () => {}
+      error: () => { }
     });
     this.loadCategories();
     this.loadExpenses();
@@ -148,7 +148,7 @@ export class ExpensesComponent implements OnInit, OnDestroy {
         this.allCategories = cats;
         this.activeCategoriesCount = cats.filter((c) => c.isActive).length;
       },
-      error: () => {}
+      error: () => { }
     });
   }
 

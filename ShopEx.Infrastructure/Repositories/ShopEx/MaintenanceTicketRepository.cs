@@ -38,34 +38,35 @@ namespace ShopEx.Infrastructure.Repositories.ShopEx
                       .FirstOrDefaultAsync(t => t.TicketNumber == ticketNumber, ct);
         }
 
-        public Task<List<MaintenanceTicket>> GetAllAsync(CancellationToken ct = default)
+        public Task<List<MaintenanceTicket>> GetAllAsync(int? storeId = null, CancellationToken ct = default)
         {
             return _db.MaintenanceTickets
                       .Include(t => t.Operations)
                       .Include(t => t.Payments)
                       .AsSplitQuery()
+                      .Where(t => storeId == null || t.StoreId == storeId)
                       .OrderByDescending(t => t.ReceivedAt)
                       .ToListAsync(ct);
         }
 
-        public Task<List<MaintenanceTicket>> GetByStatusAsync(MaintenanceStatus status, CancellationToken ct = default)
+        public Task<List<MaintenanceTicket>> GetByStatusAsync(MaintenanceStatus status, int? storeId = null, CancellationToken ct = default)
         {
             return _db.MaintenanceTickets
                       .Include(t => t.Operations)
                       .Include(t => t.Payments)
                       .AsSplitQuery()
-                      .Where(t => t.Status == status)
+                      .Where(t => t.Status == status && (storeId == null || t.StoreId == storeId))
                       .OrderByDescending(t => t.ReceivedAt)
                       .ToListAsync(ct);
         }
 
-        public Task<List<MaintenanceTicket>> GetByCustomerPhoneAsync(string customerPhone, CancellationToken ct = default)
+        public Task<List<MaintenanceTicket>> GetByCustomerPhoneAsync(string customerPhone, int? storeId = null, CancellationToken ct = default)
         {
             return _db.MaintenanceTickets
                       .Include(t => t.Operations)
                       .Include(t => t.Payments)
                       .AsSplitQuery()
-                      .Where(t => t.CustomerPhone.Contains(customerPhone))
+                      .Where(t => t.CustomerPhone.Contains(customerPhone) && (storeId == null || t.StoreId == storeId))
                       .OrderByDescending(t => t.ReceivedAt)
                       .ToListAsync(ct);
         }

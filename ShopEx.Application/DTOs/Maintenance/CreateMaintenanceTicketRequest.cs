@@ -9,6 +9,9 @@ namespace ShopEx.Application.DTOs.Maintenance
         [StringLength(150, ErrorMessage = "اسم المستلم لا يتعدى 150 حرف.")]
         public string? ReceivedBy { get; set; } // اسم الموظف أو الفني المستلم للجهاز
 
+        /// <summary>الفرع المستلم. للموظف يتم تجاهله وأخذ الفرع من التوكن.</summary>
+        public int? StoreId { get; set; }
+
         [Required(ErrorMessage = "اسم العميل مطلوب.")]
         [StringLength(150, ErrorMessage = "اسم العميل لا يتعدى 150 حرف.")]
         public string CustomerName { get; set; } = string.Empty;

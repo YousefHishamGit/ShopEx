@@ -10,9 +10,9 @@ namespace ShopEx.Application.interfaces.ShopEx.Repositories
     {
         Task<MaintenanceTicket?> GetByIdAsync(int id, CancellationToken ct = default);
         Task<MaintenanceTicket?> GetByTicketNumberAsync(string ticketNumber, CancellationToken ct = default);
-        Task<List<MaintenanceTicket>> GetAllAsync(CancellationToken ct = default);
-        Task<List<MaintenanceTicket>> GetByStatusAsync(MaintenanceStatus status, CancellationToken ct = default);
-        Task<List<MaintenanceTicket>> GetByCustomerPhoneAsync(string customerPhone, CancellationToken ct = default);
+        Task<List<MaintenanceTicket>> GetAllAsync(int? storeId = null, CancellationToken ct = default);
+        Task<List<MaintenanceTicket>> GetByStatusAsync(MaintenanceStatus status, int? storeId = null, CancellationToken ct = default);
+        Task<List<MaintenanceTicket>> GetByCustomerPhoneAsync(string customerPhone, int? storeId = null, CancellationToken ct = default);
         Task<bool> ExistsAsync(string ticketNumber, CancellationToken ct = default);
         Task AddAsync(MaintenanceTicket ticket, CancellationToken ct = default);
         void Update(MaintenanceTicket ticket);

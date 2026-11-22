@@ -46,6 +46,22 @@ namespace ShopEx.Infrastructure.Repositories.ShopEx
             return (items, total);
         }
 
+        public async Task<(decimal TotalQuantity, decimal TotalCost)> GetInStockTotalsAsync(int warehouseId, CancellationToken ct = default)
+        {
+            var totals = await _db.StockBalances
+                .AsNoTracking()
+                .Where(b => b.WarehouseID == warehouseId && b.QuantityOnHand > 0)
+                .GroupBy(_ => 1)
+                .Select(g => new
+                {
+                    Qty = g.Sum(b => b.QuantityOnHand),
+                    Cost = g.Sum(b => b.QuantityOnHand * b.AverageCost)
+                })
+                .FirstOrDefaultAsync(ct);
+
+            return totals == null ? (0m, 0m) : (totals.Qty, totals.Cost);
+        }
+
         public Task<List<StockBalance>> GetBalancesByItemAsync(int rmsItemId, CancellationToken ct = default)
         {
             return _db.StockBalances

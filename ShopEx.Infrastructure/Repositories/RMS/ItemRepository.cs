@@ -40,6 +40,22 @@ namespace ShopEx.Infrastructure.Repositories.RMS
                 .ToDictionaryAsync(i => i.ID);
         }
 
+        public async Task<Dictionary<int, decimal>> GetPricesByIdsAsync(IEnumerable<int> ids)
+        {
+            var result = new Dictionary<int, decimal>();
+            foreach (var chunk in ids.Distinct().Chunk(1000))
+            {
+                var part = chunk.ToList();
+                var rows = await _context.Items.AsNoTracking()
+                    .Where(i => part.Contains(i.ID))
+                    .Select(i => new { i.ID, i.Price })
+                    .ToListAsync();
+                foreach (var r in rows)
+                    result[r.ID] = r.Price ?? 0m;
+            }
+            return result;
+        }
+
         public async Task<Item?> GetByLookupCodeAsync(string lookupCode)
         {
             if (string.IsNullOrWhiteSpace(lookupCode)) return null;

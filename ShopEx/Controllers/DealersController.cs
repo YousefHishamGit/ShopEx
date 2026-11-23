@@ -53,15 +53,8 @@ namespace ShopEx.Controllers
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> Create([FromBody] CreateDealerRequest request, CancellationToken ct)
         {
-            try
-            {
-                var created = await _dealerService.CreateAsync(request, ct);
-                return CreatedAtAction(nameof(GetById), new { id = created.ID }, created);
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
+            var created = await _dealerService.CreateAsync(request, ct);
+            return CreatedAtAction(nameof(GetById), new { id = created.ID }, created);
         }
 
         // PUT: api/Dealers/{id}
@@ -80,10 +73,6 @@ namespace ShopEx.Controllers
             {
                 return NotFound(new { message = ex.Message });
             }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
         }
 
         // DELETE: api/Dealers/{id}
@@ -101,10 +90,6 @@ namespace ShopEx.Controllers
             catch (KeyNotFoundException ex)
             {
                 return NotFound(new { message = ex.Message });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = ex.Message });
             }
         }
     }

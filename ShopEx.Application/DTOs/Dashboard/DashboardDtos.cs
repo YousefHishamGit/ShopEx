@@ -60,6 +60,8 @@ namespace ShopEx.Application.DTOs.Dashboard
     {
         public decimal ChargedToday { get; set; }
         public decimal ClosedToday { get; set; }
+        /// <summary>إجمالي الربح الذي سجلته الفروع في تقفيلات اليوم.</summary>
+        public decimal ProfitToday { get; set; }
     }
 
     public class BranchDailyDto
@@ -77,6 +79,8 @@ namespace ShopEx.Application.DTOs.Dashboard
 
         public decimal Expenses { get; set; }
         public decimal BalanceClosed { get; set; }
+        /// <summary>ربح تقفيل الأرصدة الذي سجله الفرع اليوم.</summary>
+        public decimal BalanceProfit { get; set; }
     }
 
     public class InvoiceDuesDto
@@ -158,6 +162,7 @@ namespace ShopEx.Application.DTOs.Dashboard
     {
         public int? StoreId { get; set; }
         public decimal Amount { get; set; }
+        public decimal Profit { get; set; }
         public int Count { get; set; }
     }
 

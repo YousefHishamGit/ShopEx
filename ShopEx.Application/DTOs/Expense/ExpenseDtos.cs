@@ -89,6 +89,21 @@ namespace ShopEx.Application.DTOs.Expense
         public string? CreatedBy { get; set; }
     }
 
+    /// <summary>
+    /// تسجيل مصروف من موظف الفرع: الفرع واسم الموظف والتاريخ يحددها السيرفر ولا تُقبل من الطلب.
+    /// </summary>
+    public class CreateBranchExpenseRequest
+    {
+        public int? CategoryId { get; set; }
+        public string? CategoryName { get; set; }
+        public decimal Amount { get; set; }
+        public ExpensePaymentMethod PaymentMethod { get; set; } = ExpensePaymentMethod.Cash;
+        /// <summary>الجهة/الشخص المستلم (اختياري)</summary>
+        public string? Recipient { get; set; }
+        /// <summary>تفصيل المصروف: صُرف في إيه (مطلوب)</summary>
+        public string? Notes { get; set; }
+    }
+
     public class UpdateExpenseRequest
     {
         /// <summary>

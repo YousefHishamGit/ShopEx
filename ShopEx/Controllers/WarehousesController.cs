@@ -50,15 +50,8 @@ namespace ShopEx.Controllers
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> Create([FromBody] CreateWarehouseRequest request, CancellationToken ct)
         {
-            try
-            {
-                var created = await _stockService.CreateWarehouseAsync(request, ct);
-                return CreatedAtAction(nameof(GetById), new { id = created.ID }, created);
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
+            var created = await _stockService.CreateWarehouseAsync(request, ct);
+            return CreatedAtAction(nameof(GetById), new { id = created.ID }, created);
         }
 
         // PUT: api/Warehouses/{id}
@@ -76,10 +69,6 @@ namespace ShopEx.Controllers
             catch (KeyNotFoundException ex)
             {
                 return NotFound(new { message = ex.Message });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = ex.Message });
             }
         }
     }

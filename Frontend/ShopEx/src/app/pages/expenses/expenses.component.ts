@@ -121,7 +121,7 @@ export class ExpensesComponent implements OnInit, OnDestroy {
 
   // ========== Loading ==========
   loadExpenses(): void {
-    // إلغاء الطلب السابق حتى لا يكتب رد قديم فوق رد أحدث
+    
     this.loadSub?.unsubscribe();
     this.loading = true;
 
@@ -130,7 +130,7 @@ export class ExpensesComponent implements OnInit, OnDestroy {
         this.summary = s;
         this.expenses = s.items;
         this.page = s.page;
-        // التوزيع مرتب تنازلياً من الـ API، فأول عنصر هو أعلى بند
+      
         this.topCategory = s.categorySummaries?.[0] ?? null;
         this.averageAmount = s.totalCount > 0 ? s.totalAmount / s.totalCount : 0;
         this.loading = false;
@@ -301,7 +301,7 @@ export class ExpensesComponent implements OnInit, OnDestroy {
       this.showExpenseModal = false;
       this.toast.success(msg);
       this.loadExpenses();
-      this.loadCategories(); // قد يكون أُنشئ بند جديد
+      this.loadCategories();
     };
     const fail = (err: any, fallback: string) => {
       this.submittingExpense = false;

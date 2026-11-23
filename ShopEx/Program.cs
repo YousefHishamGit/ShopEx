@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using ShopEx.Application.DTOs.Users;
 using ShopEx.Application.interfaces.RMS.Repositories;
 using ShopEx.Application.interfaces.RMS.Service;
 using ShopEx.Application.interfaces.ShopEx.Repositories;
@@ -19,6 +20,7 @@ using ShopEx.Infrastructure.Persistence.ShopDb;
 using ShopEx.Infrastructure.Repositories.RMS;
 using ShopEx.Infrastructure.Repositories.ShopEx;
 using ShopEx.Infrastructure.Security;
+using ShopEx.Middleware;
 using ShopEx.Security;
 using System;
 using System.Globalization;
@@ -91,6 +93,15 @@ namespace ShopEx
             builder.Services.AddSingleton<IUserAuthStateProvider, CachedUserAuthStateProvider>();
             builder.Services.AddSingleton<ILoginAttemptTracker, LoginAttemptTracker>();
 
+            // Developer account (separate table, hashed password) & subscription/license
+            builder.Services.AddSingleton<IPasswordHasher, Pbkdf2PasswordHasher>();
+            builder.Services.AddScoped<IDevUserRepository, DevUserRepository>();
+            builder.Services.AddScoped<ILicenseRepository, LicenseRepository>();
+            builder.Services.AddScoped<IDevAuthService, DevAuthService>();
+            builder.Services.AddScoped<ILicenseService, LicenseService>();
+            builder.Services.AddSingleton<IDevAuthStateProvider, CachedDevAuthStateProvider>();
+            builder.Services.AddSingleton<ILicenseStateProvider, CachedLicenseStateProvider>();
+
             // JWT
             var jwtOptions = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>() ?? new JwtOptions();
             if (string.IsNullOrWhiteSpace(jwtOptions.Key) || Encoding.UTF8.GetByteCount(jwtOptions.Key) < 32)
@@ -138,15 +149,26 @@ namespace ShopEx
                             var userId = principal.UserId();
                             var role = principal.FindFirstValue(AppClaims.Role);
 
-                            var validRole = role == AppRoles.Admin || (role == AppRoles.Employee && principal.StoreId().HasValue);
+                            var validRole = role == AppRoles.Admin || role == AppRoles.Dev
+                                            || (role == AppRoles.Employee && principal.StoreId().HasValue);
                             if (userId <= 0 || !validRole)
                             {
                                 context.Fail("Invalid token claims.");
                                 return;
                             }
 
-                            var provider = context.HttpContext.RequestServices.GetRequiredService<IUserAuthStateProvider>();
-                            var state = await provider.GetAsync(userId, context.HttpContext.RequestAborted);
+                            // المطوّر في جدول منفصل (DevUsers) فنفس الـ Id لا يعني نفس الشخص: نتحقق من الجدول الصحيح حسب الدور
+                            UserAuthState? state;
+                            if (role == AppRoles.Dev)
+                            {
+                                var devProvider = context.HttpContext.RequestServices.GetRequiredService<IDevAuthStateProvider>();
+                                state = await devProvider.GetAsync(userId, context.HttpContext.RequestAborted);
+                            }
+                            else
+                            {
+                                var provider = context.HttpContext.RequestServices.GetRequiredService<IUserAuthStateProvider>();
+                                state = await provider.GetAsync(userId, context.HttpContext.RequestAborted);
+                            }
                             var stamp = principal.FindFirstValue(AppClaims.SecurityStamp);
 
                             if (state is null || !state.IsActive ||
@@ -204,6 +226,10 @@ namespace ShopEx
                 });
             });
 
+            // معالج موحد للأخطاء غير المعالجة: يرجع { message } ولا يكشف تفاصيل داخلية
+            builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+            builder.Services.AddProblemDetails();
+
             builder.Services.AddControllers();
             // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
             builder.Services.AddOpenApi();
@@ -232,6 +258,9 @@ namespace ShopEx
             });
 
             var app = builder.Build();
+
+            // أول Middleware: يلتقط أي Exception من باقي الـ Pipeline (الـ CORS ورؤوس الأمان تُضاف عبر OnStarting فلا تضيع)
+            app.UseExceptionHandler();
 
             // Configure the HTTP request pipeline.
             if (app.Environment.IsDevelopment())
@@ -273,6 +302,8 @@ namespace ShopEx
             app.UseRateLimiter();
 
             app.UseAuthentication();
+            // بعد التحقق من الهوية: يمنع Admin/Employee لو الاشتراك منتهي أو متوقف (المطوّر مستثنى)
+            app.UseMiddleware<LicenseMiddleware>();
             app.UseAuthorization();
 
 
@@ -293,6 +324,14 @@ namespace ShopEx
                     shopContext,
                     builder.Configuration["InitialAdmin:Username"],
                     builder.Configuration["InitialAdmin:Password"],
+                    app.Logger);
+
+                await DevSeeder.EnsureLicenseAsync(shopContext, builder.Configuration.GetValue("License:InitialGraceDays", 30));
+                await DevSeeder.SeedInitialDevAsync(
+                    shopContext,
+                    scope.ServiceProvider.GetRequiredService<IPasswordHasher>(),
+                    builder.Configuration["InitialDev:Username"],
+                    builder.Configuration["InitialDev:Password"],
                     app.Logger);
             }
 

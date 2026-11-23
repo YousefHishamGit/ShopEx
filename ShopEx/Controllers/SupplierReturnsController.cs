@@ -70,15 +70,8 @@ namespace ShopEx.Controllers
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> Create([FromBody] CreateSupplierReturnRequest request, CancellationToken ct)
         {
-            try
-            {
-                var created = await _returnService.CreateAsync(request, ct);
-                return CreatedAtAction(nameof(GetById), new { id = created.ID }, created);
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
+            var created = await _returnService.CreateAsync(request, ct);
+            return CreatedAtAction(nameof(GetById), new { id = created.ID }, created);
         }
 
         // POST: api/SupplierReturns/{id}/confirm
@@ -96,10 +89,6 @@ namespace ShopEx.Controllers
             catch (KeyNotFoundException ex)
             {
                 return NotFound(new { message = ex.Message });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = ex.Message });
             }
         }
 
@@ -119,10 +108,6 @@ namespace ShopEx.Controllers
             {
                 return NotFound(new { message = ex.Message });
             }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
         }
 
         // POST: api/SupplierReturns/{id}/refunds
@@ -140,10 +125,6 @@ namespace ShopEx.Controllers
             catch (KeyNotFoundException ex)
             {
                 return NotFound(new { message = ex.Message });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = ex.Message });
             }
         }
     }

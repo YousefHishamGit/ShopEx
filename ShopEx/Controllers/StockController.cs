@@ -64,15 +64,8 @@ namespace ShopEx.Controllers
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> AdjustStock([FromBody] StockAdjustmentRequest request, CancellationToken ct)
         {
-            try
-            {
-                var result = await _stockService.AdjustStockAsync(request, ct);
-                return Ok(result);
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
+            var result = await _stockService.AdjustStockAsync(request, ct);
+            return Ok(result);
         }
     }
 }

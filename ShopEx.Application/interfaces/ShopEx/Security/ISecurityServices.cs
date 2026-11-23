@@ -1,3 +1,4 @@
+using ShopEx.Application.DTOs.Licensing;
 using ShopEx.Application.DTOs.Users;
 using ShopEx.Domain.Entity;
 using System;
@@ -10,6 +11,30 @@ namespace ShopEx.Application.interfaces.ShopEx.Security
     public interface ITokenService
     {
         (string Token, DateTime ExpiresAt) CreateToken(User user);
+
+        /// <summary>توكن المطوّر (Role = Dev).</summary>
+        (string Token, DateTime ExpiresAt) CreateDevToken(DevUser dev);
+    }
+
+    /// <summary>نفس فكرة <see cref="IUserAuthStateProvider"/> لكن لحساب المطوّر.</summary>
+    public interface IDevAuthStateProvider
+    {
+        Task<UserAuthState?> GetAsync(int devId, CancellationToken ct = default);
+        void Invalidate(int devId);
+    }
+
+    /// <summary>حالة الاشتراك (مخزنة مؤقتاً لثوانٍ قليلة). تُمسح فور أي تعديل من المطوّر.</summary>
+    public interface ILicenseStateProvider
+    {
+        Task<LicenseState?> GetAsync(CancellationToken ct = default);
+        void Invalidate();
+    }
+
+    /// <summary>تجزئة كلمات المرور (PBKDF2). تُستخدم لحساب المطوّر فقط.</summary>
+    public interface IPasswordHasher
+    {
+        string Hash(string password);
+        bool Verify(string hash, string password);
     }
 
     /// <summary>

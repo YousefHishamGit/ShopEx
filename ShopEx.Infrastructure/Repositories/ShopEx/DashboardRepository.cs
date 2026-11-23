@@ -61,7 +61,7 @@ namespace ShopEx.Infrastructure.Repositories.ShopEx
             result.BalanceClosures = await _db.BalanceClosures.AsNoTracking()
                 .Where(c => c.ClosedAt >= from && c.ClosedAt < to)
                 .GroupBy(c => (int?)c.Balance.StoreId)
-                .Select(g => new StoreAmountRow { StoreId = g.Key, Amount = g.Sum(c => c.AmountUsed), Count = g.Count() })
+                .Select(g => new StoreAmountRow { StoreId = g.Key, Amount = g.Sum(c => c.AmountUsed), Profit = g.Sum(c => c.Profit), Count = g.Count() })
                 .ToListAsync(ct);
 
             result.BalanceCharged = await _db.Balances.AsNoTracking()

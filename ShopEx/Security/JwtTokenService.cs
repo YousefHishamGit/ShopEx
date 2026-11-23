@@ -38,6 +38,9 @@ namespace ShopEx.Security
         public const string Admin = "Admin";
         public const string Employee = "Employee";
         public const string AdminOrEmployee = Admin + "," + Employee;
+
+        /// <summary>المطوّر: يتحكم في الاشتراك فقط، ولا يصل لأي Endpoint آخر (الـ FallbackPolicy تتطلب Admin).</summary>
+        public const string Dev = "Dev";
     }
 
     public class JwtTokenService : ITokenService
@@ -55,9 +58,6 @@ namespace ShopEx.Security
 
         public (string Token, DateTime ExpiresAt) CreateToken(User user)
         {
-            var now = DateTime.UtcNow;
-            var expires = now.AddMinutes(_options.ExpiryMinutes);
-
             var claims = new List<Claim>
             {
                 new(AppClaims.UserId, user.Id.ToString(CultureInfo.InvariantCulture)),
@@ -70,6 +70,28 @@ namespace ShopEx.Security
             // رقم الفرع داخل التوكن لمعرفة الموظف في أي فرع بالضبط
             if (user.StoreId.HasValue)
                 claims.Add(new Claim(AppClaims.StoreId, user.StoreId.Value.ToString(CultureInfo.InvariantCulture)));
+
+            return Write(claims);
+        }
+
+        public (string Token, DateTime ExpiresAt) CreateDevToken(DevUser dev)
+        {
+            var claims = new List<Claim>
+            {
+                new(AppClaims.UserId, dev.Id.ToString(CultureInfo.InvariantCulture)),
+                new(AppClaims.Name, dev.Name),
+                new(AppClaims.Role, AppRoles.Dev),
+                new(AppClaims.SecurityStamp, dev.SecurityStamp.ToString("N")),
+                new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString("N"))
+            };
+
+            return Write(claims);
+        }
+
+        private (string Token, DateTime ExpiresAt) Write(List<Claim> claims)
+        {
+            var now = DateTime.UtcNow;
+            var expires = now.AddMinutes(_options.ExpiryMinutes);
 
             var token = new JwtSecurityToken(
                 issuer: _options.Issuer,

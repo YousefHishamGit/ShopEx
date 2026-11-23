@@ -15,7 +15,8 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const toast = inject(ToastService);
 
   const isApiCall = req.url.startsWith(AuthService.apiUrl);
-  const isLogin = req.url === `${AuthService.apiUrl}/Auth/login`;
+  const isLogin =
+    req.url === `${AuthService.apiUrl}/Auth/login` || req.url === `${AuthService.apiUrl}/Dev/login`;
 
   let outgoing = req;
   if (isApiCall && !isLogin) {
@@ -33,6 +34,10 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
           const returnUrl = router.url.startsWith('/login') ? undefined : router.url;
           auth.logout(true, returnUrl);
           toast.warning('انتهت الجلسة، يرجى تسجيل الدخول مرة أخرى.');
+        } else if (err.status === 403 && err.error?.code === 'LICENSE_EXPIRED') {
+          // الاشتراك منتهي/متوقف: خروج فوري برسالة واضحة بدل "ليست لديك صلاحية"
+          auth.logout();
+          toast.error(err.error?.message || 'الاشتراك منتهي أو متوقف. تواصل مع المطوّر.', 'الاشتراك غير ساري');
         } else if (err.status === 403) {
           toast.error('ليست لديك صلاحية لتنفيذ هذا الإجراء.');
           router.navigateByUrl(auth.homeRoute());

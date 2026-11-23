@@ -139,6 +139,7 @@ namespace ShopEx.Infrastructure.Repositories.ShopEx
                     g.Key.StoreId,
                     g.Key.BalanceType,
                     Total = g.Sum(x => x.AmountUsed),
+                    Profit = g.Sum(x => x.Profit),
                     Count = g.Count(),
                     Last = g.Max(x => (DateTime?)x.ClosedAt)
                 })
@@ -158,6 +159,7 @@ namespace ShopEx.Infrastructure.Repositories.ShopEx
                         ChargesCount = c.Count,
                         LastChargedAt = c.Last,
                         TotalUsed = cl?.Total ?? 0m,
+                        TotalProfit = cl?.Profit ?? 0m,
                         ClosuresCount = cl?.Count ?? 0,
                         LastClosedAt = cl?.Last
                     };
@@ -206,6 +208,7 @@ namespace ShopEx.Infrastructure.Repositories.ShopEx
                     StoreId = c.Balance.StoreId,
                     BalanceType = c.Balance.BalanceType,
                     Amount = c.AmountUsed,
+                    Profit = c.Profit,
                     TransactionDate = c.ClosedAt,
                     Notes = c.Notes,
                     BalanceId = c.BalanceId

@@ -284,6 +284,18 @@ export interface MaintenancePayment {
   notes?: string;
 }
 
+export interface PagedMaintenanceTickets {
+  items: MaintenanceTicketSummary[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+  countTotal: number;
+  countReceived: number;
+  countCompleted: number;
+  countDelivered: number;
+}
+
 export interface MaintenanceTicketSummary {
   id: number;
   ticketNumber: string;
@@ -410,6 +422,7 @@ export interface PagedStockBalances {
   totalCount: number;
   totalQuantity: number;
   totalCost: number;
+  totalPrice: number;
   totalPages: number;
 }
 
@@ -826,6 +839,7 @@ export interface ChargeBalanceRequest {
 
 export interface CloseBalanceRequest {
   amountUsed: number;
+  profit: number;
   closedAt?: string;
   notes?: string;
 }
@@ -834,6 +848,7 @@ export interface BalanceClosureResponse {
   id: number;
   balanceId: number;
   amountUsed: number;
+  profit: number;
   closedAt: string;
   notes?: string;
 }
@@ -873,6 +888,7 @@ export interface StoreBalanceGroup {
   balanceTypeName: string;
   totalCharged: number;
   totalUsed: number;
+  totalProfit: number;
   currentBalance: number;
   chargesCount: number;
   closuresCount: number;
@@ -884,6 +900,7 @@ export interface CloseStoreBalanceRequest {
   storeId: number;
   balanceType: BalanceType;
   amountUsed: number;
+  profit: number;
   closedAt?: string;
   notes?: string;
 }
@@ -896,6 +913,7 @@ export interface BalanceTransactionItem {
   balanceType: BalanceType;
   balanceTypeName: string;
   amount: number;
+  profit: number;
   transactionDate: string;
   notes?: string;
   balanceId?: number;
@@ -945,6 +963,15 @@ export interface CreateExpenseRequest {
   receiptNumber?: string;
   notes?: string;
   createdBy?: string;
+}
+
+export interface CreateBranchExpenseRequest {
+  categoryId?: number;
+  categoryName?: string;
+  amount: number;
+  paymentMethod: ExpensePaymentMethod;
+  recipient?: string;
+  notes: string;
 }
 
 export interface UpdateExpenseRequest {
@@ -1009,7 +1036,8 @@ export interface ExpenseSummaryDto {
 
 export enum UserRole {
   Admin = 1,     // موظف HQ — كل الصلاحيات
-  Employee = 2   // موظف فرع — استلام/تسليم صيانة وتقفيل رصيد فرعه فقط
+  Employee = 2,  // موظف فرع — استلام/تسليم صيانة وتقفيل رصيد فرعه فقط
+  Dev = 3        // المطوّر — يتحكم في الاشتراك فقط (جدول منفصل، لا يظهر في المستخدمين)
 }
 
 export interface AppUser {
@@ -1035,6 +1063,26 @@ export interface LoginResponse {
   token: string;
   expiresAt: string;
   user: AppUser;
+}
+
+export interface DevLoginResponse {
+  token: string;
+  expiresAt: string;
+  id: number;
+  name: string;
+  username: string;
+}
+
+export type LicenseStatus = 'Active' | 'Disabled' | 'Expired';
+
+export interface LicenseInfo {
+  isEnabled: boolean;
+  expiresAt: string;
+  isValid: boolean;
+  status: LicenseStatus;
+  daysRemaining: number;
+  updatedAt: string;
+  updatedBy?: string | null;
 }
 
 export interface CreateUserRequest {
@@ -1076,6 +1124,7 @@ export interface DashboardBranch {
   devicesDelivered: number;
   expenses: number;
   balanceClosed: number;
+  balanceProfit: number;
 }
 
 export interface DashboardDueInvoice {
@@ -1129,7 +1178,7 @@ export interface DashboardData {
   sales: DashboardSales;
   maintenance: DashboardMaintenance;
   expenses: { total: number; count: number };
-  balances: { chargedToday: number; closedToday: number };
+  balances: { chargedToday: number; closedToday: number; profitToday: number };
   supplierInvoices: DashboardInvoiceDues;
   consignments: DashboardConsignmentDues;
   branches: DashboardBranch[];

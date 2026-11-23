@@ -74,7 +74,8 @@ namespace ShopEx.Application.Services.ShopEx
                 Balances = new BalancesSummaryDto
                 {
                     ChargedToday = activity.BalanceCharged,
-                    ClosedToday = activity.BalanceClosures.Sum(x => x.Amount)
+                    ClosedToday = activity.BalanceClosures.Sum(x => x.Amount),
+                    ProfitToday = activity.BalanceClosures.Sum(x => x.Profit)
                 },
                 Branches = BuildBranches(sales, activity, storeNames)
             };
@@ -144,7 +145,8 @@ namespace ShopEx.Application.Services.ShopEx
                     DevicesReceived = received.TryGetValue(id, out var r) ? r.Count : 0,
                     DevicesDelivered = delivered.TryGetValue(id, out var d) ? d.Count : 0,
                     Expenses = expenses.TryGetValue(id, out var e) ? e.Amount : 0m,
-                    BalanceClosed = closures.TryGetValue(id, out var c) ? c.Amount : 0m
+                    BalanceClosed = closures.TryGetValue(id, out var c) ? c.Amount : 0m,
+                    BalanceProfit = c?.Profit ?? 0m
                 };
 
                 // الصف "غير المرتبط بفرع" يظهر فقط لو فيه حركة فعلية
@@ -168,6 +170,7 @@ namespace ShopEx.Application.Services.ShopEx
                    {
                        StoreId = g.Key == NoStore ? null : g.Key,
                        Amount = g.Sum(x => x.Amount),
+                       Profit = g.Sum(x => x.Profit),
                        Count = g.Sum(x => x.Count)
                    });
 

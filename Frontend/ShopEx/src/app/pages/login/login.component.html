@@ -12,8 +12,10 @@
     <!-- Card -->
     <form (ngSubmit)="onSubmit()" class="bg-light-surface rounded-2xl border border-outline shadow-sm p-7 space-y-5" autocomplete="on">
       <div>
-        <h2 class="text-lg font-bold text-light-on-surface">تسجيل الدخول</h2>
-        <p class="text-xs text-light-on-surface-variant mt-1">أدخل بيانات حسابك للمتابعة</p>
+        <h2 class="text-lg font-bold text-light-on-surface">{{ devMode ? 'دخول المطوّر' : 'تسجيل الدخول' }}</h2>
+        <p class="text-xs text-light-on-surface-variant mt-1">
+          {{ devMode ? 'لوحة التحكم في الاشتراك' : 'أدخل بيانات حسابك للمتابعة' }}
+        </p>
       </div>
 
       <div *ngIf="errorMessage" role="alert" class="p-3 bg-error-container text-on-error-container rounded-lg border border-error/20 flex items-start gap-2">

@@ -47,6 +47,7 @@ export class BalancesComponent implements OnInit, OnDestroy {
   filteredLedgerItems: BalanceTransactionItem[] = [];
   totalChargedAmount = 0;
   totalUsedAmount = 0;
+  totalProfitAmount = 0;
   totalRemainingAmount = 0;
   activeWalletsCount = 0;
 
@@ -87,7 +88,7 @@ export class BalancesComponent implements OnInit, OnDestroy {
   submittingClose = false;
   closeError = '';
   selectedGroupForClose: StoreBalanceGroup | null = null;
-  closeForm: { amountUsed: number | null; notes: string } = { amountUsed: null, notes: '' };
+  closeForm: { amountUsed: number | null; profit: number | null; notes: string } = { amountUsed: null, profit: null, notes: '' };
 
   private loadSub?: Subscription;
 
@@ -193,15 +194,17 @@ export class BalancesComponent implements OnInit, OnDestroy {
   }
 
   private computeTotals(): void {
-    let charged = 0, used = 0, remaining = 0, active = 0;
+    let charged = 0, used = 0, profit = 0, remaining = 0, active = 0;
     for (const b of this.groupedBalances) {
       charged += b.totalCharged || 0;
       used += b.totalUsed || 0;
+      profit += b.totalProfit || 0;
       remaining += b.currentBalance || 0;
       if (b.currentBalance > 0) active++;
     }
     this.totalChargedAmount = charged;
     this.totalUsedAmount = used;
+    this.totalProfitAmount = profit;
     this.totalRemainingAmount = remaining;
     this.activeWalletsCount = active;
   }
@@ -297,7 +300,7 @@ export class BalancesComponent implements OnInit, OnDestroy {
   openCloseModal(group: StoreBalanceGroup, event?: MouseEvent): void {
     if (event) event.stopPropagation();
     this.selectedGroupForClose = group;
-    this.closeForm = { amountUsed: null, notes: '' };
+    this.closeForm = { amountUsed: null, profit: null, notes: '' };
     this.closeError = '';
     this.showCloseModal = true;
   }
@@ -328,6 +331,17 @@ export class BalancesComponent implements OnInit, OnDestroy {
       return;
     }
 
+    const profitRaw = this.closeForm.profit as unknown;
+    if (profitRaw === null || profitRaw === undefined || profitRaw === '') {
+      this.closeError = 'يرجى إدخال الربح (اكتب 0 لو مفيش ربح).';
+      return;
+    }
+    const profit = Number(profitRaw);
+    if (isNaN(profit) || profit < 0) {
+      this.closeError = 'الربح لا يمكن أن يكون سالباً.';
+      return;
+    }
+
     this.submittingClose = true;
     this.closeError = '';
 
@@ -335,6 +349,7 @@ export class BalancesComponent implements OnInit, OnDestroy {
       storeId: this.selectedGroupForClose.storeId,
       balanceType: this.selectedGroupForClose.balanceType,
       amountUsed: amount,
+      profit,
       notes: this.closeForm.notes?.trim() || undefined
     };
 

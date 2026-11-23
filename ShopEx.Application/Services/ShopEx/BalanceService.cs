@@ -65,6 +65,9 @@ namespace ShopEx.Application.Services.ShopEx
             if (request.AmountUsed <= 0)
                 throw new ArgumentException("يجب أن يكون المبلغ المستخدم أكبر من الصفر.", nameof(request.AmountUsed));
 
+            if (request.Profit < 0)
+                throw new ArgumentException("الربح لا يمكن أن يكون سالباً.", nameof(request.Profit));
+
             var balance = await _balanceRepo.GetChargeByIdAsync(balanceId, ct);
             if (balance == null)
                 throw new KeyNotFoundException($"شحنة الرصيد برقم {balanceId} غير موجودة.");
@@ -88,6 +91,7 @@ namespace ShopEx.Application.Services.ShopEx
                 {
                     BalanceId = balanceId,
                     AmountUsed = amount,
+                    Profit = Math.Round(request.Profit, 2),
                     ClosedAt = request.ClosedAt ?? DateTime.Now,
                     Notes = NormalizeNotes(request.Notes)
                 };
@@ -150,7 +154,11 @@ namespace ShopEx.Application.Services.ShopEx
             if (request.AmountUsed <= 0)
                 throw new ArgumentException("يجب أن يكون مبلغ الاستهلاك أكبر من الصفر.", nameof(request.AmountUsed));
 
+            if (request.Profit < 0)
+                throw new ArgumentException("الربح لا يمكن أن يكون سالباً.", nameof(request.Profit));
+
             var amount = Math.Round(request.AmountUsed, 2);
+            var profit = Math.Round(request.Profit, 2);
             var closedAt = request.ClosedAt ?? DateTime.Now;
             var notes = NormalizeNotes(request.Notes);
             var created = new List<BalanceClosure>();
@@ -170,16 +178,22 @@ namespace ShopEx.Application.Services.ShopEx
                 }
 
                 // توزيع المبلغ على الشحنات الأقدم أولاً (FIFO)
+                // الربح يُوزَّع على نفس الشحنات بنسبة المبلغ المستهلك من كل شحنة (والباقي على آخر شحنة)
                 var toAllocate = amount;
+                var profitLeft = profit;
                 foreach (var charge in openCharges)
                 {
                     if (toAllocate <= 0) break;
 
                     var allocate = Math.Min(toAllocate, charge.Remaining);
+                    var isLast = toAllocate - allocate <= 0;
+                    var share = isLast ? profitLeft : Math.Round(profit * allocate / amount, 2);
+
                     var closure = new BalanceClosure
                     {
                         BalanceId = charge.Id,
                         AmountUsed = allocate,
+                        Profit = share,
                         ClosedAt = closedAt,
                         Notes = notes
                     };
@@ -187,6 +201,7 @@ namespace ShopEx.Application.Services.ShopEx
                     await _balanceRepo.AddClosureAsync(closure, ct);
                     created.Add(closure);
                     toAllocate -= allocate;
+                    profitLeft -= share;
                 }
 
                 await _unitOfWork.SaveChangesAsync(ct);
@@ -236,6 +251,7 @@ namespace ShopEx.Application.Services.ShopEx
             Id = c.Id,
             BalanceId = c.BalanceId,
             AmountUsed = c.AmountUsed,
+            Profit = c.Profit,
             ClosedAt = c.ClosedAt,
             Notes = c.Notes
         };

@@ -3,7 +3,7 @@ import { Injectable, computed, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { Observable, tap } from 'rxjs';
-import { AppUser, LoginRequest, LoginResponse, UserRole } from '../models/models';
+import { AppUser, DevLoginResponse, LoginRequest, LoginResponse, UserRole } from '../models/models';
 
 interface StoredSession {
   token: string;
@@ -25,8 +25,38 @@ export class AuthService {
   readonly currentUser = computed(() => this.session()?.user ?? null);
   readonly isAdmin = computed(() => this.session()?.user.role === UserRole.Admin);
   readonly isEmployee = computed(() => this.session()?.user.role === UserRole.Employee);
+  readonly isDev = computed(() => this.session()?.user.role === UserRole.Dev);
 
   constructor(private http: HttpClient, private router: Router) {}
+
+  /** Developer sign-in (separate endpoint/table). Stored in the same session slot with role Dev. */
+  loginDev(request: LoginRequest): Observable<DevLoginResponse> {
+    return this.http
+      .post<DevLoginResponse>(`${AuthService.apiUrl}/Dev/login`, {
+        username: request.username.trim(),
+        password: request.password
+      })
+      .pipe(
+        tap((res) => {
+          const stored: StoredSession = {
+            token: res.token,
+            expiresAt: res.expiresAt,
+            user: {
+              id: res.id,
+              name: res.name,
+              phone: '',
+              role: UserRole.Dev,
+              roleName: 'Dev',
+              username: res.username,
+              isActive: true,
+              createdAt: ''
+            }
+          };
+          this.session.set(stored);
+          this.persist(stored);
+        })
+      );
+  }
 
   login(request: LoginRequest): Observable<LoginResponse> {
     return this.http
@@ -45,6 +75,7 @@ export class AuthService {
 
   /** Clears the session; optionally sends the user to the login page. */
   logout(redirect = true, returnUrl?: string): void {
+    const wasDev = this.isDev();
     this.session.set(null);
     try {
       localStorage.removeItem(STORAGE_KEY);
@@ -52,7 +83,7 @@ export class AuthService {
       /* storage unavailable */
     }
     if (redirect) {
-      this.router.navigate(['/login'], returnUrl ? { queryParams: { returnUrl } } : undefined);
+      this.router.navigate([wasDev ? '/dev/login' : '/login'], returnUrl ? { queryParams: { returnUrl } } : undefined);
     }
   }
 
@@ -73,6 +104,7 @@ export class AuthService {
 
   /** The page each role lands on after login. */
   homeRoute(): string {
+    if (this.isDev()) return '/dev/license';
     return this.isEmployee() ? '/branch/receive' : '/dashboard';
   }
 

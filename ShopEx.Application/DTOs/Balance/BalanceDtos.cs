@@ -22,6 +22,8 @@ namespace ShopEx.Application.DTOs.Balance
     public class CloseBalanceRequest
     {
         public decimal AmountUsed { get; set; }
+        /// <summary>الربح المحقق من المبلغ المستهلك (صفر أو أكثر).</summary>
+        public decimal Profit { get; set; }
         public DateTime? ClosedAt { get; set; }
         public string? Notes { get; set; }
     }
@@ -34,6 +36,7 @@ namespace ShopEx.Application.DTOs.Balance
         public int Id { get; set; }
         public int BalanceId { get; set; }
         public decimal AmountUsed { get; set; }
+        public decimal Profit { get; set; }
         public DateTime ClosedAt { get; set; }
         public string? Notes { get; set; }
     }
@@ -85,6 +88,8 @@ namespace ShopEx.Application.DTOs.Balance
         public string BalanceTypeName { get; set; } = string.Empty;
         public decimal TotalCharged { get; set; }
         public decimal TotalUsed { get; set; }
+        /// <summary>إجمالي الربح الذي سجله الفرع في تقفيلاته.</summary>
+        public decimal TotalProfit { get; set; }
         public decimal CurrentBalance => TotalCharged - TotalUsed;
         public int ChargesCount { get; set; }
         public int ClosuresCount { get; set; }
@@ -100,6 +105,8 @@ namespace ShopEx.Application.DTOs.Balance
         public int StoreId { get; set; }
         public BalanceType BalanceType { get; set; }
         public decimal AmountUsed { get; set; }
+        /// <summary>الربح المحقق من المبلغ المستهلك (صفر أو أكثر).</summary>
+        public decimal Profit { get; set; }
         public DateTime? ClosedAt { get; set; }
         public string? Notes { get; set; }
     }
@@ -116,6 +123,8 @@ namespace ShopEx.Application.DTOs.Balance
         public BalanceType BalanceType { get; set; }
         public string BalanceTypeName { get; set; } = string.Empty;
         public decimal Amount { get; set; }
+        /// <summary>ربح التقفيل (صفر للشحن).</summary>
+        public decimal Profit { get; set; }
         public DateTime TransactionDate { get; set; }
         public string? Notes { get; set; }
         public int? BalanceId { get; set; }

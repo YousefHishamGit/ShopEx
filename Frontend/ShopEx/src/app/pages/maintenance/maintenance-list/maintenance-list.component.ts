@@ -1,7 +1,9 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { Subject, Subscription } from 'rxjs';
+import { debounceTime } from 'rxjs/operators';
 import { MaintenanceService } from '../../../services/maintenance.service';
 import { MaintenanceTicketSummary, MaintenanceStatus } from '../../../models/models';
 
@@ -11,30 +13,65 @@ import { MaintenanceTicketSummary, MaintenanceStatus } from '../../../models/mod
   imports: [CommonModule, FormsModule, RouterLink],
   templateUrl: './maintenance-list.component.html'
 })
-export class MaintenanceListComponent implements OnInit {
-  tickets: MaintenanceTicketSummary[] = [];
+export class MaintenanceListComponent implements OnInit, OnDestroy {
   filteredTickets: MaintenanceTicketSummary[] = [];
   searchTerm: string = '';
   selectedStatus: string = '1';
   loading: boolean = true;
   errorMessage: string = '';
 
+  // Pagination (server side)
+  page = 1;
+  readonly pageSize = 25;
+  totalCount = 0;
+  totalPages = 1;
+
+  // إحصائيات كل التذاكر (من السيرفر)
+  countTotal = 0;
+  countReceived = 0;
+  countCompleted = 0;
+  countDelivered = 0;
+
   // Enums for template usage
   MaintenanceStatus = MaintenanceStatus;
+
+  private loadSub?: Subscription;
+  private search$ = new Subject<void>();
+  private searchSub?: Subscription;
 
   constructor(private maintenanceService: MaintenanceService) { }
 
   ngOnInit(): void {
+    this.searchSub = this.search$.pipe(debounceTime(350)).subscribe(() => {
+      this.page = 1;
+      this.fetchTickets();
+    });
     this.fetchTickets();
   }
 
+  ngOnDestroy(): void {
+    this.loadSub?.unsubscribe();
+    this.searchSub?.unsubscribe();
+  }
+
   fetchTickets(): void {
+    // إلغاء الطلب السابق حتى لا يكتب رد قديم فوق رد أحدث
+    this.loadSub?.unsubscribe();
     this.loading = true;
     this.errorMessage = '';
-    this.maintenanceService.getTickets().subscribe({
-      next: (data) => {
-        this.tickets = data || [];
-        this.applyFilter();
+
+    const status = this.selectedStatus === 'ALL' ? undefined : Number(this.selectedStatus) as MaintenanceStatus;
+
+    this.loadSub = this.maintenanceService.getTicketsPaged(this.page, this.pageSize, status, this.searchTerm).subscribe({
+      next: (res) => {
+        this.filteredTickets = res.items || [];
+        this.page = res.page;
+        this.totalCount = res.totalCount;
+        this.totalPages = res.totalPages;
+        this.countTotal = res.countTotal;
+        this.countReceived = res.countReceived;
+        this.countCompleted = res.countCompleted;
+        this.countDelivered = res.countDelivered;
         this.loading = false;
       },
       error: (err) => {
@@ -45,47 +82,28 @@ export class MaintenanceListComponent implements OnInit {
     });
   }
 
-  applyFilter(): void {
-    let result = [...this.tickets];
-    const term = this.searchTerm.toLowerCase().trim();
-
-    if (term) {
-      result = result.filter(t =>
-        (t.ticketNumber && t.ticketNumber.toLowerCase().includes(term)) ||
-        (t.customerName && t.customerName.toLowerCase().includes(term)) ||
-        (t.customerPhone && t.customerPhone.includes(term)) ||
-        (t.deviceName && t.deviceName.toLowerCase().includes(term))
-      );
-    }
-
-    if (this.selectedStatus !== 'ALL') {
-      const statusNum = Number(this.selectedStatus);
-      result = result.filter(t => t.status === statusNum);
-    }
-
-    this.filteredTickets = result;
+  onSearchInput(): void {
+    this.search$.next();
   }
 
   onFilterStatus(status: string): void {
     this.selectedStatus = status;
-    this.applyFilter();
+    this.page = 1;
+    this.fetchTickets();
   }
 
-  // إحصائيات سريعة
-  get countTotal(): number {
-    return this.tickets.length;
+  goToPage(p: number): void {
+    if (p < 1 || p > this.totalPages || p === this.page) return;
+    this.page = p;
+    this.fetchTickets();
   }
 
-  get countReceived(): number {
-    return this.tickets.filter(t => t.status === MaintenanceStatus.Received || t.status === MaintenanceStatus.UnderRepair).length;
+  get rangeStart(): number {
+    return this.totalCount === 0 ? 0 : (this.page - 1) * this.pageSize + 1;
   }
 
-  get countCompleted(): number {
-    return this.tickets.filter(t => t.status === MaintenanceStatus.Completed).length;
-  }
-
-  get countDelivered(): number {
-    return this.tickets.filter(t => t.status === MaintenanceStatus.Delivered).length;
+  get rangeEnd(): number {
+    return Math.min(this.page * this.pageSize, this.totalCount);
   }
 
   getStatusBadgeClass(status: MaintenanceStatus): string {

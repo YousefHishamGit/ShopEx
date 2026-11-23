@@ -159,6 +159,7 @@
               <span class="text-[11px] font-normal text-gray-500">ج.م</span>
             </div>
             <div class="text-[11px] text-slate-500 mt-1">شُحن اليوم {{ d.balances.chargedToday | number:'1.0-0' }}</div>
+            <div class="text-[11px] font-semibold text-emerald-700 mt-0.5">ربح التقفيل {{ d.balances.profitToday | number:'1.0-2' }} ج.م</div>
           </div>
           <div class="w-9 h-9 shrink-0 rounded-xl bg-sky-50 text-sky-700 flex items-center justify-center">
             <span class="material-symbols-outlined text-[20px]">payments</span>
@@ -229,6 +230,7 @@
               <th scope="col" class="px-3 py-2.5 text-right font-semibold">أجهزة مسلّمة</th>
               <th scope="col" class="px-3 py-2.5 text-right font-semibold">مصروفات</th>
               <th scope="col" class="px-3 py-2.5 text-right font-semibold">رصيد مقفَّل</th>
+              <th scope="col" class="px-3 py-2.5 text-right font-semibold">ربح الرصيد</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-100">
@@ -241,6 +243,7 @@
               <td class="px-3 py-3 tabular-nums" [ngClass]="b.devicesDelivered > 0 ? 'text-slate-800' : 'text-slate-400'">{{ b.devicesDelivered | number }}</td>
               <td class="px-3 py-3 tabular-nums" [ngClass]="b.expenses > 0 ? 'text-orange-700' : 'text-slate-400'">{{ b.expenses | number:'1.0-2' }}</td>
               <td class="px-3 py-3 tabular-nums" [ngClass]="b.balanceClosed > 0 ? 'text-sky-700' : 'text-slate-400'">{{ b.balanceClosed | number:'1.0-2' }}</td>
+              <td class="px-3 py-3 tabular-nums" [ngClass]="b.balanceProfit > 0 ? 'text-emerald-700 font-semibold' : 'text-slate-400'">{{ b.balanceProfit | number:'1.0-2' }}</td>
             </tr>
           </tbody>
           <tfoot class="bg-slate-50 font-bold text-light-on-surface">
@@ -253,6 +256,7 @@
               <td class="px-3 py-3 tabular-nums">{{ totals.delivered | number }}</td>
               <td class="px-3 py-3 tabular-nums">{{ totals.expenses | number:'1.0-2' }}</td>
               <td class="px-3 py-3 tabular-nums">{{ totals.balanceClosed | number:'1.0-2' }}</td>
+              <td class="px-3 py-3 tabular-nums text-emerald-700">{{ totals.balanceProfit | number:'1.0-2' }}</td>
             </tr>
           </tfoot>
         </table>

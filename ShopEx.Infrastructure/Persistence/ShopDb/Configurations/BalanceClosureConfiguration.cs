@@ -18,6 +18,11 @@ namespace ShopEx.Infrastructure.Persistence.ShopDb.Configurations
                    .HasPrecision(18, 2)
                    .IsRequired();
 
+            builder.Property(x => x.Profit)
+                   .HasPrecision(18, 2)
+                   .HasDefaultValue(0m)
+                   .IsRequired();
+
             builder.Property(x => x.ClosedAt)
                    .IsRequired()
                    .HasDefaultValueSql("GETDATE()");

@@ -24,6 +24,17 @@ export const employeeGuard: CanActivateFn = (_route, state) => {
   return auth.isEmployee() ? true : router.createUrlTree([auth.homeRoute()]);
 };
 
+/** Developer area (license control): Dev only. Everyone else is sent to their own home. */
+export const devGuard: CanActivateFn = (_route, state) => {
+  const auth = inject(AuthService);
+  const router = inject(Router);
+
+  if (!auth.isLoggedIn()) {
+    return router.createUrlTree(['/dev/login'], { queryParams: { returnUrl: state.url } });
+  }
+  return auth.isDev() ? true : router.createUrlTree([auth.homeRoute()]);
+};
+
 /** Login page: signed-in users go straight to their home page. */
 export const guestGuard: CanActivateFn = () => {
   const auth = inject(AuthService);

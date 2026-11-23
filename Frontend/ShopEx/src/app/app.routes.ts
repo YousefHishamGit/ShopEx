@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { adminGuard, employeeGuard, guestGuard } from './core/auth.guard';
+import { adminGuard, devGuard, employeeGuard, guestGuard } from './core/auth.guard';
 
 // Every page is lazy-loaded so the initial bundle only contains the app shell.
 const dashboard = () => import('./pages/dashboard/dashboard.component').then(m => m.DashboardComponent);
@@ -23,13 +23,26 @@ const balances = () => import('./pages/balances/balances.component').then(m => m
 const expenses = () => import('./pages/expenses/expenses.component').then(m => m.ExpensesComponent);
 const users = () => import('./pages/users/users.component').then(m => m.UsersComponent);
 const login = () => import('./pages/login/login.component').then(m => m.LoginComponent);
+const devLicense = () => import('./pages/dev/license/license.component').then(m => m.LicenseComponent);
 const receiveDevice = () => import('./pages/branch/receive-device/receive-device.component').then(m => m.ReceiveDeviceComponent);
 const deliverDevice = () => import('./pages/branch/deliver-device/deliver-device.component').then(m => m.DeliverDeviceComponent);
 const closeBalance = () => import('./pages/branch/close-balance/close-balance.component').then(m => m.CloseBalanceComponent);
+const branchExpenses = () => import('./pages/branch/branch-expenses/branch-expenses.component').then(m => m.BranchExpensesComponent);
 
 export const routes: Routes = [
   // Public
   { path: 'login', canActivate: [guestGuard], loadComponent: login },
+
+  // Developer area (not linked from anywhere in the UI): license control
+  { path: 'dev/login', canActivate: [guestGuard], loadComponent: login, data: { dev: true } },
+  {
+    path: 'dev',
+    canActivate: [devGuard],
+    children: [
+      { path: '', redirectTo: 'license', pathMatch: 'full' },
+      { path: 'license', loadComponent: devLicense }
+    ]
+  },
 
   // Branch employee area: the only pages an Employee can open
   {
@@ -39,7 +52,8 @@ export const routes: Routes = [
       { path: '', redirectTo: 'receive', pathMatch: 'full' },
       { path: 'receive', loadComponent: receiveDevice },
       { path: 'deliver', loadComponent: deliverDevice },
-      { path: 'balance', loadComponent: closeBalance }
+      { path: 'balance', loadComponent: closeBalance },
+      { path: 'expenses', loadComponent: branchExpenses }
     ]
   },
 

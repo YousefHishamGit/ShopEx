@@ -29,7 +29,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   selectedDate = toDateInput(new Date());
 
   /** Column totals of the branches table (computed once per load, not on every change detection). */
-  totals = { sales: 0, profit: 0, transactions: 0, received: 0, delivered: 0, expenses: 0, balanceClosed: 0 };
+  totals = { sales: 0, profit: 0, transactions: 0, received: 0, delivered: 0, expenses: 0, balanceClosed: 0, balanceProfit: 0 };
 
   private loadSub?: Subscription;
   private timer?: ReturnType<typeof setInterval>;
@@ -112,7 +112,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   private computeTotals(branches: DashboardBranch[]): void {
-    const t = { sales: 0, profit: 0, transactions: 0, received: 0, delivered: 0, expenses: 0, balanceClosed: 0 };
+    const t = { sales: 0, profit: 0, transactions: 0, received: 0, delivered: 0, expenses: 0, balanceClosed: 0, balanceProfit: 0 };
     for (const b of branches) {
       t.sales += b.sales;
       t.profit += b.profit;
@@ -121,6 +121,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
       t.delivered += b.devicesDelivered;
       t.expenses += b.expenses;
       t.balanceClosed += b.balanceClosed;
+      t.balanceProfit += b.balanceProfit;
     }
     this.totals = t;
   }

@@ -7,6 +7,7 @@ import {
   CreateExpenseCategoryRequest,
   UpdateExpenseCategoryRequest,
   CreateExpenseRequest,
+  CreateBranchExpenseRequest,
   UpdateExpenseRequest,
   ExpenseResponse,
   ExpenseSummaryDto,
@@ -60,6 +61,22 @@ export class ExpenseService {
   getSummary(filters: ExpenseFilters, page = 1, pageSize = 25): Observable<ExpenseSummaryDto> {
     const params = this.toParams(filters, { page: page.toString(), pageSize: pageSize.toString() });
     return this.http.get<ExpenseSummaryDto>(`${this.base}/summary`, { params });
+  }
+
+  // ----- موظف الفرع: مصروفات فرعه فقط (الفرع والاسم والتاريخ يحددها السيرفر) -----
+  getBranchCategories(): Observable<{ id: number; name: string }[]> {
+    return this.http.get<{ id: number; name: string }[]>(`${this.base}/branch/categories`);
+  }
+
+  getBranchExpenses(page = 1, pageSize = 25, fromDate?: string, toDate?: string): Observable<ExpenseSummaryDto> {
+    let params = new HttpParams().set('page', page.toString()).set('pageSize', pageSize.toString());
+    if (fromDate) params = params.set('fromDate', fromDate);
+    if (toDate) params = params.set('toDate', toDate);
+    return this.http.get<ExpenseSummaryDto>(`${this.base}/branch`, { params });
+  }
+
+  createBranchExpense(req: CreateBranchExpenseRequest): Observable<ExpenseResponse> {
+    return this.http.post<ExpenseResponse>(`${this.base}/branch`, req);
   }
 
   getById(id: number): Observable<ExpenseResponse> {

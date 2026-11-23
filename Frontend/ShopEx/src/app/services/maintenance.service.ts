@@ -5,6 +5,7 @@ import { Observable } from 'rxjs';
 import {
   MaintenanceTicket,
   MaintenanceTicketSummary,
+  PagedMaintenanceTickets,
   MaintenanceStatus,
   CreateMaintenanceTicketRequest,
   AddTicketOperationRequest,
@@ -31,6 +32,18 @@ export class MaintenanceService {
       params = params.set('customerPhone', customerPhone.trim());
     }
     return this.http.get<MaintenanceTicketSummary[]>(this.baseUrl, { params });
+  }
+
+  // صفحة من التذاكر (الفلترة والبحث والتقسيم في السيرفر) + إحصائيات الحالات
+  getTicketsPaged(page: number, pageSize: number, status?: MaintenanceStatus, search?: string): Observable<PagedMaintenanceTickets> {
+    let params = new HttpParams().set('page', page.toString()).set('pageSize', pageSize.toString());
+    if (status !== undefined && status !== null) {
+      params = params.set('status', status.toString());
+    }
+    if (search && search.trim()) {
+      params = params.set('search', search.trim());
+    }
+    return this.http.get<PagedMaintenanceTickets>(`${this.baseUrl}/paged`, { params });
   }
 
   // استرجاع تذكرة بالتفصيل بالمعرف

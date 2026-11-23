@@ -71,15 +71,8 @@ namespace ShopEx.Controllers
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> Create([FromBody] CreateConsignmentRequest request, CancellationToken ct)
         {
-            try
-            {
-                var created = await _consignmentService.CreateAsync(request, ct);
-                return CreatedAtAction(nameof(GetById), new { id = created.ID }, created);
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
+            var created = await _consignmentService.CreateAsync(request, ct);
+            return CreatedAtAction(nameof(GetById), new { id = created.ID }, created);
         }
 
         // POST: api/Consignments/{id}/settle
@@ -97,10 +90,6 @@ namespace ShopEx.Controllers
             catch (KeyNotFoundException ex)
             {
                 return NotFound(new { message = ex.Message });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = ex.Message });
             }
         }
 
@@ -120,10 +109,6 @@ namespace ShopEx.Controllers
             {
                 return NotFound(new { message = ex.Message });
             }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
         }
 
         // POST: api/Consignments/{id}/cancel
@@ -141,10 +126,6 @@ namespace ShopEx.Controllers
             catch (KeyNotFoundException ex)
             {
                 return NotFound(new { message = ex.Message });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = ex.Message });
             }
         }
     }

@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -5,6 +6,7 @@ using ShopEx.Application.DTOs.Expense;
 using ShopEx.Application.interfaces.ShopEx.Services;
 using ShopEx.Domain.Enum;
 using ShopEx.Infrastructure.Persistence.RMS;
+using ShopEx.Security;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -123,6 +125,81 @@ namespace ShopEx.Controllers
             catch (KeyNotFoundException ex)
             {
                 return NotFound(new { message = ex.Message });
+            }
+        }
+
+        // ================================================================
+        // 1.1 مصروفات الفرع (للموظف): يسجّل ما صرفه فرعه ويشوف مصروفات فرعه فقط
+        // ================================================================
+
+        /// <summary>البنود المفعّلة لاختيار بند المصروف من موظف الفرع</summary>
+        [HttpGet("branch/categories")]
+        [Authorize(Roles = AppRoles.Employee)]
+        public async Task<IActionResult> GetBranchCategories(CancellationToken ct)
+        {
+            var categories = await _expenseService.GetCategoriesAsync(false, ct);
+            return Ok(categories.Select(c => new { id = c.Id, name = c.Name }));
+        }
+
+        /// <summary>مصروفات فرع الموظف (صفحة واحدة + الإجمالي)، بفلتر تاريخ اختياري</summary>
+        [HttpGet("branch")]
+        [Authorize(Roles = AppRoles.Employee)]
+        [ProducesResponseType(typeof(ExpenseSummaryDto), StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetBranchExpenses(
+            [FromQuery] DateTime? fromDate,
+            [FromQuery] DateTime? toDate,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 25,
+            CancellationToken ct = default)
+        {
+            if (User.StoreId() is not int ownStore) return Forbid();
+
+            var filter = new ExpenseFilter { StoreId = ownStore, FromDate = fromDate, ToDate = toDate };
+            var summary = await _expenseService.GetExpensesSummaryAsync(filter, page, pageSize, ct);
+            return Ok(summary);
+        }
+
+        /// <summary>تسجيل مصروف جديد على فرع الموظف (الفرع والاسم والتاريخ من السيرفر)</summary>
+        [HttpPost("branch")]
+        [Authorize(Roles = AppRoles.Employee)]
+        [ProducesResponseType(typeof(ExpenseResponse), StatusCodes.Status201Created)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> CreateBranchExpense([FromBody] CreateBranchExpenseRequest request, CancellationToken ct)
+        {
+            if (request == null) return BadRequest(new { message = "بيانات المصروف مطلوبة." });
+            if (User.StoreId() is not int ownStore) return Forbid();
+
+            if (string.IsNullOrWhiteSpace(request.Notes))
+                return BadRequest(new { message = "يرجى كتابة تفصيل المصروف (صُرف في إيه)." });
+
+            try
+            {
+                var result = await _expenseService.CreateExpenseAsync(new CreateExpenseRequest
+                {
+                    CategoryId = request.CategoryId,
+                    CategoryName = request.CategoryName,
+                    StoreId = ownStore,
+                    Amount = request.Amount,
+                    ExpenseDate = null,
+                    PaymentMethod = request.PaymentMethod,
+                    Recipient = request.Recipient,
+                    Notes = request.Notes,
+                    CreatedBy = User.UserName()
+                }, ct);
+
+                return CreatedAtAction(nameof(GetBranchExpenses), null, result);
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
             }
         }
 

@@ -44,6 +44,21 @@ namespace ShopEx.Controllers
             return Ok(tickets);
         }
 
+        // GET: api/MaintenanceTickets/paged
+        [HttpGet("paged")]
+        [Authorize(Roles = AppRoles.AdminOrEmployee)]
+        [ProducesResponseType(typeof(PagedMaintenanceTicketsResponse), StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetPaged(
+            [FromQuery] MaintenanceStatus? status,
+            [FromQuery] string? search,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 25,
+            CancellationToken ct = default)
+        {
+            var result = await _ticketService.GetPagedAsync(status, search, ScopeStoreId, page, pageSize, ct);
+            return Ok(result);
+        }
+
         // GET: api/MaintenanceTickets/{id}
         [HttpGet("{id:int}")]
         [Authorize(Roles = AppRoles.AdminOrEmployee)]

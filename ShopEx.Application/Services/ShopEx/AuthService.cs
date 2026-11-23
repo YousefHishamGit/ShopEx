@@ -1,3 +1,4 @@
+using ShopEx.Application.DTOs.Licensing;
 using ShopEx.Application.DTOs.Users;
 using ShopEx.Application.Exceptions;
 using ShopEx.Application.interfaces.RMS.Repositories;
@@ -22,14 +23,17 @@ namespace ShopEx.Application.Services.ShopEx
         private readonly ITokenService _tokenService;
         private readonly ILoginAttemptTracker _attempts;
         private readonly IStoreRepository _storeRepo;
+        private readonly ILicenseService _license;
 
         public AuthService(
             IUserRepository userRepo,
             IUnitOfWork unitOfWork,
             ITokenService tokenService,
             ILoginAttemptTracker attempts,
-            IStoreRepository storeRepo)
+            IStoreRepository storeRepo,
+            ILicenseService license)
         {
+            _license = license;
             _userRepo = userRepo;
             _unitOfWork = unitOfWork;
             _tokenService = tokenService;
@@ -65,6 +69,10 @@ namespace ShopEx.Application.Services.ShopEx
                 throw new UnauthorizedAccessException("هذا الحساب معطل. تواصل مع المدير.");
 
             _attempts.Reset(lockKey);
+
+            // الاشتراك منتهي/متوقف: لا دخول لأي مستخدم عادي (المطوّر له تسجيل دخول منفصل)
+            if (!await _license.IsValidAsync(ct))
+                throw new UnauthorizedAccessException(LicenseMessages.Blocked);
 
             user.LastLoginAt = DateTime.Now;
             await _unitOfWork.SaveChangesAsync(ct);

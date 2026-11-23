@@ -30,6 +30,8 @@ namespace ShopEx.Application.DTOs.Stock
         /// <summary>Warehouse-wide (not search/page filtered).</summary>
         public decimal TotalQuantity { get; set; }
         public decimal TotalCost { get; set; }
+        /// <summary>Warehouse-wide stock value at RMS retail price (quantity x price).</summary>
+        public decimal TotalPrice { get; set; }
         public int TotalPages => PageSize > 0 ? (int)Math.Ceiling(TotalCount / (double)PageSize) : 0;
     }
 

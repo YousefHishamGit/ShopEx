@@ -1,0 +1,164 @@
+<div class="max-w-5xl mx-auto space-y-6" dir="rtl">
+  <!-- Header -->
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <div>
+      <h1 class="text-2xl font-bold text-light-on-surface">مصروفات الفرع</h1>
+      <p class="text-sm text-light-on-surface-variant mt-1">
+        سجّل أي مبلغ صرفته من الفرع<span *ngIf="branchName"> ({{ branchName }})</span> واكتب صُرف في إيه
+      </p>
+    </div>
+    <button type="button" (click)="openModal()"
+      class="inline-flex items-center gap-2 px-5 py-2.5 bg-primary text-on-primary font-bold rounded-lg hover:bg-primary/90 shadow transition-all text-sm">
+      <span class="material-symbols-outlined text-[20px]">add_circle</span>
+      <span>تسجيل مصروف</span>
+    </button>
+  </div>
+
+  <!-- Filters + total -->
+  <div class="bg-light-surface rounded-xl border border-outline shadow-sm p-4 flex flex-wrap items-end gap-3">
+    <div>
+      <label class="block text-[11px] font-semibold text-light-on-surface-variant mb-1">من</label>
+      <input type="date" [(ngModel)]="fromDate" (ngModelChange)="onDateChange()"
+        class="px-3 py-2 text-xs border border-outline rounded-lg bg-light-surface focus:outline-none focus:border-primary">
+    </div>
+    <div>
+      <label class="block text-[11px] font-semibold text-light-on-surface-variant mb-1">إلى</label>
+      <input type="date" [(ngModel)]="toDate" (ngModelChange)="onDateChange()"
+        class="px-3 py-2 text-xs border border-outline rounded-lg bg-light-surface focus:outline-none focus:border-primary">
+    </div>
+    <button type="button" (click)="setToday()"
+      class="px-3 py-2 text-xs font-semibold border border-outline rounded-lg hover:bg-light-surface-variant">اليوم</button>
+    <button type="button" (click)="showAll()"
+      class="px-3 py-2 text-xs font-semibold border border-outline rounded-lg hover:bg-light-surface-variant">الكل</button>
+
+    <div class="mr-auto text-left">
+      <div class="text-[11px] text-light-on-surface-variant">إجمالي المصروف في الفترة</div>
+      <div class="text-xl font-extrabold text-orange-700">
+        {{ (summary?.totalAmount || 0) | number:'1.2-2' }} <span class="text-xs font-normal text-gray-500">ج.م</span>
+      </div>
+      <div class="text-[11px] text-gray-500">{{ summary?.totalCount || 0 }} حركة</div>
+    </div>
+  </div>
+
+  <div *ngIf="errorMessage" role="alert"
+    class="p-4 bg-error-container text-on-error-container rounded-xl border border-error/20 text-sm font-medium">
+    {{ errorMessage }}
+  </div>
+
+  <div *ngIf="loading" class="p-10 text-center text-sm text-light-on-surface-variant">جاري التحميل...</div>
+
+  <!-- List -->
+  <div *ngIf="!loading && !errorMessage" class="bg-light-surface rounded-xl border border-outline shadow-sm overflow-hidden">
+    <div *ngIf="expenses.length === 0" class="p-10 text-center text-sm text-light-on-surface-variant">
+      لا توجد مصروفات في هذه الفترة.
+    </div>
+
+    <div *ngIf="expenses.length > 0" class="overflow-x-auto">
+      <table class="w-full text-right text-sm">
+        <thead class="bg-light-surface-variant/60 text-light-on-surface-variant text-xs border-b border-outline">
+          <tr>
+            <th class="py-3 px-4">التاريخ</th>
+            <th class="py-3 px-4">البند</th>
+            <th class="py-3 px-4">التفصيل (صُرف في إيه)</th>
+            <th class="py-3 px-4">المستلم</th>
+            <th class="py-3 px-4">طريقة الدفع</th>
+            <th class="py-3 px-4">سجّله</th>
+            <th class="py-3 px-4 text-left">المبلغ</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-outline">
+          <tr *ngFor="let e of expenses; trackBy: trackExpense" class="hover:bg-light-surface-variant/40">
+            <td class="py-3 px-4 whitespace-nowrap text-xs text-light-on-surface-variant">{{ e.expenseDate | date:'yyyy/MM/dd hh:mm a' }}</td>
+            <td class="py-3 px-4 font-semibold whitespace-nowrap">{{ e.categoryName }}</td>
+            <td class="py-3 px-4 max-w-xs">{{ e.notes || '—' }}</td>
+            <td class="py-3 px-4">{{ e.recipient || '—' }}</td>
+            <td class="py-3 px-4 whitespace-nowrap text-xs">{{ e.paymentMethodName }}</td>
+            <td class="py-3 px-4 whitespace-nowrap text-xs">{{ e.createdBy || '—' }}</td>
+            <td class="py-3 px-4 text-left font-extrabold text-orange-700 whitespace-nowrap">{{ e.amount | number:'1.2-2' }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div *ngIf="summary && summary.totalPages > 1"
+      class="p-3 border-t border-outline flex items-center justify-between text-xs text-light-on-surface-variant">
+      <span>{{ pageFrom }} - {{ pageTo }} من {{ summary.totalCount }}</span>
+      <div class="flex items-center gap-2">
+        <button (click)="goToPage(page - 1)" [disabled]="page <= 1 || loading"
+          class="px-3.5 py-1.5 border border-slate-300 bg-white rounded-lg text-black font-extrabold hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed">السابق</button>
+        <span class="text-slate-900 font-bold font-mono">صفحة {{ page }} / {{ summary.totalPages }}</span>
+        <button (click)="goToPage(page + 1)" [disabled]="page >= summary.totalPages || loading"
+          class="px-3.5 py-1.5 border border-slate-300 bg-white rounded-lg text-black font-extrabold hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed">التالي</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ Add expense modal ============ -->
+<div *ngIf="showModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" dir="rtl"
+  (click)="closeModal()">
+  <form (ngSubmit)="submit()" (click)="$event.stopPropagation()"
+    class="bg-light-surface rounded-2xl border border-outline shadow-2xl w-full max-w-md overflow-hidden">
+    <div class="px-6 py-4 border-b border-outline flex items-center justify-between">
+      <h3 class="font-bold text-base text-light-on-surface">تسجيل مصروف</h3>
+      <button type="button" (click)="closeModal()" class="text-gray-400 hover:text-gray-600 p-1" aria-label="إغلاق">
+        <span class="material-symbols-outlined text-[20px]">close</span>
+      </button>
+    </div>
+
+    <div class="p-6 space-y-4 text-xs">
+      <div *ngIf="modalError" role="alert" class="p-3 bg-error/10 border border-error/20 text-error rounded-xl">{{ modalError }}</div>
+
+      <div>
+        <label class="block font-semibold text-light-on-surface mb-1">المبلغ (ج.م) *</label>
+        <input type="number" name="amount" [(ngModel)]="form.amount" min="0.01" step="0.01" placeholder="0.00" autofocus
+          class="w-full px-3.5 py-2.5 border border-outline rounded-lg text-sm font-bold bg-light-surface focus:outline-none focus:border-primary">
+      </div>
+
+      <div>
+        <label class="block font-semibold text-light-on-surface mb-1">البند *</label>
+        <select name="categoryId" [(ngModel)]="form.categoryId"
+          class="w-full px-3 py-2.5 border border-outline rounded-lg text-sm bg-light-surface focus:outline-none focus:border-primary">
+          <option [ngValue]="null">— اختر البند —</option>
+          <option *ngFor="let c of categories" [ngValue]="c.id">{{ c.name }}</option>
+        </select>
+        <input *ngIf="!form.categoryId" type="text" name="categoryName" [(ngModel)]="form.categoryName" maxlength="150"
+          placeholder="أو اكتب بند جديد (مثال: مواصلات)"
+          class="mt-2 w-full px-3.5 py-2.5 border border-outline rounded-lg text-sm bg-light-surface focus:outline-none focus:border-primary">
+      </div>
+
+      <div>
+        <label class="block font-semibold text-light-on-surface mb-1">التفصيل: صُرف في إيه؟ *</label>
+        <textarea name="notes" [(ngModel)]="form.notes" rows="3" maxlength="1000"
+          placeholder="مثال: شراء أدوات تنظيف للفرع / بقشيش توصيل..."
+          class="w-full px-3.5 py-2.5 border border-outline rounded-lg text-sm bg-light-surface focus:outline-none focus:border-primary"></textarea>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block font-semibold text-light-on-surface mb-1">طريقة الدفع</label>
+          <select name="paymentMethod" [(ngModel)]="form.paymentMethod"
+            class="w-full px-3 py-2.5 border border-outline rounded-lg text-sm bg-light-surface focus:outline-none focus:border-primary">
+            <option *ngFor="let p of paymentMethods" [ngValue]="p.value">{{ p.label }}</option>
+          </select>
+        </div>
+        <div>
+          <label class="block font-semibold text-light-on-surface mb-1">المستلم (اختياري)</label>
+          <input type="text" name="recipient" [(ngModel)]="form.recipient" maxlength="200"
+            class="w-full px-3.5 py-2.5 border border-outline rounded-lg text-sm bg-light-surface focus:outline-none focus:border-primary">
+        </div>
+      </div>
+    </div>
+
+    <div class="px-6 py-4 border-t border-outline flex items-center justify-end gap-3 bg-light-surface-variant/40">
+      <button type="button" (click)="closeModal()" [disabled]="submitting"
+        class="px-5 py-2.5 border border-outline hover:bg-light-surface-variant rounded-lg text-sm text-light-on-surface-variant font-medium">إلغاء</button>
+      <button type="submit" [disabled]="submitting"
+        class="inline-flex items-center gap-2 px-6 py-2.5 bg-primary text-on-primary font-bold rounded-lg hover:bg-primary/90 disabled:opacity-60 shadow text-sm">
+        <span *ngIf="submitting"
+          class="inline-block animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></span>
+        <span>حفظ المصروف</span>
+      </button>
+    </div>
+  </form>
+</div>

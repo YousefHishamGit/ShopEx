@@ -42,6 +42,10 @@ namespace ShopEx.Infrastructure.Persistence.ShopDb
 
         public DbSet<User> Users => Set<User>();
 
+        // حساب المطوّر والاشتراك (منفصلان عن Users فلا يظهران للعميل)
+        public DbSet<DevUser> DevUsers => Set<DevUser>();
+        public DbSet<License> Licenses => Set<License>();
+
         public DbSet<ExpenseCategory> ExpenseCategories => Set<ExpenseCategory>();
         public DbSet<Expense> Expenses => Set<Expense>();
 

@@ -49,6 +49,48 @@ namespace ShopEx.Infrastructure.Repositories.ShopEx
                       .ToListAsync(ct);
         }
 
+        public async Task<(List<MaintenanceTicket> Items, int TotalCount)> GetPagedAsync(
+            MaintenanceStatus? status, string? search, int? storeId, int skip, int take, CancellationToken ct = default)
+        {
+            var query = _db.MaintenanceTickets.AsNoTracking()
+                .Where(t => storeId == null || t.StoreId == storeId);
+
+            if (status.HasValue)
+                query = query.Where(t => t.Status == status.Value);
+
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var s = search.Trim();
+                query = query.Where(t =>
+                    t.TicketNumber.Contains(s) ||
+                    t.CustomerName.Contains(s) ||
+                    t.CustomerPhone.Contains(s) ||
+                    t.DeviceName.Contains(s));
+            }
+
+            var total = await query.CountAsync(ct);
+            var items = await query
+                .OrderByDescending(t => t.ReceivedAt).ThenByDescending(t => t.Id)
+                .Skip(skip).Take(take)
+                .Include(t => t.Operations)
+                .Include(t => t.Payments)
+                .AsSplitQuery()
+                .ToListAsync(ct);
+
+            return (items, total);
+        }
+
+        public async Task<Dictionary<MaintenanceStatus, int>> GetStatusCountsAsync(int? storeId, CancellationToken ct = default)
+        {
+            var rows = await _db.MaintenanceTickets.AsNoTracking()
+                .Where(t => storeId == null || t.StoreId == storeId)
+                .GroupBy(t => t.Status)
+                .Select(g => new { Status = g.Key, Count = g.Count() })
+                .ToListAsync(ct);
+
+            return rows.ToDictionary(r => r.Status, r => r.Count);
+        }
+
         public Task<List<MaintenanceTicket>> GetByStatusAsync(MaintenanceStatus status, int? storeId = null, CancellationToken ct = default)
         {
             return _db.MaintenanceTickets

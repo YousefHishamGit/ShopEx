@@ -22,6 +22,7 @@ export class CloseBalanceComponent implements OnInit {
   // Close modal
   target: StoreBalanceGroup | null = null;
   amountUsed: number | null = null;
+  profit: number | null = null;
   notes = '';
   submitting = false;
   modalError = '';
@@ -64,6 +65,7 @@ export class CloseBalanceComponent implements OnInit {
   openModal(group: StoreBalanceGroup): void {
     this.target = group;
     this.amountUsed = null;
+    this.profit = null;
     this.notes = '';
     this.modalError = '';
   }
@@ -90,6 +92,16 @@ export class CloseBalanceComponent implements OnInit {
       return;
     }
 
+    if (this.profit === null || this.profit === undefined || (this.profit as unknown) === '') {
+      this.modalError = 'يرجى إدخال الربح (اكتب 0 لو مفيش ربح).';
+      return;
+    }
+    const profit = Number(this.profit);
+    if (isNaN(profit) || profit < 0) {
+      this.modalError = 'الربح لا يمكن أن يكون سالباً.';
+      return;
+    }
+
     const group = this.target;
     this.submitting = true;
     this.modalError = '';
@@ -100,13 +112,14 @@ export class CloseBalanceComponent implements OnInit {
         storeId: group.storeId,
         balanceType: group.balanceType,
         amountUsed: amount,
+        profit,
         notes: this.notes.trim() || undefined
       })
       .subscribe({
         next: () => {
           this.submitting = false;
           this.target = null;
-          this.toast.success(`تم تقفيل ${amount} ج.م من ${group.balanceTypeName}.`);
+          this.toast.success(`تم تقفيل ${amount} ج.م (الربح ${profit} ج.م) من ${group.balanceTypeName}.`);
           this.load();
         },
         error: (err) => {

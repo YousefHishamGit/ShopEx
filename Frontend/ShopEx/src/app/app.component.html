@@ -3,7 +3,7 @@
 <ng-container *ngIf="auth.currentUser() as user; else guestShell">
 <header class="h-16 bg-white border-b border-outline px-6 flex items-center justify-between sticky top-0 z-30 shadow-sm" dir="rtl">
     <div class="flex items-center gap-4">
-        <button (click)="toggleSidebar()" class="p-2 text-slate-600 hover:text-primary hover:bg-slate-100 rounded-lg transition-colors" aria-label="تبديل القائمة الجانبية">
+        <button *ngIf="!auth.isDev()" (click)="toggleSidebar()" class="p-2 text-slate-600 hover:text-primary hover:bg-slate-100 rounded-lg transition-colors" aria-label="تبديل القائمة الجانبية">
             <span class="material-symbols-outlined text-[24px]">menu</span>
         </button>
         <div class="flex items-center gap-3 cursor-pointer" [routerLink]="auth.homeRoute()">
@@ -28,7 +28,7 @@
             </div>
             <div class="hidden lg:flex flex-col text-right leading-tight">
                 <span class="text-sm font-bold text-slate-800">{{ user.name }}</span>
-                <span class="text-[11px] text-slate-500">{{ auth.isAdmin() ? 'مدير النظام (HQ)' : 'موظف — ' + (user.storeName || 'فرع #' + user.storeId) }}</span>
+                <span class="text-[11px] text-slate-500">{{ auth.isDev() ? 'المطوّر' : auth.isAdmin() ? 'مدير النظام (HQ)' : 'موظف — ' + (user.storeName || 'فرع #' + user.storeId) }}</span>
             </div>
             <button type="button" (click)="logout()" title="تسجيل الخروج" aria-label="تسجيل الخروج"
                     class="p-2 text-slate-500 hover:text-error hover:bg-error-container rounded-lg transition-colors">
@@ -41,7 +41,7 @@
 <!-- Layout Body -->
 <div class="flex-1 flex overflow-hidden min-h-[calc(100vh-64px)]" dir="rtl">
     <!-- Sidebar Navigation -->
-    <aside *ngIf="sidebarOpen" class="w-64 bg-white border-l border-outline flex flex-col transition-all duration-surface-enter z-20 shrink-0 shadow-sm">
+    <aside *ngIf="sidebarOpen && !auth.isDev()" class="w-64 bg-white border-l border-outline flex flex-col transition-all duration-surface-enter z-20 shrink-0 shadow-sm">
         <nav *ngIf="auth.isAdmin()" class="p-3 space-y-1.5" aria-label="القائمة الرئيسية">
             <!-- 0. الرئيسية (Dashboard) -->
             <a routerLink="/dashboard" routerLinkActive="bg-primary/10 text-primary font-bold border-r-4 border-primary" class="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-600 hover:text-primary hover:bg-slate-50 text-sm transition-colors">
@@ -119,6 +119,10 @@
             <a routerLink="/branch/balance" routerLinkActive="bg-primary/10 text-primary font-bold border-r-4 border-primary" class="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-600 hover:text-primary hover:bg-slate-50 text-sm transition-colors">
                 <span class="material-symbols-outlined text-[22px]">done_all</span>
                 <span class="sidebar-label font-medium">تقفيل الرصيد</span>
+            </a>
+            <a routerLink="/branch/expenses" routerLinkActive="bg-primary/10 text-primary font-bold border-r-4 border-primary" class="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-600 hover:text-primary hover:bg-slate-50 text-sm transition-colors">
+                <span class="material-symbols-outlined text-[22px]">receipt_long</span>
+                <span class="sidebar-label font-medium">مصروفات الفرع</span>
             </a>
         </nav>
 

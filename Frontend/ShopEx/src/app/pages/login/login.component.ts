@@ -2,6 +2,7 @@ import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
+import { Observable } from 'rxjs';
 import { AuthService } from '../../services/auth.service';
 
 @Component({
@@ -17,11 +18,16 @@ export class LoginComponent {
   submitting = false;
   errorMessage = '';
 
+  /** True on the hidden /dev/login route: signs in against the developer table instead. */
+  readonly devMode: boolean;
+
   constructor(
     private auth: AuthService,
     private router: Router,
     private route: ActivatedRoute
-  ) {}
+  ) {
+    this.devMode = !!route.snapshot.data['dev'];
+  }
 
   onSubmit(): void {
     if (this.submitting) return;
@@ -34,7 +40,10 @@ export class LoginComponent {
     this.submitting = true;
     this.errorMessage = '';
 
-    this.auth.login({ username: this.username, password: this.password }).subscribe({
+    const request = { username: this.username, password: this.password };
+    const login$: Observable<unknown> = this.devMode ? this.auth.loginDev(request) : this.auth.login(request);
+
+    login$.subscribe({
       next: () => {
         this.submitting = false;
         this.password = '';
@@ -54,6 +63,8 @@ export class LoginComponent {
   /** Only same-app absolute paths are accepted (prevents open redirects). */
   private safeReturnUrl(): string | null {
     const url = this.route.snapshot.queryParamMap.get('returnUrl');
-    return url && url.startsWith('/') && !url.startsWith('//') && !url.startsWith('/login') ? url : null;
+    return url && url.startsWith('/') && !url.startsWith('//') && !url.startsWith('/login') && !url.startsWith('/dev/login')
+      ? url
+      : null;
   }
 }

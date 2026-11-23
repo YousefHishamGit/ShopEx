@@ -205,10 +205,15 @@ namespace ShopEx.Application.Services.ShopEx
 
             var (totalQty, totalCost) = await _stockRepository.GetInStockTotalsAsync(warehouseId, ct);
 
+            // Prices live in RMS: value the whole warehouse (not just this page) at retail price.
+            var quantities = await _stockRepository.GetInStockQuantitiesAsync(warehouseId, ct);
+            var prices = await _itemRepository.GetPricesByIdsAsync(quantities.Select(q => q.RMSItemID));
+            var totalPrice = quantities.Sum(q => prices.TryGetValue(q.RMSItemID, out var p) ? q.Quantity * p : 0m);
+
             return new PagedStockBalanceResponse
             {
                 Items = rows, Page = page, PageSize = pageSize, TotalCount = total,
-                TotalQuantity = totalQty, TotalCost = totalCost
+                TotalQuantity = totalQty, TotalCost = totalCost, TotalPrice = totalPrice
             };
         }
 

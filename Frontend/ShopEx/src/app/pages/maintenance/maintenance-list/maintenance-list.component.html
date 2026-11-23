@@ -62,7 +62,7 @@
       <div class="relative flex-1">
         <span
           class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-[20px]">search</span>
-        <input type="text" [(ngModel)]="searchTerm" (input)="applyFilter()"
+        <input type="text" [(ngModel)]="searchTerm" (input)="onSearchInput()"
           placeholder="ابحث برقم الإيصال، اسم العميل، رقم الهاتف، أو اسم الجهاز..."
           class="w-full pr-10 pl-4 py-2 border border-outline rounded-lg text-sm bg-light-surface-variant focus:bg-light-surface focus:outline-none focus:border-primary transition-all">
       </div>
@@ -215,6 +215,23 @@
           </tr>
         </tbody>
       </table>
+    </div>
+
+    <!-- Pagination -->
+    <div *ngIf="totalPages > 1"
+      class="p-3 border-t border-outline flex items-center justify-between text-xs text-light-on-surface-variant">
+      <span>{{ rangeStart }} - {{ rangeEnd }} من {{ totalCount }}</span>
+      <div class="flex items-center gap-2">
+        <button (click)="goToPage(page - 1)" [disabled]="page <= 1 || loading"
+          class="px-3.5 py-1.5 border border-slate-300 bg-white rounded-lg text-black font-extrabold hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+          السابق
+        </button>
+        <span class="text-slate-900 font-bold font-mono">صفحة {{ page }} / {{ totalPages }}</span>
+        <button (click)="goToPage(page + 1)" [disabled]="page >= totalPages || loading"
+          class="px-3.5 py-1.5 border border-slate-300 bg-white rounded-lg text-black font-extrabold hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+          التالي
+        </button>
+      </div>
     </div>
   </div>
 </div>

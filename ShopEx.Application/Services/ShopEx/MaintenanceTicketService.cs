@@ -133,6 +133,40 @@ namespace ShopEx.Application.Services.ShopEx
                 .ToList();
         }
 
+        public async Task<PagedMaintenanceTicketsResponse> GetPagedAsync(
+            MaintenanceStatus? status, string? search, int? storeId, int page = 1, int pageSize = 25, CancellationToken ct = default)
+        {
+            pageSize = Math.Clamp(pageSize, 1, 100);
+            page = Math.Max(page, 1);
+
+            // الاستعلامات تتابعية لأنها تشترك في نفس الـ DbContext
+            var counts = await _ticketRepository.GetStatusCountsAsync(storeId, ct);
+            var (tickets, total) = await _ticketRepository.GetPagedAsync(status, search, storeId, (page - 1) * pageSize, pageSize, ct);
+
+            int Count(params MaintenanceStatus[] s) => s.Sum(x => counts.TryGetValue(x, out var c) ? c : 0);
+
+            var names = tickets.Any(t => t.StoreId.HasValue)
+                ? await _storeRepository.GetNamesAsync(ct)
+                : new Dictionary<int, string>();
+
+            return new PagedMaintenanceTicketsResponse
+            {
+                Items = tickets.Select(t =>
+                {
+                    var dto = MapToSummaryResponse(t);
+                    dto.StoreName = StoreNameOf(names, t.StoreId);
+                    return dto;
+                }).ToList(),
+                Page = page,
+                PageSize = pageSize,
+                TotalCount = total,
+                CountTotal = counts.Values.Sum(),
+                CountReceived = Count(MaintenanceStatus.Received, MaintenanceStatus.UnderRepair),
+                CountCompleted = Count(MaintenanceStatus.Completed),
+                CountDelivered = Count(MaintenanceStatus.Delivered)
+            };
+        }
+
         // المرحلة الثانية: تسجيل الإصلاحات والعمليات المنفذة (عملت كذا وسعرها كذا)
         public async Task<MaintenanceTicketResponse> AddOperationAsync(int ticketId, AddTicketOperationRequest request, CancellationToken ct = default)
         {

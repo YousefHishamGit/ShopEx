@@ -19,6 +19,11 @@ namespace ShopEx.Domain.Entity
         public decimal AmountUsed { get; set; }
 
         /// <summary>
+        /// الربح الذي حققه الفرع من هذا المبلغ المستهلك (يكتبه الفرع عند التقفيل)
+        /// </summary>
+        public decimal Profit { get; set; }
+
+        /// <summary>
         /// تاريخ التقفيل (يوم التقفيل)
         /// </summary>
         public DateTime ClosedAt { get; set; } = DateTime.UtcNow;

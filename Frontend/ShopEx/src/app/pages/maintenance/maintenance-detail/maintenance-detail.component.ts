@@ -13,6 +13,7 @@ import {
   AddTicketPaymentRequest
 } from '../../../models/models';
 import { PrintService } from '../../../shared/print/print.service';
+import { ThermalReceiptService } from '../../../shared/print/thermal-receipt.service';
 import { PrintSheetComponent } from '../../../shared/print/print-sheet.component';
 import { TabbedSelectComponent, TabbedSelectItem } from '../../../components/tabbed-select/tabbed-select.component';
 
@@ -50,6 +51,7 @@ export class MaintenanceDetailComponent implements OnInit {
   newOperation: AddTicketOperationRequest = {
     operationName: '',
     cost: 0,
+    partCost: 0,
     notes: ''
   };
   addingOperation: boolean = false;
@@ -84,7 +86,8 @@ export class MaintenanceDetailComponent implements OnInit {
   constructor(
     private route: ActivatedRoute,
     private maintenanceService: MaintenanceService,
-    private printer: PrintService
+    private printer: PrintService,
+    private thermal: ThermalReceiptService
   ) { }
 
   ngOnInit(): void {
@@ -121,12 +124,18 @@ export class MaintenanceDetailComponent implements OnInit {
     this.selectedOperationId = null;
     this.newOperation.operationName = '';
     this.newOperation.cost = 0;
+    this.newOperation.partCost = 0;
   }
 
   // Stage 2: إضافة عملية إصلاح وتكلفتها
   onAddOperation(): void {
     if (!this.newOperation.operationName.trim()) {
       this.showMessage('يرجى كتابة اسم أو وصف العملية المنفذة أو اختيارها من القائمة.', true);
+      return;
+    }
+
+    if ((this.newOperation.partCost ?? 0) < 0) {
+      this.errorMessage = 'تكلفة القطعة لا يمكن أن تكون سالبة.';
       return;
     }
 
@@ -140,7 +149,7 @@ export class MaintenanceDetailComponent implements OnInit {
       next: (updatedTicket) => {
         this.ticket = updatedTicket;
         this.addingOperation = false;
-        this.newOperation = { operationName: '', cost: 0, notes: '' };
+        this.newOperation = { operationName: '', cost: 0, partCost: 0, notes: '' };
         this.selectedOperationId = null;
         this.showMessage('تم تسجيل عملية الإصلاح بنجاح.', false);
       },
@@ -197,7 +206,8 @@ export class MaintenanceDetailComponent implements OnInit {
     this.deliveryForm = {
       paymentAmount: this.ticket.remainingAmount > 0 ? this.ticket.remainingAmount : 0,
       paymentMethod: MaintenancePaymentMethod.Cash,
-      deliveryNotes: ''
+      deliveryNotes: '',
+      warrantyNote: ''
     };
     this.showDeliveryModal = true;
   }
@@ -210,6 +220,8 @@ export class MaintenanceDetailComponent implements OnInit {
         this.delivering = false;
         this.showDeliveryModal = false;
         this.showMessage('تم تسليم الجهاز للعميل وتحصيل التكلفة بنجاح!', false);
+        // الطباعة فوراً بعد التسليم والتحصيل
+        this.thermal.printMaintenance(updatedTicket);
       },
       error: (err) => {
         this.delivering = false;
@@ -251,6 +263,13 @@ export class MaintenanceDetailComponent implements OnInit {
   }
 
   // طباعة الإيصال
+  /** فاتورة الحساب للعميل (Thermal Receipt 80mm): بنود الإصلاح والتكلفة وملاحظة الضمان */
+  printThermal(): void {
+    if (this.ticket) this.thermal.printMaintenance(this.ticket);
+  }
+
+  readonly warrantyChips = ['ضمان أسبوع', 'ضمان شهر', 'ضمان 3 شهور', 'ضمان 6 شهور', 'بدون ضمان'];
+
   printReceipt(): void {
     this.printer.print();
   }

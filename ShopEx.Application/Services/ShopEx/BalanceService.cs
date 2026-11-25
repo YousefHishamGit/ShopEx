@@ -1,4 +1,6 @@
 using ShopEx.Application.DTOs.Balance;
+using ShopEx.Application.DTOs.Expense;
+using ShopEx.Application.interfaces.RMS.Repositories;
 using ShopEx.Application.interfaces.ShopEx.Repositories;
 using ShopEx.Application.interfaces.ShopEx.Services;
 using ShopEx.Domain.Entity;
@@ -20,11 +22,17 @@ namespace ShopEx.Application.Services.ShopEx
 
         private readonly IBalanceRepository _balanceRepo;
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IExpenseService _expenseService;
+        private readonly IStoreRepository _storeRepo;
 
         public BalanceService(
             IBalanceRepository balanceRepo,
-            IUnitOfWork unitOfWork)
+            IUnitOfWork unitOfWork,
+            IExpenseService expenseService,
+            IStoreRepository storeRepo)
         {
+            _storeRepo = storeRepo ?? throw new ArgumentNullException(nameof(storeRepo));
+            _expenseService = expenseService ?? throw new ArgumentNullException(nameof(expenseService));
             _balanceRepo = balanceRepo ?? throw new ArgumentNullException(nameof(balanceRepo));
             _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
         }
@@ -42,6 +50,9 @@ namespace ShopEx.Application.Services.ShopEx
             if (request.Amount <= 0)
                 throw new ArgumentException("يجب أن يكون المبلغ المشحون أكبر من الصفر.", nameof(request.Amount));
 
+            if (!await _storeRepo.ExistsAsync(request.StoreId, ct))
+                throw new ArgumentException("الفرع المحدد غير موجود.", nameof(request.StoreId));
+
             var balance = new Balance
             {
                 StoreId = request.StoreId,
@@ -55,6 +66,47 @@ namespace ShopEx.Application.Services.ShopEx
             await _unitOfWork.SaveChangesAsync(ct);
 
             return MapToResponse(balance);
+        }
+
+        /// <summary>بند المصروفات الذي تُسجَّل عليه شحنات الفرع الذاتية (يُنشأ تلقائياً أول مرة)</summary>
+        public const string SelfChargeExpenseCategory = "شحن رصيد";
+
+        public async Task<BalanceResponse> ChargeOwnBranchAsync(
+            int storeId, string userName, ChargeOwnBalanceRequest request, CancellationToken ct = default)
+        {
+            if (request == null)
+                throw new ArgumentNullException(nameof(request));
+
+            var user = string.IsNullOrWhiteSpace(userName) ? null : userName.Trim();
+            var note = request.Notes?.Trim();
+            var typeName = GetBalanceTypeName(request.BalanceType);
+            BalanceResponse? result = null;
+
+            // الشحنة والمصروف في معاملة واحدة: يتسجلان معاً أو لا يتسجل أي منهما
+            await _unitOfWork.ExecuteInTransactionAsync(async () =>
+            {
+                result = await ChargeAsync(new ChargeBalanceRequest
+                {
+                    StoreId = storeId,
+                    BalanceType = request.BalanceType,
+                    Amount = request.Amount,
+                    Notes = string.IsNullOrEmpty(note) ? $"شحن من الفرع [{user}]" : $"شحن من الفرع [{user}] {note}"
+                }, ct);
+
+                // مصروف تلقائي مرتبط بالشحنة: لا يتعطل بتعطيل البند ولا يُعدَّل/يُحذف يدوياً
+                await _expenseService.CreateLinkedExpenseAsync(new CreateExpenseRequest
+                {
+                    CategoryName = SelfChargeExpenseCategory,
+                    StoreId = storeId,
+                    Amount = result.Amount,
+                    PaymentMethod = ExpensePaymentMethod.Cash,
+                    Recipient = typeName,
+                    Notes = string.IsNullOrEmpty(note) ? $"شحن رصيد {typeName}" : $"شحن رصيد {typeName} - {note}",
+                    CreatedBy = user
+                }, deviceId: null, balanceId: result.Id, ct);
+            }, ct);
+
+            return result!;
         }
 
         public async Task<BalanceClosureResponse> CloseAsync(int balanceId, CloseBalanceRequest request, CancellationToken ct = default)

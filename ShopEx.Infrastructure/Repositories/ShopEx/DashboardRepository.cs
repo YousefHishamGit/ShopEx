@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using ShopEx.Application.DTOs.Dashboard;
 using ShopEx.Application.interfaces.ShopEx.Repositories;
+using ShopEx.Application.Services.ShopEx;
 using ShopEx.Domain.Enum;
 using ShopEx.Infrastructure.Persistence.ShopDb;
 using System;
@@ -40,9 +41,20 @@ namespace ShopEx.Infrastructure.Repositories.ShopEx
             result.TicketsRepaired = await _db.MaintenanceTickets.AsNoTracking()
                 .CountAsync(t => t.RepairedAt != null && t.RepairedAt >= from && t.RepairedAt < to, ct);
 
-            result.MaintenanceRevenue = await _db.MaintenancePayments.AsNoTracking()
+            result.MaintenanceRevenueByStore = await _db.MaintenancePayments.AsNoTracking()
                 .Where(p => p.PaidAt >= from && p.PaidAt < to)
-                .SumAsync(p => (decimal?)p.Amount, ct) ?? 0m;
+                .GroupBy(p => p.MaintenanceTicket.StoreId)
+                .Select(g => new StoreAmountRow { StoreId = g.Key, Amount = g.Sum(p => p.Amount), Count = g.Count() })
+                .ToListAsync(ct);
+            result.MaintenanceRevenue = result.MaintenanceRevenueByStore.Sum(r => r.Amount);
+
+            result.MaintenanceProfitByStore = await _db.MaintenanceTicketOperations.AsNoTracking()
+                .Where(o => o.MaintenanceTicket.Status == MaintenanceStatus.Delivered
+                            && o.MaintenanceTicket.DeliveredAt != null
+                            && o.MaintenanceTicket.DeliveredAt >= from && o.MaintenanceTicket.DeliveredAt < to)
+                .GroupBy(o => o.MaintenanceTicket.StoreId)
+                .Select(g => new StoreAmountRow { StoreId = g.Key, Amount = g.Sum(o => o.Cost), Profit = g.Sum(o => o.Cost - o.PartCost) })
+                .ToListAsync(ct);
 
             // الحالة الحالية (لا تتأثر بتاريخ اللوحة)
             result.UnderRepairNow = await _db.MaintenanceTickets.AsNoTracking()
@@ -57,6 +69,28 @@ namespace ShopEx.Infrastructure.Repositories.ShopEx
                 .Select(g => new StoreAmountRow { StoreId = g.Key, Amount = g.Sum(e => e.Amount), Count = g.Count() })
                 .ToListAsync(ct);
 
+            var selfCharge = BalanceService.SelfChargeExpenseCategory;
+            result.OperatingExpenses = await _db.Expenses.AsNoTracking()
+                .Where(e => e.ExpenseDate >= from && e.ExpenseDate < to
+                            && e.DeviceId == null && e.BalanceId == null
+                            && e.ExpenseCategory.Name != selfCharge)
+                .GroupBy(e => e.StoreId)
+                .Select(g => new StoreAmountRow { StoreId = g.Key, Amount = g.Sum(e => e.Amount), Count = g.Count() })
+                .ToListAsync(ct);
+
+            // ----- البنزيمات: بضاعة حُوسبت (بيع) على التجار في اليوم -----
+            var consignmentSold = await _db.ConsignmentSettlementItems.AsNoTracking()
+                .Where(i => i.ConsignmentSettlement.SettlementDate >= from && i.ConsignmentSettlement.SettlementDate < to)
+                .GroupBy(i => 1)
+                .Select(g => new
+                {
+                    Revenue = g.Sum(i => i.QuantitySold * i.ConsignmentItem.UnitPrice),
+                    Cost = g.Sum(i => i.QuantitySold * i.ConsignmentItem.UnitCost)
+                })
+                .FirstOrDefaultAsync(ct);
+            result.ConsignmentRevenue = consignmentSold?.Revenue ?? 0m;
+            result.ConsignmentCost = consignmentSold?.Cost ?? 0m;
+
             // ----- الأرصدة -----
             result.BalanceClosures = await _db.BalanceClosures.AsNoTracking()
                 .Where(c => c.ClosedAt >= from && c.ClosedAt < to)
@@ -64,9 +98,55 @@ namespace ShopEx.Infrastructure.Repositories.ShopEx
                 .Select(g => new StoreAmountRow { StoreId = g.Key, Amount = g.Sum(c => c.AmountUsed), Profit = g.Sum(c => c.Profit), Count = g.Count() })
                 .ToListAsync(ct);
 
-            result.BalanceCharged = await _db.Balances.AsNoTracking()
+            result.BalanceChargedByStore = await _db.Balances.AsNoTracking()
                 .Where(b => b.ChargedAt >= from && b.ChargedAt < to)
-                .SumAsync(b => (decimal?)b.Amount, ct) ?? 0m;
+                .GroupBy(b => (int?)b.StoreId)
+                .Select(g => new StoreAmountRow { StoreId = g.Key, Amount = g.Sum(b => b.Amount), Count = g.Count() })
+                .ToListAsync(ct);
+            result.BalanceCharged = result.BalanceChargedByStore.Sum(r => r.Amount);
+
+            // المتبقي الآن = كل الشحنات - كل التقفيلات (لكل فرع)
+            var chargedAll = await _db.Balances.AsNoTracking()
+                .GroupBy(b => b.StoreId)
+                .Select(g => new { StoreId = g.Key, Amount = g.Sum(b => b.Amount) })
+                .ToListAsync(ct);
+            var usedAll = await _db.BalanceClosures.AsNoTracking()
+                .GroupBy(c => c.Balance.StoreId)
+                .Select(g => new { StoreId = g.Key, Amount = g.Sum(c => c.AmountUsed) })
+                .ToListAsync(ct);
+            var usedByStore = usedAll.ToDictionary(x => x.StoreId, x => x.Amount);
+            result.BalanceRemainingByStore = chargedAll
+                .Select(x => new StoreAmountRow
+                {
+                    StoreId = x.StoreId,
+                    Amount = x.Amount - (usedByStore.TryGetValue(x.StoreId, out var u) ? u : 0m)
+                })
+                .ToList();
+
+            // ----- الأجهزة المشتراة بغرض البيع -----
+            result.DevicesBought = await _db.Devices.AsNoTracking()
+                .Where(d => d.PurchaseDate >= from && d.PurchaseDate < to)
+                .GroupBy(d => d.StoreId)
+                .Select(g => new StoreAmountRow { StoreId = g.Key, Amount = g.Sum(d => d.PurchasePrice), Count = g.Count() })
+                .ToListAsync(ct);
+
+            result.DevicesSold = await _db.Devices.AsNoTracking()
+                .Where(d => d.Status == DeviceStatus.Sold && d.SoldAt != null && d.SoldAt >= from && d.SoldAt < to)
+                .GroupBy(d => d.SoldStoreId)
+                .Select(g => new StoreAmountRow
+                {
+                    StoreId = g.Key,
+                    Amount = g.Sum(d => d.SalePrice ?? 0m),
+                    Profit = g.Sum(d => (d.SalePrice ?? 0m) - d.PurchasePrice),
+                    Count = g.Count()
+                })
+                .ToListAsync(ct);
+
+            result.DevicesInStock = await _db.Devices.AsNoTracking()
+                .Where(d => d.Status == DeviceStatus.InStock)
+                .GroupBy(d => d.StoreId)
+                .Select(g => new StoreAmountRow { StoreId = g.Key, Amount = g.Sum(d => d.PurchasePrice), Count = g.Count() })
+                .ToListAsync(ct);
 
             return result;
         }

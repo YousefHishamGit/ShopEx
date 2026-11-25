@@ -136,6 +136,8 @@ namespace ShopEx.Application.DTOs.Expense
         public string? Notes { get; set; }
         public string? CreatedBy { get; set; }
         public DateTime CreatedAt { get; set; }
+        /// <summary>مصروف تلقائي (شراء جهاز / شحن رصيد): لا يُعدَّل ولا يُحذف يدوياً</summary>
+        public bool IsAutomatic { get; set; }
     }
 
     // ================================================================

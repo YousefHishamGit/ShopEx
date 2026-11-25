@@ -10,7 +10,10 @@ namespace ShopEx.Domain.Entity
         public MaintenanceTicket MaintenanceTicket { get; set; } = null!;
 
         public string OperationName { get; set; } = string.Empty; 
-        public decimal Cost { get; set; }                          
+        /// <summary>سعر العملية على العميل (هو اللي يظهر في الفاتورة)</summary>
+        public decimal Cost { get; set; }
+        /// <summary>تكلفة القطعة/العملية علينا (للإدارة فقط: لا تظهر للموظف ولا في الفاتورة)</summary>
+        public decimal PartCost { get; set; }
         public string? Notes { get; set; }                        
         public DateTime CreatedAt { get; set; } = DateTime.Now;
     }

@@ -13,5 +13,9 @@ namespace ShopEx.Application.DTOs.Maintenance
 
         [StringLength(1000, ErrorMessage = "ملاحظات التسليم لا تتعدى 1000 حرف.")]
         public string? DeliveryNotes { get; set; }
+
+        /// <summary>ملاحظة الفاتورة / الضمان (تظهر على الفاتورة المطبوعة للعميل)</summary>
+        [StringLength(300, ErrorMessage = "ملاحظة الضمان لا تتعدى 300 حرف.")]
+        public string? WarrantyNote { get; set; }
     }
 }

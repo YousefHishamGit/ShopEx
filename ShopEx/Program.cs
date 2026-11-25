@@ -72,6 +72,7 @@ namespace ShopEx
             builder.Services.AddScoped<IBalanceRepository, BalanceRepository>();
             builder.Services.AddScoped<IExpenseRepository, ExpenseRepository>();
             builder.Services.AddScoped<IDashboardRepository, DashboardRepository>();
+            builder.Services.AddScoped<IDeviceRepository, DeviceRepository>();
 
             builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
@@ -84,6 +85,7 @@ namespace ShopEx
             builder.Services.AddScoped<IBalanceService, BalanceService>();
             builder.Services.AddScoped<IExpenseService, ExpenseService>();
             builder.Services.AddScoped<IDashboardService, DashboardService>();
+            builder.Services.AddScoped<IDeviceService, DeviceService>();
 
             // Users & Auth
             builder.Services.AddScoped<IUserRepository, UserRepository>();

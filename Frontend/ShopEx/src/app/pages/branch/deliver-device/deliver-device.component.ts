@@ -3,7 +3,12 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MaintenanceService } from '../../../services/maintenance.service';
 import { ToastService } from '../../../services/toast.service';
-import { MaintenancePaymentMethod, MaintenanceStatus, MaintenanceTicketSummary } from '../../../models/models';
+import { ThermalReceiptService } from '../../../shared/print/thermal-receipt.service';
+import {
+  MaintenancePaymentMethod,
+  MaintenanceStatus,
+  MaintenanceTicketSummary
+} from '../../../models/models';
 
 @Component({
   selector: 'app-deliver-device',
@@ -26,12 +31,16 @@ export class DeliverDeviceComponent implements OnInit {
   paymentAmount: number | null = null;
   paymentMethod: MaintenancePaymentMethod = MaintenancePaymentMethod.Cash;
   deliveryNotes = '';
+  warrantyNote = '';
+  readonly warrantyChips = ['ضمان أسبوع', 'ضمان شهر', 'ضمان 3 شهور', 'ضمان 6 شهور', 'بدون ضمان'];
+  printingId: number | null = null;
   submitting = false;
   modalError = '';
 
   constructor(
     private maintenanceService: MaintenanceService,
-    private toast: ToastService
+    private toast: ToastService,
+    private receipt: ThermalReceiptService
   ) {}
 
   ngOnInit(): void {
@@ -68,6 +77,22 @@ export class DeliverDeviceComponent implements OnInit {
         );
   }
 
+  /** طباعة فاتورة (قبل التسليم) لجهاز جاهز: نجلب التذكرة كاملة بعملياتها */
+  printTicket(t: MaintenanceTicketSummary): void {
+    if (this.printingId !== null) return;
+    this.printingId = t.id;
+    this.maintenanceService.getTicketById(t.id).subscribe({
+      next: (full) => {
+        this.printingId = null;
+        this.receipt.printMaintenance(full);
+      },
+      error: (err) => {
+        this.printingId = null;
+        this.toast.error(err.error?.message || 'تعذر تحضير الفاتورة للطباعة.');
+      }
+    });
+  }
+
   trackTicket = (_: number, t: MaintenanceTicketSummary) => t.id;
 
   openModal(ticket: MaintenanceTicketSummary): void {
@@ -75,6 +100,7 @@ export class DeliverDeviceComponent implements OnInit {
     this.paymentAmount = ticket.remainingAmount > 0 ? ticket.remainingAmount : null;
     this.paymentMethod = MaintenancePaymentMethod.Cash;
     this.deliveryNotes = '';
+    this.warrantyNote = '';
     this.modalError = '';
   }
 
@@ -106,12 +132,15 @@ export class DeliverDeviceComponent implements OnInit {
       .deliverTicket(ticket.id, {
         paymentAmount: remaining > 0 ? amount : undefined,
         paymentMethod: this.paymentMethod,
-        deliveryNotes: this.deliveryNotes
+        deliveryNotes: this.deliveryNotes,
+        warrantyNote: this.warrantyNote
       })
       .subscribe({
-        next: () => {
+        next: (delivered) => {
           this.submitting = false;
           this.target = null;
+          // الطباعة فوراً بعد التسليم والتحصيل
+          this.receipt.printMaintenance(delivered);
           this.toast.success(`تم تسليم الجهاز (${ticket.deviceName}) للعميل ${ticket.customerName}.`);
           this.load();
         },

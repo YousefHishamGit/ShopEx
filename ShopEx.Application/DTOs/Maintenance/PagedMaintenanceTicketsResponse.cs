@@ -18,5 +18,11 @@ namespace ShopEx.Application.DTOs.Maintenance
         public int CountReceived { get; set; }
         public int CountCompleted { get; set; }
         public int CountDelivered { get; set; }
+
+        // إجماليات التذاكر المطابقة للفلاتر الحالية (فرع + حالة + بحث). للإدارة فقط: null للموظف.
+        /// <summary>تكلفة القطع علينا.</summary>
+        public decimal? TotalPartCost { get; set; }
+        /// <summary>الربح = السعر على العميل - تكلفة القطع.</summary>
+        public decimal? TotalProfit { get; set; }
     }
 }

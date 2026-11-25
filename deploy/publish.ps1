@@ -2,7 +2,8 @@
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
 $out  = Join-Path $PSScriptRoot 'out'
-if (Test-Path $out) { Remove-Item $out -Recurse -Force }
+# clean the output but keep out\cert (the server's HTTPS certificate files)
+if (Test-Path $out) { Get-ChildItem $out -Force | Where-Object { $_.Name -ne 'cert' } | Remove-Item -Recurse -Force }
 
 Write-Host '== Angular build ==' -ForegroundColor Cyan
 Push-Location (Join-Path $root 'Frontend\ShopEx')
@@ -25,5 +26,11 @@ dotnet ef migrations script --idempotent --project (Join-Path $root 'ShopEx.Infr
 if ($LASTEXITCODE) { throw 'ef script failed' }
 
 Remove-Item "$out\app\appsettings.Development.json" -ErrorAction SilentlyContinue
+
+# UPDATE package: same files but WITHOUT web.config / appsettings*.json, so a re-deploy
+# never overwrites the server's environment variables and connection strings.
+Write-Host '== Update package (no config files) ==' -ForegroundColor Cyan
+robocopy "$out\app" "$out\update" /E /XF web.config appsettings.json appsettings.*.json /NFL /NDL /NJH /NJS | Out-Null
+if ($LASTEXITCODE -ge 8) { throw 'robocopy failed' }
 Copy-Item (Join-Path $PSScriptRoot 'DEPLOY.md') $out
 Write-Host "Done -> $out" -ForegroundColor Green

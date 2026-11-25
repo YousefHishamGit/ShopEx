@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { DashboardService } from '../../services/dashboard.service';
-import { DashboardBranch, DashboardData } from '../../models/models';
+import { DashboardData, DashboardPnlRow } from '../../models/models';
 
 /** Local calendar day as yyyy-MM-dd (toISOString would shift the day by the UTC offset). */
 function toDateInput(d: Date): string {
@@ -27,9 +27,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
   errorMessage = '';
 
   selectedDate = toDateInput(new Date());
-
-  /** Column totals of the branches table (computed once per load, not on every change detection). */
-  totals = { sales: 0, profit: 0, transactions: 0, received: 0, delivered: 0, expenses: 0, balanceClosed: 0, balanceProfit: 0 };
 
   private loadSub?: Subscription;
   private timer?: ReturnType<typeof setInterval>;
@@ -65,7 +62,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.loadSub = this.dashboardService.get(this.selectedDate || undefined).subscribe({
       next: (res) => {
         this.data = res;
-        this.computeTotals(res.branches);
         this.loading = false;
         this.errorMessage = '';
       },
@@ -107,22 +103,15 @@ export class DashboardComponent implements OnInit, OnDestroy {
     return 'bg-blue-50 text-blue-700 border-blue-200';
   }
 
-  trackBranch(_: number, b: DashboardBranch): string {
-    return b.storeId === null ? 'none' : String(b.storeId);
+  trackPnl(_: number, r: DashboardPnlRow): string {
+    return r.kind + (r.storeId ?? '');
   }
 
-  private computeTotals(branches: DashboardBranch[]): void {
-    const t = { sales: 0, profit: 0, transactions: 0, received: 0, delivered: 0, expenses: 0, balanceClosed: 0, balanceProfit: 0 };
-    for (const b of branches) {
-      t.sales += b.sales;
-      t.profit += b.profit;
-      t.transactions += b.transactionsCount;
-      t.received += b.devicesReceived;
-      t.delivered += b.devicesDelivered;
-      t.expenses += b.expenses;
-      t.balanceClosed += b.balanceClosed;
-      t.balanceProfit += b.balanceProfit;
-    }
-    this.totals = t;
+  /** True for the first row of a new group (branches / HQ / maintenance / devices ...) to draw a separator. */
+  isFirstOfOtherKind(rows: DashboardPnlRow[], r: DashboardPnlRow): boolean {
+    const i = rows.indexOf(r);
+    if (i <= 0) return false;
+    const group = (k: string) => (k === 'branch' || k === 'hq' ? 'branch' : k);
+    return group(rows[i - 1].kind) !== group(r.kind) && group(r.kind) === 'maintenance';
   }
 }

@@ -26,3 +26,13 @@
 - 500.19/502.5: غالبا الـ Hosting Bundle ناقص. اللوج في `logs\stdout*`.
 - خطأ اتصال DB: راجع صلاحيات الـ App Pool identity.
 - تحديث لاحق: أوقف الموقع، استبدل الملفات (بدون مسح appsettings المعدّل)، شغّل أي migration جديد، شغّل الموقع.
+
+---
+## تحديث نسخة موجودة (بعد أول نشر)
+استخدم فولدر `update` (مش `app`): ما فيهوش web.config ولا appsettings.json فمش هيمسح إعدادات السيرفر.
+1. اعمل Backup لقاعدة `ShopEXdb` من SSMS.
+2. في فولدر الموقع اعمل ملف فاضي اسمه `app_offline.htm` (بيوقف الموقع مؤقتا وبيفك قفل الملفات).
+3. انسخ محتوى `update` فوق فولدر الموقع (Replace all).
+4. شغّل `shopex.sql` على `ShopEXdb` (idempotent: بينفّذ الجديد بس، وآمن لو اتشغل تاني).
+5. لو فيه إعدادات جديدة (زي InitialDev__Username/Password) ضيفها في web.config.
+6. امسح `app_offline.htm`. افتح الموقع واعمل Ctrl+F5.

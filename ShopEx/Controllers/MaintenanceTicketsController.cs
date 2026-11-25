@@ -31,6 +31,16 @@ namespace ShopEx.Controllers
         private bool CanAccess(int? ticketStoreId)
             => User.IsAdmin() || (ticketStoreId.HasValue && ticketStoreId == User.StoreId());
 
+        /// <summary>تكلفة القطع والربح للإدارة فقط: تُخفى عن الموظف في أي رد.</summary>
+        private MaintenanceTicketResponse HideCosts(MaintenanceTicketResponse ticket)
+        {
+            if (User.IsAdmin()) return ticket;
+            ticket.TotalPartCost = null;
+            ticket.Profit = null;
+            foreach (var op in ticket.Operations) op.PartCost = null;
+            return ticket;
+        }
+
         // GET: api/MaintenanceTickets
         [HttpGet]
         [Authorize(Roles = AppRoles.AdminOrEmployee)]
@@ -53,9 +63,20 @@ namespace ShopEx.Controllers
             [FromQuery] string? search,
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 25,
+            [FromQuery] int? storeId = null,
             CancellationToken ct = default)
         {
-            var result = await _ticketService.GetPagedAsync(status, search, ScopeStoreId, page, pageSize, ct);
+            // الأدمن يقدر يفلتر بفرع؛ الموظف دايماً مقيد بفرعه من التوكن (يتجاهل storeId)
+            var scope = User.IsAdmin() ? storeId : ScopeStoreId;
+            var result = await _ticketService.GetPagedAsync(status, search, scope, page, pageSize, ct);
+
+            if (!User.IsAdmin())
+            {
+                // التكلفة والربح للإدارة فقط
+                result.TotalPartCost = null;
+                result.TotalProfit = null;
+            }
+
             return Ok(result);
         }
 
@@ -72,7 +93,7 @@ namespace ShopEx.Controllers
                 return NotFound(new { message = $"تذكرة الصيانة برقم {id} غير موجودة." });
             }
 
-            return Ok(ticket);
+            return Ok(HideCosts(ticket));
         }
 
         // GET: api/MaintenanceTickets/by-number/{ticketNumber}
@@ -90,7 +111,7 @@ namespace ShopEx.Controllers
                     return NotFound(new { message = $"تذكرة الصيانة ذات الرقم '{ticketNumber}' غير موجودة." });
                 }
 
-                return Ok(ticket);
+                return Ok(HideCosts(ticket));
             }
             catch (ArgumentException ex)
             {
@@ -124,7 +145,7 @@ namespace ShopEx.Controllers
             try
             {
                 var createdTicket = await _ticketService.CreateAsync(request, ct);
-                return CreatedAtAction(nameof(GetById), new { id = createdTicket.Id }, createdTicket);
+                return CreatedAtAction(nameof(GetById), new { id = createdTicket.Id }, HideCosts(createdTicket));
             }
             catch (ArgumentException ex)
             {
@@ -260,7 +281,7 @@ namespace ShopEx.Controllers
                 }
 
                 var updatedTicket = await _ticketService.DeliverTicketAsync(id, request, ct);
-                return Ok(updatedTicket);
+                return Ok(HideCosts(updatedTicket));
             }
             catch (KeyNotFoundException ex)
             {

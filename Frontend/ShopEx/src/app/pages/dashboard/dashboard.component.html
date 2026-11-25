@@ -206,61 +206,55 @@
       </a>
     </div>
 
-    <!-- ============ Branches table ============ -->
+    <!-- ============ P&L table: الفروع + الصيانة + الأجهزة + الرصيد + البنزيمات ============ -->
     <section class="bg-light-surface rounded-2xl border border-outline shadow-sm overflow-hidden" aria-labelledby="branches-title">
       <div class="px-4 sm:px-5 py-3.5 border-b border-outline flex items-center justify-between gap-3">
         <h2 id="branches-title" class="font-bold text-light-on-surface flex items-center gap-2">
           <span class="material-symbols-outlined text-primary text-[22px]">storefront</span>
-          أداء الفروع
+          الإيرادات والأرباح
         </h2>
-        <span class="text-xs text-slate-500">{{ d.branches.length }} فرع</span>
+        <span class="text-xs text-slate-500">{{ isToday ? 'اليوم' : d.date | date:'yyyy-MM-dd' }}</span>
       </div>
 
-      <div *ngIf="d.branches.length === 0" class="p-8 text-center text-sm text-slate-500">لا توجد فروع مسجلة في RMS.</div>
-
-      <div *ngIf="d.branches.length > 0" class="overflow-x-auto">
+      <div class="overflow-x-auto">
         <table class="w-full text-sm">
           <thead class="bg-slate-50 text-slate-600 text-xs">
             <tr>
-              <th scope="col" class="px-3 py-2.5 text-right font-semibold">الفرع</th>
-              <th scope="col" class="px-3 py-2.5 text-right font-semibold">المبيعات</th>
-              <th scope="col" class="px-3 py-2.5 text-right font-semibold">الربح</th>
-              <th scope="col" class="px-3 py-2.5 text-right font-semibold">عدد الفواتير</th>
-              <th scope="col" class="px-3 py-2.5 text-right font-semibold">أجهزة مستلمة</th>
-              <th scope="col" class="px-3 py-2.5 text-right font-semibold">أجهزة مسلّمة</th>
-              <th scope="col" class="px-3 py-2.5 text-right font-semibold">مصروفات</th>
-              <th scope="col" class="px-3 py-2.5 text-right font-semibold">رصيد مقفَّل</th>
-              <th scope="col" class="px-3 py-2.5 text-right font-semibold">ربح الرصيد</th>
+              <th scope="col" class="px-3 py-2.5 text-right font-semibold"></th>
+              <th scope="col" class="px-3 py-2.5 text-right font-semibold">الإيرادات</th>
+              <th scope="col" class="px-3 py-2.5 text-right font-semibold">التكلفة</th>
+              <th scope="col" class="px-3 py-2.5 text-right font-semibold">الأرباح</th>
+              <th scope="col" class="px-3 py-2.5 text-right font-semibold">المصروفات</th>
+              <th scope="col" class="px-3 py-2.5 text-right font-semibold">الصافي</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-100">
-            <tr *ngFor="let b of d.branches; trackBy: trackBranch" class="hover:bg-slate-50/70">
-              <th scope="row" class="px-3 py-3 text-right font-semibold text-light-on-surface whitespace-nowrap">{{ b.storeName }}</th>
-              <td class="px-3 py-3 tabular-nums">{{ b.sales | number:'1.0-2' }}</td>
-              <td class="px-3 py-3 tabular-nums font-semibold" [ngClass]="b.profit < 0 ? 'text-red-600' : (b.profit > 0 ? 'text-emerald-700' : 'text-slate-400')">{{ b.profit | number:'1.0-2' }}</td>
-              <td class="px-3 py-3 tabular-nums">{{ b.transactionsCount | number }}</td>
-              <td class="px-3 py-3 tabular-nums" [ngClass]="b.devicesReceived > 0 ? 'text-violet-700 font-semibold' : 'text-slate-400'">{{ b.devicesReceived | number }}</td>
-              <td class="px-3 py-3 tabular-nums" [ngClass]="b.devicesDelivered > 0 ? 'text-slate-800' : 'text-slate-400'">{{ b.devicesDelivered | number }}</td>
-              <td class="px-3 py-3 tabular-nums" [ngClass]="b.expenses > 0 ? 'text-orange-700' : 'text-slate-400'">{{ b.expenses | number:'1.0-2' }}</td>
-              <td class="px-3 py-3 tabular-nums" [ngClass]="b.balanceClosed > 0 ? 'text-sky-700' : 'text-slate-400'">{{ b.balanceClosed | number:'1.0-2' }}</td>
-              <td class="px-3 py-3 tabular-nums" [ngClass]="b.balanceProfit > 0 ? 'text-emerald-700 font-semibold' : 'text-slate-400'">{{ b.balanceProfit | number:'1.0-2' }}</td>
+            <tr *ngFor="let r of d.pnl; trackBy: trackPnl" class="hover:bg-slate-50/70"
+              [ngClass]="{ 'border-t-2 border-slate-200': isFirstOfOtherKind(d.pnl, r) }">
+              <th scope="row" class="px-3 py-3 text-right font-semibold text-light-on-surface whitespace-nowrap">{{ r.label }}</th>
+              <td class="px-3 py-3 tabular-nums" [ngClass]="r.revenue === 0 ? 'text-slate-400' : ''">{{ r.revenue | number:'1.0-2' }}</td>
+              <td class="px-3 py-3 tabular-nums" [ngClass]="r.cost === 0 ? 'text-slate-400' : ''">{{ r.cost | number:'1.0-2' }}</td>
+              <td class="px-3 py-3 tabular-nums font-semibold" [ngClass]="r.profit < 0 ? 'text-red-600' : (r.profit > 0 ? 'text-emerald-700' : 'text-slate-400')">{{ r.profit | number:'1.0-2' }}</td>
+              <td class="px-3 py-3 tabular-nums" [ngClass]="r.expenses > 0 ? 'text-orange-700' : 'text-slate-400'">{{ r.expenses | number:'1.0-2' }}</td>
+              <td class="px-3 py-3 tabular-nums font-bold" [ngClass]="r.net < 0 ? 'text-red-600' : (r.net > 0 ? 'text-emerald-700' : 'text-slate-400')">{{ r.net | number:'1.0-2' }}</td>
             </tr>
           </tbody>
           <tfoot class="bg-slate-50 font-bold text-light-on-surface">
             <tr>
-              <th scope="row" class="px-3 py-3 text-right">الإجمالي</th>
-              <td class="px-3 py-3 tabular-nums">{{ totals.sales | number:'1.0-2' }}</td>
-              <td class="px-3 py-3 tabular-nums" [ngClass]="totals.profit < 0 ? 'text-red-600' : 'text-emerald-700'">{{ totals.profit | number:'1.0-2' }}</td>
-              <td class="px-3 py-3 tabular-nums">{{ totals.transactions | number }}</td>
-              <td class="px-3 py-3 tabular-nums">{{ totals.received | number }}</td>
-              <td class="px-3 py-3 tabular-nums">{{ totals.delivered | number }}</td>
-              <td class="px-3 py-3 tabular-nums">{{ totals.expenses | number:'1.0-2' }}</td>
-              <td class="px-3 py-3 tabular-nums">{{ totals.balanceClosed | number:'1.0-2' }}</td>
-              <td class="px-3 py-3 tabular-nums text-emerald-700">{{ totals.balanceProfit | number:'1.0-2' }}</td>
+              <th scope="row" class="px-3 py-3 text-right">{{ d.pnlTotal.label }}</th>
+              <td class="px-3 py-3 tabular-nums">{{ d.pnlTotal.revenue | number:'1.0-2' }}</td>
+              <td class="px-3 py-3 tabular-nums">{{ d.pnlTotal.cost | number:'1.0-2' }}</td>
+              <td class="px-3 py-3 tabular-nums" [ngClass]="d.pnlTotal.profit < 0 ? 'text-red-600' : 'text-emerald-700'">{{ d.pnlTotal.profit | number:'1.0-2' }}</td>
+              <td class="px-3 py-3 tabular-nums text-orange-700">{{ d.pnlTotal.expenses | number:'1.0-2' }}</td>
+              <td class="px-3 py-3 tabular-nums text-base" [ngClass]="d.pnlTotal.net < 0 ? 'text-red-600' : 'text-emerald-700'">{{ d.pnlTotal.net | number:'1.0-2' }}</td>
             </tr>
           </tfoot>
         </table>
       </div>
+      <p class="px-4 sm:px-5 py-2.5 text-[11px] text-slate-500 border-t border-outline">
+        الفروع: مبيعات RMS. الصيانة: تذاكر سُلّمت اليوم (السعر − تكلفة القطع). الأجهزة: أجهزة بيعت اليوم (البيع − الشراء). الرصيد: المستهلك + ربح التقفيل. البنزيمات: بضاعة حُوسبت على التجار اليوم.
+        المصروفات تشغيلية فقط؛ شراء الأجهزة وشحن الرصيد محسوبان كتكلفة في صفيهما حتى لا يُحسبا مرتين (وتظهر كلها في صفحة المصروفات).
+      </p>
     </section>
 
     <!-- ============ Maintenance status strip ============ -->

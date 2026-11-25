@@ -49,6 +49,9 @@ namespace ShopEx.Infrastructure.Persistence.ShopDb
         public DbSet<ExpenseCategory> ExpenseCategories => Set<ExpenseCategory>();
         public DbSet<Expense> Expenses => Set<Expense>();
 
+        // أجهزة (موبايلات) مشتراة بغرض البيع: HQ والفروع
+        public DbSet<Device> Devices => Set<Device>();
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);

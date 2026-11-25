@@ -17,6 +17,9 @@ namespace ShopEx.Application.Services.ShopEx
         private const int MaxPageSize = 100;
         private const decimal MaxAmount = 999_999_999m;
 
+        /// <summary>بند المصروفات الذي تُسجَّل عليه مشتريات الأجهزة تلقائياً (يُنشأ أول مرة)</summary>
+        public const string DeviceExpenseCategory = "شراء أجهزة";
+
         private readonly IExpenseRepository _expenseRepo;
         private readonly IUnitOfWork _unitOfWork;
 
@@ -111,13 +114,63 @@ namespace ShopEx.Application.Services.ShopEx
         // 2. حركات المصروفات (Expenses)
         // ================================================================
 
-        public async Task<ExpenseResponse> CreateExpenseAsync(CreateExpenseRequest request, CancellationToken ct = default)
+        public Task<ExpenseResponse> CreateExpenseAsync(CreateExpenseRequest request, CancellationToken ct = default)
+            => CreateCoreAsync(request, deviceId: null, balanceId: null, allowInactiveCategory: false, ct);
+
+        /// <summary>
+        /// مصروف تلقائي مرتبط بجهاز أو بشحنة رصيد: يتجاوز تعطيل البند حتى لا تتعطل العملية الأصلية،
+        /// ولا يمكن تعديله أو حذفه يدوياً.
+        /// </summary>
+        public Task<ExpenseResponse> CreateLinkedExpenseAsync(
+            CreateExpenseRequest request, int? deviceId, int? balanceId, CancellationToken ct = default)
+            => CreateCoreAsync(request, deviceId, balanceId, allowInactiveCategory: true, ct);
+
+        public async Task SyncDeviceExpenseAsync(
+            int deviceId, int? storeId, decimal amount, DateTime date, string? recipient, string notes, string? createdBy,
+            CancellationToken ct = default)
+        {
+            var existing = await _expenseRepo.GetExpenseByDeviceIdAsync(deviceId, ct);
+            if (existing == null)
+            {
+                await CreateLinkedExpenseAsync(new CreateExpenseRequest
+                {
+                    CategoryName = DeviceExpenseCategory,
+                    StoreId = storeId,
+                    Amount = amount,
+                    ExpenseDate = date,
+                    PaymentMethod = ExpensePaymentMethod.Cash,
+                    Recipient = recipient,
+                    Notes = notes,
+                    CreatedBy = createdBy
+                }, deviceId, balanceId: null, ct);
+                return;
+            }
+
+            existing.StoreId = NormalizeStoreId(storeId);
+            existing.Amount = ValidateAmount(amount);
+            existing.ExpenseDate = date;
+            existing.Recipient = Clean(recipient, 200);
+            existing.Notes = Clean(notes, 1000);
+            await _unitOfWork.SaveChangesAsync(ct);
+        }
+
+        public async Task DeleteDeviceExpenseAsync(int deviceId, CancellationToken ct = default)
+        {
+            var existing = await _expenseRepo.GetExpenseByDeviceIdAsync(deviceId, ct);
+            if (existing == null) return;
+            _expenseRepo.DeleteExpense(existing);
+            await _unitOfWork.SaveChangesAsync(ct);
+        }
+
+        private async Task<ExpenseResponse> CreateCoreAsync(
+            CreateExpenseRequest request, int? deviceId, int? balanceId, bool allowInactiveCategory, CancellationToken ct)
         {
             if (request == null)
                 throw new ArgumentNullException(nameof(request));
 
             var amount = ValidateAmount(request.Amount);
-            var category = await ResolveCategoryAsync(request.CategoryId, request.CategoryName, currentCategoryId: null, ct);
+            var category = await ResolveCategoryAsync(
+                request.CategoryId, request.CategoryName, currentCategoryId: null, ct, allowInactiveCategory);
 
             var expense = new Expense
             {
@@ -131,7 +184,9 @@ namespace ShopEx.Application.Services.ShopEx
                 ReceiptNumber = Clean(request.ReceiptNumber, 100),
                 Notes = Clean(request.Notes, 1000),
                 CreatedBy = Clean(request.CreatedBy, 100),
-                CreatedAt = DateTime.Now
+                CreatedAt = DateTime.Now,
+                DeviceId = deviceId,
+                BalanceId = balanceId
             };
 
             await _expenseRepo.AddExpenseAsync(expense, ct);
@@ -150,6 +205,8 @@ namespace ShopEx.Application.Services.ShopEx
             var expense = await _expenseRepo.GetExpenseByIdAsync(id, ct);
             if (expense == null)
                 throw new KeyNotFoundException($"المصروف برقم {id} غير موجود.");
+
+            EnsureNotAutomatic(expense, "تعديله");
 
             var category = await ResolveCategoryAsync(request.CategoryId, request.CategoryName, expense.ExpenseCategoryId, ct);
 
@@ -172,6 +229,8 @@ namespace ShopEx.Application.Services.ShopEx
             var expense = await _expenseRepo.GetExpenseByIdAsync(id, ct);
             if (expense == null)
                 return false;
+
+            EnsureNotAutomatic(expense, "حذفه");
 
             _expenseRepo.DeleteExpense(expense);
             await _unitOfWork.SaveChangesAsync(ct);
@@ -230,7 +289,8 @@ namespace ShopEx.Application.Services.ShopEx
         /// البنود المعطلة لا يمكن اختيارها لمصروفات جديدة (إلا إذا كان المصروف المعدَّل يستخدمها أصلاً).
         /// </summary>
         private async Task<ExpenseCategory> ResolveCategoryAsync(
-            int? categoryId, string? categoryName, int? currentCategoryId, CancellationToken ct)
+            int? categoryId, string? categoryName, int? currentCategoryId, CancellationToken ct,
+            bool allowInactive = false)
         {
             ExpenseCategory? category;
 
@@ -262,10 +322,17 @@ namespace ShopEx.Application.Services.ShopEx
                 throw new ArgumentException("يجب اختيار بند مصروف أو كتابة اسم بند جديد.");
             }
 
-            if (!category.IsActive && category.Id != currentCategoryId)
+            if (!allowInactive && !category.IsActive && category.Id != currentCategoryId)
                 throw new InvalidOperationException($"بند المصروف '{category.Name}' معطل. فعّله أولاً أو اختر بنداً آخر.");
 
             return category;
+        }
+
+        private static void EnsureNotAutomatic(Expense expense, string action)
+        {
+            if (expense.IsAutomatic)
+                throw new InvalidOperationException(
+                    $"هذا مصروف تلقائي (شراء جهاز أو شحن رصيد) ولا يمكن {action} من هنا. عدّل أو احذف العملية الأصلية.");
         }
 
         private static decimal ValidateAmount(decimal amount)
@@ -329,7 +396,8 @@ namespace ShopEx.Application.Services.ShopEx
             ReceiptNumber = e.ReceiptNumber,
             Notes = e.Notes,
             CreatedBy = e.CreatedBy,
-            CreatedAt = e.CreatedAt
+            CreatedAt = e.CreatedAt,
+            IsAutomatic = e.IsAutomatic
         };
 
         private static string GetPaymentMethodName(ExpensePaymentMethod method) => method switch

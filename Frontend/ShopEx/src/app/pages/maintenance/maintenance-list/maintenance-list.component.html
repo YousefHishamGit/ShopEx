@@ -18,7 +18,7 @@
   </div>
 
   <!-- Summary Statistics Cards -->
-  <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+  <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
     <!-- Total -->
     <div (click)="onFilterStatus('ALL')"
       class="bg-light-surface p-4 rounded-xl border border-outline hover:border-primary cursor-pointer transition-all shadow-sm">
@@ -53,6 +53,26 @@
       <div class="text-2xl font-bold text-emerald-700 mt-2">{{ countDelivered }}</div>
       <div class="text-[11px] text-emerald-600/80 mt-1">تم تسليمه للعميل</div>
     </div>
+
+    <!-- Parts cost (علينا) — للنتائج الحالية -->
+    <div class="bg-light-surface p-4 rounded-xl border border-outline shadow-sm">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-medium text-orange-700">التكلفة علينا</span>
+        <span class="material-symbols-outlined text-orange-600 text-[20px]">construction</span>
+      </div>
+      <div class="text-2xl font-bold text-orange-700 mt-2">{{ totalPartCost | number:'1.0-2' }} <span class="text-xs font-normal text-gray-500">ج.م</span></div>
+      <div class="text-[11px] text-orange-600/80 mt-1">تكلفة القطع للنتائج الحالية</div>
+    </div>
+
+    <!-- Profit -->
+    <div class="bg-light-surface p-4 rounded-xl border border-outline shadow-sm">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-medium" [ngClass]="totalProfit < 0 ? 'text-red-700' : 'text-emerald-700'">الربح</span>
+        <span class="material-symbols-outlined text-[20px]" [ngClass]="totalProfit < 0 ? 'text-red-600' : 'text-emerald-600'">trending_up</span>
+      </div>
+      <div class="text-2xl font-bold mt-2" [ngClass]="totalProfit < 0 ? 'text-red-700' : 'text-emerald-700'">{{ totalProfit | number:'1.0-2' }} <span class="text-xs font-normal text-gray-500">ج.م</span></div>
+      <div class="text-[11px] text-light-on-surface-variant mt-1">السعر − التكلفة للنتائج الحالية</div>
+    </div>
   </div>
 
   <!-- Search & Filter Controls -->
@@ -66,6 +86,13 @@
           placeholder="ابحث برقم الإيصال، اسم العميل، رقم الهاتف، أو اسم الجهاز..."
           class="w-full pr-10 pl-4 py-2 border border-outline rounded-lg text-sm bg-light-surface-variant focus:bg-light-surface focus:outline-none focus:border-primary transition-all">
       </div>
+
+      <!-- Branch filter -->
+      <select [(ngModel)]="selectedStoreId" (ngModelChange)="onStoreChange()" aria-label="فلتر الفرع"
+        class="px-3 py-2 border border-outline rounded-lg text-sm bg-light-surface-variant focus:bg-light-surface focus:outline-none focus:border-primary md:w-48">
+        <option [ngValue]="null">كل الفروع</option>
+        <option *ngFor="let s of stores" [ngValue]="s.id">{{ s.name }}</option>
+      </select>
 
       <!-- Quick Action Refresh -->
       <button (click)="fetchTickets()" title="تحديث البيانات"
@@ -136,7 +163,7 @@
             <th class="py-3 px-4">الجهاز</th>
             <th class="py-3 px-4">تاريخ الاستلام</th>
             <th class="py-3 px-4">الحالة</th>
-            <th class="py-3 px-4">التكلفة الإجمالية</th>
+            <th class="py-3 px-4">السعر للعميل</th>
             <th class="py-3 px-4">المسدد / المتبقي</th>
             <th class="py-3 px-4 text-center">الإجراءات</th>
           </tr>

@@ -7,6 +7,7 @@ import {
   BalanceSummaryResponse,
   BalanceClosureResponse,
   ChargeBalanceRequest,
+  ChargeOwnBalanceRequest,
   CloseBalanceRequest,
   CloseStoreBalanceRequest,
   StoreBalanceGroup,
@@ -68,6 +69,13 @@ export class BalanceService {
    */
   charge(request: ChargeBalanceRequest): Observable<BalanceResponse> {
     return this.http.post<BalanceResponse>(`${this.baseUrl}/charge`, request);
+  }
+
+  /**
+   * موظف الفرع يشحن رصيداً لفرعه (يُسجَّل كمصروف على الفرع)
+   */
+  chargeOwn(request: ChargeOwnBalanceRequest): Observable<BalanceResponse> {
+    return this.http.post<BalanceResponse>(`${this.baseUrl}/charge-own`, request);
   }
 
   /**

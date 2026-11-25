@@ -256,7 +256,8 @@
                             </td>
                             <td class="py-3 px-4 text-light-on-surface-variant max-w-[180px] truncate" [title]="e.notes || ''">{{ e.notes || '—' }}</td>
                             <td class="py-3 px-4">
-                                <div class="flex items-center justify-center gap-1">
+                                <div *ngIf="e.isAutomatic" class="text-center text-[10px] text-slate-400" title="مصروف تلقائي من شراء جهاز أو شحن رصيد: عدّل أو احذف العملية الأصلية">تلقائي</div>
+                                <div *ngIf="!e.isAutomatic" class="flex items-center justify-center gap-1">
                                     <button type="button" (click)="openEditExpense(e)" class="p-1.5 text-primary hover:bg-primary/10 rounded-lg transition-colors" title="تعديل">
                     <span class="material-symbols-outlined text-[18px]">edit</span>
                   </button>

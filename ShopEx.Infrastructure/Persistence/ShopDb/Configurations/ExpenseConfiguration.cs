@@ -45,6 +45,11 @@ namespace ShopEx.Infrastructure.Persistence.ShopDb.Configurations
             builder.HasIndex(x => x.ExpenseCategoryId);
             builder.HasIndex(x => x.StoreId);
             builder.HasIndex(x => x.ExpenseDate);
+
+            // روابط المصروفات التلقائية (بدون FK: الارتباط منطقي فقط)
+            builder.Ignore(x => x.IsAutomatic);
+            builder.HasIndex(x => x.DeviceId);
+            builder.HasIndex(x => x.BalanceId);
         }
     }
 }

@@ -28,6 +28,7 @@ const receiveDevice = () => import('./pages/branch/receive-device/receive-device
 const deliverDevice = () => import('./pages/branch/deliver-device/deliver-device.component').then(m => m.DeliverDeviceComponent);
 const closeBalance = () => import('./pages/branch/close-balance/close-balance.component').then(m => m.CloseBalanceComponent);
 const branchExpenses = () => import('./pages/branch/branch-expenses/branch-expenses.component').then(m => m.BranchExpensesComponent);
+const devices = () => import('./pages/devices/devices.component').then(m => m.DevicesComponent);
 
 export const routes: Routes = [
   // Public
@@ -53,7 +54,8 @@ export const routes: Routes = [
       { path: 'receive', loadComponent: receiveDevice },
       { path: 'deliver', loadComponent: deliverDevice },
       { path: 'balance', loadComponent: closeBalance },
-      { path: 'expenses', loadComponent: branchExpenses }
+      { path: 'expenses', loadComponent: branchExpenses },
+      { path: 'devices', loadComponent: devices }
     ]
   },
 
@@ -85,6 +87,7 @@ export const routes: Routes = [
       { path: 'customer-statements/:id', loadComponent: customerStatementDetail },
       { path: 'balances', loadComponent: balances },
       { path: 'expenses', loadComponent: expenses },
+      { path: 'devices', loadComponent: devices },
       { path: 'users', loadComponent: users }
     ]
   },

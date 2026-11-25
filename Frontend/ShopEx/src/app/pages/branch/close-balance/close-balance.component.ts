@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { BalanceService } from '../../../services/balance.service';
 import { AuthService } from '../../../services/auth.service';
 import { ToastService } from '../../../services/toast.service';
-import { BalanceTransactionItem, StoreBalanceGroup } from '../../../models/models';
+import { BalanceTransactionItem, BalanceType, StoreBalanceGroup } from '../../../models/models';
 
 @Component({
   selector: 'app-close-balance',
@@ -26,6 +26,21 @@ export class CloseBalanceComponent implements OnInit {
   notes = '';
   submitting = false;
   modalError = '';
+
+  // Self-charge modal (يُسجَّل كمصروف على الفرع)
+  readonly balanceTypes = [
+    { value: BalanceType.VodafoneCash, label: 'فودافون كاش' },
+    { value: BalanceType.OrangeCash, label: 'أورنج كاش' },
+    { value: BalanceType.EtisalatCash, label: 'اتصالات كاش' },
+    { value: BalanceType.instapay, label: 'انستاباي' },
+    { value: BalanceType.Cards, label: 'فيزا / كروت' },
+    { value: BalanceType.Fawry, label: 'فوري' }
+  ];
+  showCharge = false;
+  chargeType: number | null = null;
+  chargeAmount: number | null = null;
+  chargeNotes = '';
+  chargeError = '';
 
   constructor(
     private balanceService: BalanceService,
@@ -57,6 +72,55 @@ export class CloseBalanceComponent implements OnInit {
       }
     });
 
+  }
+
+  openCharge(preselect?: StoreBalanceGroup): void {
+    this.chargeType = preselect ? preselect.balanceType : null;
+    this.chargeAmount = null;
+    this.chargeNotes = '';
+    this.chargeError = '';
+    this.showCharge = true;
+  }
+
+  closeCharge(): void {
+    if (this.submitting) return;
+    this.showCharge = false;
+  }
+
+  submitCharge(): void {
+    if (this.submitting) return;
+
+    const amount = Number(this.chargeAmount);
+    if (!this.chargeType) {
+      this.chargeError = 'يرجى اختيار وسيلة الدفع.';
+      return;
+    }
+    if (!amount || amount <= 0) {
+      this.chargeError = 'يرجى إدخال مبلغ الشحن (أكبر من صفر).';
+      return;
+    }
+
+    this.submitting = true;
+    this.chargeError = '';
+
+    this.balanceService
+      .chargeOwn({
+        balanceType: Number(this.chargeType),
+        amount,
+        notes: this.chargeNotes.trim() || undefined
+      })
+      .subscribe({
+        next: (r) => {
+          this.submitting = false;
+          this.showCharge = false;
+          this.toast.success(`تم شحن ${amount} ج.م (${r.balanceTypeName}) وتسجيلها كمصروف على الفرع.`);
+          this.load();
+        },
+        error: (err) => {
+          this.submitting = false;
+          this.chargeError = err.error?.message || 'تعذر تسجيل الشحن.';
+        }
+      });
   }
 
   trackGroup = (_: number, g: StoreBalanceGroup) => g.balanceType;

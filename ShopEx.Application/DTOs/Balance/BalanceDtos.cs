@@ -17,6 +17,16 @@ namespace ShopEx.Application.DTOs.Balance
     }
 
     /// <summary>
+    /// شحن رصيد من موظف الفرع لفرعه: الفرع والتاريخ يحددهما السيرفر، ويُسجَّل المبلغ كمصروف على الفرع.
+    /// </summary>
+    public class ChargeOwnBalanceRequest
+    {
+        public BalanceType BalanceType { get; set; }
+        public decimal Amount { get; set; }
+        public string? Notes { get; set; }
+    }
+
+    /// <summary>
     /// طلب تقفيل الرصيد اليومي من الفرع (ما استخدمه الفرع فعلياً)
     /// </summary>
     public class CloseBalanceRequest

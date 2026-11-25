@@ -5,6 +5,7 @@ import { RouterLink } from '@angular/router';
 import { Subject, Subscription } from 'rxjs';
 import { debounceTime } from 'rxjs/operators';
 import { MaintenanceService } from '../../../services/maintenance.service';
+import { ExpenseService } from '../../../services/expense.service';
 import { MaintenanceTicketSummary, MaintenanceStatus } from '../../../models/models';
 
 @Component({
@@ -32,6 +33,12 @@ export class MaintenanceListComponent implements OnInit, OnDestroy {
   countCompleted = 0;
   countDelivered = 0;
 
+  // فلتر الفرع (الأدمن) + إجماليات التكلفة والربح للنتائج الحالية
+  stores: { id: number; name: string }[] = [];
+  selectedStoreId: number | null = null;
+  totalPartCost = 0;
+  totalProfit = 0;
+
   // Enums for template usage
   MaintenanceStatus = MaintenanceStatus;
 
@@ -39,12 +46,16 @@ export class MaintenanceListComponent implements OnInit, OnDestroy {
   private search$ = new Subject<void>();
   private searchSub?: Subscription;
 
-  constructor(private maintenanceService: MaintenanceService) { }
+  constructor(private maintenanceService: MaintenanceService, private expenseService: ExpenseService) { }
 
   ngOnInit(): void {
     this.searchSub = this.search$.pipe(debounceTime(350)).subscribe(() => {
       this.page = 1;
       this.fetchTickets();
+    });
+    this.expenseService.getStores().subscribe({
+      next: (list) => (this.stores = list || []),
+      error: () => (this.stores = [])
     });
     this.fetchTickets();
   }
@@ -62,7 +73,7 @@ export class MaintenanceListComponent implements OnInit, OnDestroy {
 
     const status = this.selectedStatus === 'ALL' ? undefined : Number(this.selectedStatus) as MaintenanceStatus;
 
-    this.loadSub = this.maintenanceService.getTicketsPaged(this.page, this.pageSize, status, this.searchTerm).subscribe({
+    this.loadSub = this.maintenanceService.getTicketsPaged(this.page, this.pageSize, status, this.searchTerm, this.selectedStoreId).subscribe({
       next: (res) => {
         this.filteredTickets = res.items || [];
         this.page = res.page;
@@ -72,6 +83,8 @@ export class MaintenanceListComponent implements OnInit, OnDestroy {
         this.countReceived = res.countReceived;
         this.countCompleted = res.countCompleted;
         this.countDelivered = res.countDelivered;
+        this.totalPartCost = res.totalPartCost ?? 0;
+        this.totalProfit = res.totalProfit ?? 0;
         this.loading = false;
       },
       error: (err) => {
@@ -84,6 +97,11 @@ export class MaintenanceListComponent implements OnInit, OnDestroy {
 
   onSearchInput(): void {
     this.search$.next();
+  }
+
+  onStoreChange(): void {
+    this.page = 1;
+    this.fetchTickets();
   }
 
   onFilterStatus(status: string): void {

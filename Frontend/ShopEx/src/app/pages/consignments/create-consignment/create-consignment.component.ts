@@ -329,7 +329,8 @@ export class CreateConsignmentComponent implements OnInit {
       next: (res) => {
         this.submitting = false;
         this.toast.success(`تم حفظ إذن الأمانة ${res.consignmentNumber} بنجاح.`);
-        this.router.navigate(['/consignments', res.id]);
+        // print=1: صفحة الإذن تطبع نفسها فور فتحها (صرف البضاعة = طباعة الإذن على طول)
+        this.router.navigate(['/consignments', res.id], { queryParams: { print: 1 } });
       },
       error: (err) => {
         this.submitting = false;

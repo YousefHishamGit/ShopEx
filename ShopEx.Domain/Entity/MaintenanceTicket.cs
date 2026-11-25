@@ -37,10 +37,15 @@ namespace ShopEx.Domain.Entity
 
         public DateTime? DeliveredAt { get; set; }
         public string? DeliveryNotes { get; set; }
+        /// <summary>ملاحظة تُطبع على فاتورة الصيانة للعميل (مثال: ضمان شهر على الإصلاح)</summary>
+        public string? WarrantyNote { get; set; }
         public ICollection<MaintenancePayment> Payments { get; set; } = new List<MaintenancePayment>();
 
        
+        /// <summary>إجمالي السعر على العميل</summary>
         public decimal TotalCost => Operations.Sum(x => x.Cost);
+        /// <summary>إجمالي تكلفة القطع علينا</summary>
+        public decimal TotalPartCost => Operations.Sum(x => x.PartCost);
         public decimal PaidAmount => Payments.Sum(x => x.Amount);
         public decimal RemainingAmount => TotalCost - PaidAmount;
         public bool IsPaid => RemainingAmount <= 0 && TotalCost > 0;

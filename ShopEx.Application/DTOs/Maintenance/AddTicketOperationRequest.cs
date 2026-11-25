@@ -10,7 +10,10 @@ namespace ShopEx.Application.DTOs.Maintenance
 
         [Required(ErrorMessage = "سعر / تكلفة العملية مطلوب.")]
         [Range(0, double.MaxValue, ErrorMessage = "سعر العملية لا يمكن أن يكون سالباً.")]
-        public decimal Cost { get; set; }                          // سعرها كذا
+        public decimal Cost { get; set; }                          // سعرها كذا (على العميل، يظهر في الفاتورة)
+
+        [Range(0, double.MaxValue, ErrorMessage = "تكلفة القطعة لا يمكن أن تكون سالبة.")]
+        public decimal PartCost { get; set; }                      // تكلفتها علينا (للإدارة فقط)
 
         [StringLength(500, ErrorMessage = "الملاحظات لا تتعدى 500 حرف.")]
         public string? Notes { get; set; }

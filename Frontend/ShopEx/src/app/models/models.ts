@@ -269,7 +269,10 @@ export interface MaintenanceTicketOperation {
   id: number;
   maintenanceTicketId: number;
   operationName: string;
+  /** السعر على العميل (هو اللي يظهر في الفاتورة) */
   cost: number;
+  /** التكلفة علينا — للإدارة فقط (undefined للموظف) */
+  partCost?: number;
   notes?: string;
   createdAt: string;
 }
@@ -294,6 +297,10 @@ export interface PagedMaintenanceTickets {
   countReceived: number;
   countCompleted: number;
   countDelivered: number;
+  /** تكلفة القطع علينا للنتائج الحالية — للإدارة فقط */
+  totalPartCost?: number | null;
+  /** الربح (السعر − التكلفة) للنتائج الحالية — للإدارة فقط */
+  totalProfit?: number | null;
 }
 
 export interface MaintenanceTicketSummary {
@@ -337,7 +344,13 @@ export interface MaintenanceTicket {
   repairNotes?: string;
   deliveredAt?: string;
   deliveryNotes?: string;
+  /** ملاحظة الفاتورة / الضمان (تُطبع على الفاتورة) */
+  warrantyNote?: string;
   totalCost: number;
+  /** إجمالي التكلفة علينا — للإدارة فقط */
+  totalPartCost?: number;
+  /** الربح = السعر - التكلفة — للإدارة فقط */
+  profit?: number;
   paidAmount: number;
   remainingAmount: number;
   isPaid: boolean;
@@ -364,7 +377,10 @@ export interface CreateMaintenanceTicketRequest {
 
 export interface AddTicketOperationRequest {
   operationName: string;
+  /** السعر على العميل */
   cost: number;
+  /** التكلفة علينا */
+  partCost?: number;
   notes?: string;
 }
 
@@ -377,6 +393,7 @@ export interface DeliverTicketRequest {
   paymentAmount?: number;
   paymentMethod?: MaintenancePaymentMethod;
   deliveryNotes?: string;
+  warrantyNote?: string;
 }
 
 export interface AddTicketPaymentRequest {
@@ -829,6 +846,13 @@ export interface RMSItem {
   supplierID?: number;
 }
 
+/** شحن رصيد من الفرع لنفسه (الفرع من السيرفر) - يُسجَّل كمصروف على الفرع */
+export interface ChargeOwnBalanceRequest {
+  balanceType: BalanceType;
+  amount: number;
+  notes?: string;
+}
+
 export interface ChargeBalanceRequest {
   storeId: number;
   balanceType: BalanceType;
@@ -1001,6 +1025,8 @@ export interface ExpenseResponse {
   notes?: string;
   createdBy?: string;
   createdAt: string;
+  /** مصروف تلقائي (شراء جهاز / شحن رصيد): لا يُعدَّل ولا يُحذف من هنا */
+  isAutomatic?: boolean;
 }
 
 export interface ExpenseByCategorySummaryDto {
@@ -1120,11 +1146,26 @@ export interface DashboardBranch {
   sales: number;
   profit: number;
   transactionsCount: number;
-  devicesReceived: number;
-  devicesDelivered: number;
-  expenses: number;
+  // الصيانة
+  ticketsReceived: number;
+  ticketsDelivered: number;
+  maintenanceRevenue: number;
+  maintenanceProfit: number;
+  // الأجهزة (مشتراة بغرض البيع)
+  devicesBoughtCount: number;
+  devicesBoughtAmount: number;
+  devicesSoldCount: number;
+  devicesSoldAmount: number;
+  devicesProfit: number;
+  devicesInStockCount: number;
+  devicesInStockValue: number;
+  // الأرصدة
+  balanceCharged: number;
   balanceClosed: number;
   balanceProfit: number;
+  balanceRemaining: number;
+  // المصروفات (تشمل شحن الرصيد وشراء الأجهزة)
+  expenses: number;
 }
 
 export interface DashboardDueInvoice {
@@ -1169,7 +1210,23 @@ export interface DashboardConsignmentDues {
   overdueMoney: number;
   overdueGoodsValue: number;
   dueSoonCount: number;
+  openCount: number;
+  openMoney: number;
+  openGoodsValue: number;
   items: DashboardDueConsignment[];
+}
+
+export interface DashboardPnlRow {
+  /** branch | hq | maintenance | devices | balance | consignments | total */
+  kind: string;
+  storeId: number | null;
+  label: string;
+  revenue: number;
+  cost: number;
+  profit: number;
+  /** مصروفات تشغيلية فقط (شراء الأجهزة وشحن الرصيد محسوبان كتكلفة) */
+  expenses: number;
+  net: number;
 }
 
 export interface DashboardData {
@@ -1182,4 +1239,99 @@ export interface DashboardData {
   supplierInvoices: DashboardInvoiceDues;
   consignments: DashboardConsignmentDues;
   branches: DashboardBranch[];
+  pnl: DashboardPnlRow[];
+  pnlTotal: DashboardPnlRow;
+}
+
+// ================================================================
+// Devices (أجهزة مشتراة بغرض البيع: HQ + الفروع)
+// ================================================================
+
+export enum DeviceStatus {
+  InStock = 1,
+  Sold = 2
+}
+
+export interface DeviceResponse {
+  id: number;
+  storeId: number | null;
+  storeName: string;
+  brand: string;
+  model: string;
+  color?: string | null;
+  storage?: string | null;
+  imei?: string | null;
+  /** صحة البطارية % (اختياري) */
+  batteryHealth?: number | null;
+  hasBox: boolean;
+  notes?: string | null;
+  purchasePrice: number;
+  purchaseDate: string;
+  sellerName?: string | null;
+  status: DeviceStatus;
+  salePrice?: number | null;
+  soldAt?: string | null;
+  buyerName?: string | null;
+  buyerPhone?: string | null;
+  saleNotes?: string | null;
+  soldBy?: string | null;
+  soldStoreId?: number | null;
+  soldStoreName?: string | null;
+  profit?: number | null;
+  createdBy?: string | null;
+  createdAt: string;
+}
+
+export interface DeviceStatsDto {
+  totalCount: number;
+  inStockCount: number;
+  soldCount: number;
+  totalPurchase: number;
+  inStockValue: number;
+  totalSales: number;
+  totalProfit: number;
+}
+
+export interface DeviceSummaryDto {
+  stats: DeviceStatsDto;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+  items: DeviceResponse[];
+}
+
+export interface DeviceFilters {
+  /** 0 = HQ فقط، رقم = فرع معين، undefined = الكل */
+  storeId?: number;
+  status?: DeviceStatus;
+  search?: string;
+  fromDate?: string;
+  toDate?: string;
+}
+
+export interface CreateDeviceRequest {
+  /** للأدمن فقط (الموظف يتحدد فرعه من السيرفر). null/undefined = HQ */
+  storeId?: number | null;
+  brand: string;
+  model: string;
+  color?: string;
+  storage?: string;
+  imei?: string;
+  batteryHealth?: number | null;
+  hasBox: boolean;
+  purchasePrice: number;
+  purchaseDate?: string;
+  sellerName?: string;
+  notes?: string;
+}
+
+export type UpdateDeviceRequest = Omit<CreateDeviceRequest, 'storeId'>;
+
+export interface SellDeviceRequest {
+  salePrice: number;
+  /** للأدمن فقط: الفرع البايع (null = HQ). الموظف يتحدد فرعه من السيرفر */
+  soldStoreId?: number | null;
+  buyerName?: string;
+  buyerPhone?: string;
+  notes?: string;
 }

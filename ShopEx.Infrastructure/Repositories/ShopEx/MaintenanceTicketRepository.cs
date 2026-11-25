@@ -49,8 +49,7 @@ namespace ShopEx.Infrastructure.Repositories.ShopEx
                       .ToListAsync(ct);
         }
 
-        public async Task<(List<MaintenanceTicket> Items, int TotalCount)> GetPagedAsync(
-            MaintenanceStatus? status, string? search, int? storeId, int skip, int take, CancellationToken ct = default)
+        private IQueryable<MaintenanceTicket> Filtered(MaintenanceStatus? status, string? search, int? storeId)
         {
             var query = _db.MaintenanceTickets.AsNoTracking()
                 .Where(t => storeId == null || t.StoreId == storeId);
@@ -67,6 +66,26 @@ namespace ShopEx.Infrastructure.Repositories.ShopEx
                     t.CustomerPhone.Contains(s) ||
                     t.DeviceName.Contains(s));
             }
+
+            return query;
+        }
+
+        public async Task<(decimal Price, decimal PartCost)> GetCostTotalsAsync(
+            MaintenanceStatus? status, string? search, int? storeId, CancellationToken ct = default)
+        {
+            var row = await Filtered(status, search, storeId)
+                .SelectMany(t => t.Operations)
+                .GroupBy(o => 1)
+                .Select(g => new { Price = g.Sum(o => o.Cost), PartCost = g.Sum(o => o.PartCost) })
+                .FirstOrDefaultAsync(ct);
+
+            return (row?.Price ?? 0m, row?.PartCost ?? 0m);
+        }
+
+        public async Task<(List<MaintenanceTicket> Items, int TotalCount)> GetPagedAsync(
+            MaintenanceStatus? status, string? search, int? storeId, int skip, int take, CancellationToken ct = default)
+        {
+            var query = Filtered(status, search, storeId);
 
             var total = await query.CountAsync(ct);
             var items = await query

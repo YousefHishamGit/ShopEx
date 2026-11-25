@@ -88,6 +88,12 @@ export class ConsignmentDetailComponent implements OnInit {
       next: (data) => {
         this.consignment = data;
         this.loading = false;
+
+        // جاي من "صرف البضاعة الآن": اطبع الإذن فوراً مرة واحدة، وامسح الـ query حتى لا تتكرر الطباعة عند التحديث
+        if (this.route.snapshot.queryParamMap.get('print')) {
+          this.router.navigate([], { relativeTo: this.route, queryParams: {}, replaceUrl: true });
+          this.printConsignment();
+        }
       },
       error: (err) => {
         this.errorMessage = 'حدث خطأ أثناء تحميل بيانات إذن الأمانة.';

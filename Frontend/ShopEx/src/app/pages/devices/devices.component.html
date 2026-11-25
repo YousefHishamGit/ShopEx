@@ -1,0 +1,419 @@
+<div class="max-w-7xl mx-auto space-y-6" dir="rtl">
+  <!-- Header -->
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <div>
+      <h1 class="text-2xl font-bold text-light-on-surface">أجهزة للبيع (موبايلات)</h1>
+      <p class="text-sm text-light-on-surface-variant mt-1">
+        <ng-container *ngIf="isAdmin">كل أجهزة الـ HQ والفروع: التكلفة (سعر الشراء) عند التسجيل، وسعر البيع عند البيع.</ng-container>
+        <ng-container *ngIf="!isAdmin">الأجهزة المتاحة للبيع من كل الفروع والـ HQ. أي فرع يقدر يبيع أي جهاز لو جاب أحسن سعر.</ng-container>
+      </p>
+    </div>
+    <button type="button" (click)="openCreate()"
+      class="inline-flex items-center gap-2 px-5 py-2.5 bg-primary text-on-primary font-bold rounded-lg hover:bg-primary/90 shadow transition-all text-sm">
+      <span class="material-symbols-outlined text-[20px]">add_circle</span>
+      <span>تسجيل شراء جهاز</span>
+    </button>
+  </div>
+
+  <!-- Stats -->
+  <div *ngIf="isAdmin" class="grid grid-cols-2 lg:grid-cols-5 gap-3">
+    <div *ngIf="isAdmin" class="bg-light-surface rounded-xl border border-outline shadow-sm p-4">
+      <div class="text-[11px] text-light-on-surface-variant">إجمالي الأجهزة</div>
+      <div class="text-xl font-extrabold text-light-on-surface mt-1">{{ summary?.stats?.totalCount || 0 }}</div>
+      <div class="text-[11px] text-gray-500 mt-0.5">
+        إجمالي التكلفة: {{ (summary?.stats?.totalPurchase || 0) | number:'1.0-2' }} ج.م
+      </div>
+    </div>
+    <div class="bg-light-surface rounded-xl border border-outline shadow-sm p-4">
+      <div class="text-[11px] text-light-on-surface-variant">متاح للبيع</div>
+      <div class="text-xl font-extrabold text-blue-700 mt-1">{{ summary?.stats?.inStockCount || 0 }}</div>
+      <div class="text-[11px] text-gray-500 mt-0.5">
+        بتكلفة إجمالية {{ (summary?.stats?.inStockValue || 0) | number:'1.0-2' }} ج.م
+      </div>
+    </div>
+    <div *ngIf="isAdmin" class="bg-light-surface rounded-xl border border-outline shadow-sm p-4">
+      <div class="text-[11px] text-light-on-surface-variant">تم بيعه</div>
+      <div class="text-xl font-extrabold text-green-700 mt-1">{{ summary?.stats?.soldCount || 0 }}</div>
+    </div>
+    <div *ngIf="isAdmin" class="bg-light-surface rounded-xl border border-outline shadow-sm p-4">
+      <div class="text-[11px] text-light-on-surface-variant">إجمالي المبيعات</div>
+      <div class="text-xl font-extrabold text-light-on-surface mt-1">
+        {{ (summary?.stats?.totalSales || 0) | number:'1.0-2' }} <span class="text-xs font-normal text-gray-500">ج.م</span>
+      </div>
+    </div>
+    <div *ngIf="isAdmin" class="bg-light-surface rounded-xl border border-outline shadow-sm p-4">
+      <div class="text-[11px] text-light-on-surface-variant">صافي الربح</div>
+      <div class="text-xl font-extrabold mt-1"
+        [ngClass]="(summary?.stats?.totalProfit || 0) < 0 ? 'text-error' : 'text-green-700'">
+        {{ (summary?.stats?.totalProfit || 0) | number:'1.0-2' }} <span class="text-xs font-normal text-gray-500">ج.م</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="bg-light-surface rounded-xl border border-outline shadow-sm p-4 flex flex-wrap items-end gap-3">
+    <div class="flex-1 min-w-[200px]">
+      <label class="block text-[11px] font-semibold text-light-on-surface-variant mb-1">بحث</label>
+      <input type="text" [(ngModel)]="search" (ngModelChange)="onSearchInput()"
+        placeholder="ماركة / موديل / IMEI / اسم المشتري أو البائع"
+        class="w-full px-3 py-2 text-xs border border-outline rounded-lg bg-light-surface focus:outline-none focus:border-primary">
+    </div>
+    <div *ngIf="isAdmin">
+      <label class="block text-[11px] font-semibold text-light-on-surface-variant mb-1">الحالة</label>
+      <select [(ngModel)]="statusFilter" (ngModelChange)="onFilterChange()"
+        class="px-3 py-2 text-xs border border-outline rounded-lg bg-light-surface focus:outline-none focus:border-primary">
+        <option value="">الكل</option>
+        <option [ngValue]="DeviceStatus.InStock">متاح</option>
+        <option [ngValue]="DeviceStatus.Sold">تم بيعه</option>
+      </select>
+    </div>
+    <div *ngIf="isAdmin">
+      <label class="block text-[11px] font-semibold text-light-on-surface-variant mb-1">الفرع</label>
+      <select [(ngModel)]="storeFilter" (ngModelChange)="onFilterChange()"
+        class="px-3 py-2 text-xs border border-outline rounded-lg bg-light-surface focus:outline-none focus:border-primary">
+        <option value="">كل الفروع + HQ</option>
+        <option [ngValue]="0">الإدارة العامة (HQ)</option>
+        <option *ngFor="let s of stores" [ngValue]="s.id">{{ s.name }}</option>
+      </select>
+    </div>
+    <div *ngIf="isAdmin">
+      <label class="block text-[11px] font-semibold text-light-on-surface-variant mb-1">شراء من</label>
+      <input type="date" [(ngModel)]="fromDate" (ngModelChange)="onFilterChange()"
+        class="px-3 py-2 text-xs border border-outline rounded-lg bg-light-surface focus:outline-none focus:border-primary">
+    </div>
+    <div *ngIf="isAdmin">
+      <label class="block text-[11px] font-semibold text-light-on-surface-variant mb-1">إلى</label>
+      <input type="date" [(ngModel)]="toDate" (ngModelChange)="onFilterChange()"
+        class="px-3 py-2 text-xs border border-outline rounded-lg bg-light-surface focus:outline-none focus:border-primary">
+    </div>
+    <button *ngIf="isAdmin" type="button" (click)="resetFilters()"
+      class="px-3 py-2 text-xs font-semibold border border-outline rounded-lg hover:bg-light-surface-variant">إعادة ضبط</button>
+    <button type="button" (click)="load()" [disabled]="loading"
+      class="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold border border-outline rounded-lg hover:bg-light-surface-variant disabled:opacity-50">
+      <span class="material-symbols-outlined text-[16px]" [class.animate-spin]="loading">refresh</span>
+      تحديث
+    </button>
+  </div>
+
+  <div *ngIf="errorMessage" role="alert"
+    class="p-4 bg-error-container text-on-error-container rounded-xl border border-error/20 text-sm font-medium">
+    {{ errorMessage }}
+  </div>
+
+  <div *ngIf="loading" class="p-10 text-center text-sm text-light-on-surface-variant">جاري التحميل...</div>
+
+  <!-- List -->
+  <div *ngIf="!loading && !errorMessage" class="bg-light-surface rounded-xl border border-outline shadow-sm overflow-hidden">
+    <div *ngIf="devices.length === 0" class="p-10 text-center text-sm text-light-on-surface-variant">
+      لا توجد أجهزة مطابقة.
+    </div>
+
+    <div *ngIf="devices.length > 0" class="overflow-x-auto">
+      <table class="w-full text-right text-sm">
+        <thead class="bg-light-surface-variant/60 text-light-on-surface-variant text-xs border-b border-outline">
+          <tr>
+            <th class="py-3 px-4">تاريخ الشراء</th>
+            <th class="py-3 px-4">الفرع</th>
+            <th class="py-3 px-4">الجهاز</th>
+            <th class="py-3 px-4">IMEI</th>
+            <th class="py-3 px-4 text-left">التكلفة</th>
+            <th *ngIf="isAdmin" class="py-3 px-4">الحالة</th>
+            <th *ngIf="isAdmin" class="py-3 px-4 text-left">سعر البيع</th>
+            <th *ngIf="isAdmin" class="py-3 px-4 text-left">الربح</th>
+            <th class="py-3 px-4"></th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-outline">
+          <tr *ngFor="let d of devices; trackBy: trackDevice" class="hover:bg-light-surface-variant/40">
+            <td class="py-3 px-4 whitespace-nowrap text-xs text-light-on-surface-variant">{{ d.purchaseDate | date:'yyyy/MM/dd' }}</td>
+            <td class="py-3 px-4 whitespace-nowrap text-xs font-semibold">{{ d.storeName }}</td>
+            <td class="py-3 px-4">
+              <div class="font-bold">{{ d.brand }} {{ d.model }}</div>
+              <div class="text-[11px] text-gray-500">
+                <span *ngIf="d.storage">{{ d.storage }}</span><span *ngIf="d.storage && d.color"> • </span><span *ngIf="d.color">{{ d.color }}</span>
+              </div>
+              <div class="text-[11px] text-gray-500">
+                <span *ngIf="d.batteryHealth != null">البطارية {{ d.batteryHealth }}% • </span>{{ d.hasBox ? 'معه العلبة' : 'بدون علبة' }}
+              </div>
+              <div *ngIf="d.sellerName" class="text-[11px] text-gray-500">اشتُري من: {{ d.sellerName }}</div>
+              <div *ngIf="d.notes" class="text-[11px] text-gray-500">{{ d.notes }}</div>
+            </td>
+            <td class="py-3 px-4 font-mono text-xs whitespace-nowrap" dir="ltr">{{ d.imei || '—' }}</td>
+            <td class="py-3 px-4 text-left font-bold whitespace-nowrap">{{ d.purchasePrice | number:'1.2-2' }}</td>
+            <td *ngIf="isAdmin" class="py-3 px-4 whitespace-nowrap">
+              <span *ngIf="d.status === DeviceStatus.InStock"
+                class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-200">متاح</span>
+              <ng-container *ngIf="d.status === DeviceStatus.Sold">
+                <span class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-green-50 text-green-700 border border-green-200">تم بيعه</span>
+                <div class="text-[11px] text-gray-500 mt-1">{{ d.soldAt | date:'yyyy/MM/dd' }}<span *ngIf="d.soldBy"> • {{ d.soldBy }}</span></div>
+                <div class="text-[11px] text-gray-500">بيع من: {{ d.soldStoreName }}</div>
+                <div *ngIf="d.buyerName || d.buyerPhone" class="text-[11px] text-gray-500">
+                  {{ d.buyerName }}<span *ngIf="d.buyerName && d.buyerPhone"> • </span><span dir="ltr">{{ d.buyerPhone }}</span>
+                </div>
+              </ng-container>
+            </td>
+            <td *ngIf="isAdmin" class="py-3 px-4 text-left font-extrabold whitespace-nowrap">
+              <span *ngIf="d.salePrice != null">{{ d.salePrice | number:'1.2-2' }}</span>
+              <span *ngIf="d.salePrice == null" class="text-gray-400 font-normal">—</span>
+            </td>
+            <td *ngIf="isAdmin" class="py-3 px-4 text-left font-extrabold whitespace-nowrap">
+              <span *ngIf="d.profit != null" [ngClass]="d.profit < 0 ? 'text-error' : 'text-green-700'">{{ d.profit | number:'1.2-2' }}</span>
+              <span *ngIf="d.profit == null" class="text-gray-400 font-normal">—</span>
+            </td>
+            <td class="py-3 px-4 whitespace-nowrap">
+              <div class="flex items-center gap-1 justify-end">
+                <button *ngIf="canSell(d)" type="button" (click)="openSell(d)"
+                  class="px-3 py-1.5 text-xs font-bold bg-green-600 text-white rounded-lg hover:bg-green-700">بيع</button>
+                <button *ngIf="canEdit(d)" type="button" (click)="openEdit(d)" title="تعديل"
+                  class="p-1.5 text-primary hover:bg-primary/10 rounded-lg">
+                  <span class="material-symbols-outlined text-[18px]">edit</span>
+                </button>
+                <button *ngIf="isAdmin && d.status === DeviceStatus.Sold" type="button" (click)="printSale(d)" title="طباعة فاتورة البيع"
+                  class="p-1.5 text-primary hover:bg-primary/10 rounded-lg">
+                  <span class="material-symbols-outlined text-[18px]">print</span>
+                </button>
+                <button *ngIf="isAdmin && d.status === DeviceStatus.Sold" type="button" (click)="askConfirm('cancel-sale', d)" title="إلغاء البيع"
+                  class="p-1.5 text-orange-600 hover:bg-orange-50 rounded-lg">
+                  <span class="material-symbols-outlined text-[18px]">undo</span>
+                </button>
+                <button *ngIf="isAdmin" type="button" (click)="askConfirm('delete', d)" title="حذف"
+                  class="p-1.5 text-error hover:bg-error/10 rounded-lg">
+                  <span class="material-symbols-outlined text-[18px]">delete</span>
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div *ngIf="summary && summary.totalPages > 1"
+      class="p-3 border-t border-outline flex items-center justify-between text-xs text-light-on-surface-variant">
+      <span>{{ pageFrom }} - {{ pageTo }} من {{ summary.stats.totalCount }}</span>
+      <div class="flex items-center gap-2">
+        <button (click)="goToPage(page - 1)" [disabled]="page <= 1 || loading"
+          class="px-3.5 py-1.5 border border-slate-300 bg-white rounded-lg text-black font-extrabold hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed">السابق</button>
+        <span class="text-slate-900 font-bold font-mono">صفحة {{ page }} / {{ summary.totalPages }}</span>
+        <button (click)="goToPage(page + 1)" [disabled]="page >= summary.totalPages || loading"
+          class="px-3.5 py-1.5 border border-slate-300 bg-white rounded-lg text-black font-extrabold hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed">التالي</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ Add / edit device modal ============ -->
+<div *ngIf="showFormModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" dir="rtl"
+  (click)="closeFormModal()">
+  <form (ngSubmit)="saveDevice()" (click)="$event.stopPropagation()"
+    class="bg-light-surface rounded-2xl border border-outline shadow-2xl w-full max-w-lg max-h-[92vh] flex flex-col overflow-hidden">
+    <div class="px-6 py-4 border-b border-outline flex items-center justify-between">
+      <h3 class="font-bold text-base text-light-on-surface">{{ editing ? 'تعديل بيانات الجهاز' : 'تسجيل شراء جهاز' }}</h3>
+      <button type="button" (click)="closeFormModal()" class="text-gray-400 hover:text-gray-600 p-1" aria-label="إغلاق">
+        <span class="material-symbols-outlined text-[20px]">close</span>
+      </button>
+    </div>
+
+    <div class="p-6 space-y-4 text-xs overflow-y-auto">
+      <div *ngIf="formError" role="alert" class="p-3 bg-error/10 border border-error/20 text-error rounded-xl">{{ formError }}</div>
+
+      <!-- الأدمن فقط يختار الفرع عند تسجيل جهاز جديد -->
+      <div *ngIf="isAdmin && !editing">
+        <label class="block font-semibold text-light-on-surface mb-1">اشتراه</label>
+        <select name="storeId" [(ngModel)]="form.storeId"
+          class="w-full px-3 py-2.5 border border-outline rounded-lg text-sm bg-light-surface focus:outline-none focus:border-primary">
+          <option [ngValue]="null">الإدارة العامة (HQ)</option>
+          <option *ngFor="let s of stores" [ngValue]="s.id">{{ s.name }}</option>
+        </select>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block font-semibold text-light-on-surface mb-1">الماركة *</label>
+          <input type="text" name="brand" [(ngModel)]="form.brand" maxlength="100" placeholder="Samsung / iPhone ..."
+            class="w-full px-3.5 py-2.5 border border-outline rounded-lg text-sm bg-light-surface focus:outline-none focus:border-primary">
+        </div>
+        <div>
+          <label class="block font-semibold text-light-on-surface mb-1">الموديل *</label>
+          <input type="text" name="model" [(ngModel)]="form.model" maxlength="150" placeholder="Galaxy A55 / 15 Pro ..."
+            class="w-full px-3.5 py-2.5 border border-outline rounded-lg text-sm bg-light-surface focus:outline-none focus:border-primary">
+        </div>
+        <div>
+          <label class="block font-semibold text-light-on-surface mb-1">السعة</label>
+          <select name="storage" [(ngModel)]="form.storage"
+            class="w-full px-3 py-2.5 border border-outline rounded-lg text-sm bg-light-surface focus:outline-none focus:border-primary">
+            <option value="">— اختر السعة —</option>
+            <option *ngFor="let s of storageOptions" [value]="s">{{ s }}</option>
+          </select>
+        </div>
+        <div>
+          <label class="block font-semibold text-light-on-surface mb-1">اللون</label>
+          <input type="text" name="color" [(ngModel)]="form.color" maxlength="50"
+            class="w-full px-3.5 py-2.5 border border-outline rounded-lg text-sm bg-light-surface focus:outline-none focus:border-primary">
+        </div>
+        <div>
+          <label class="block font-semibold text-light-on-surface mb-1">IMEI / الرقم التسلسلي</label>
+          <input type="text" name="imei" [(ngModel)]="form.imei" maxlength="50" dir="ltr"
+            class="w-full px-3.5 py-2.5 border border-outline rounded-lg text-sm font-mono bg-light-surface focus:outline-none focus:border-primary">
+        </div>
+        <div>
+          <label class="block font-semibold text-light-on-surface mb-1">صحة البطارية % (اختياري)</label>
+          <input type="number" name="batteryHealth" [(ngModel)]="form.batteryHealth" min="0" max="100" step="1" placeholder="مثال: 87"
+            class="w-full px-3.5 py-2.5 border border-outline rounded-lg text-sm bg-light-surface focus:outline-none focus:border-primary">
+        </div>
+        <div>
+          <label class="block font-semibold text-light-on-surface mb-1">معه العلبة؟</label>
+          <div class="flex items-center gap-5 py-2.5">
+            <label class="inline-flex items-center gap-1.5 cursor-pointer text-sm">
+              <input type="radio" name="hasBox" [value]="true" [(ngModel)]="form.hasBox" class="accent-primary"> نعم
+            </label>
+            <label class="inline-flex items-center gap-1.5 cursor-pointer text-sm">
+              <input type="radio" name="hasBox" [value]="false" [(ngModel)]="form.hasBox" class="accent-primary"> لا
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block font-semibold text-light-on-surface mb-1">التكلفة — سعر الشراء (ج.م) *</label>
+          <input type="number" name="purchasePrice" [(ngModel)]="form.purchasePrice" min="0.01" step="0.01" placeholder="0.00"
+            class="w-full px-3.5 py-2.5 border border-outline rounded-lg text-sm font-bold bg-light-surface focus:outline-none focus:border-primary">
+        </div>
+        <div>
+          <label class="block font-semibold text-light-on-surface mb-1">تاريخ الشراء</label>
+          <input type="date" name="purchaseDate" [(ngModel)]="form.purchaseDate"
+            class="w-full px-3 py-2.5 border border-outline rounded-lg text-sm bg-light-surface focus:outline-none focus:border-primary">
+          <div class="text-[10px] text-gray-400 mt-0.5">اتركه فارغاً = الآن</div>
+        </div>
+      </div>
+
+      <div>
+        <label class="block font-semibold text-light-on-surface mb-1">اشتُري من (اختياري)</label>
+        <input type="text" name="sellerName" [(ngModel)]="form.sellerName" maxlength="200"
+          class="w-full px-3.5 py-2.5 border border-outline rounded-lg text-sm bg-light-surface focus:outline-none focus:border-primary">
+      </div>
+
+      <div>
+        <label class="block font-semibold text-light-on-surface mb-1">ملاحظات</label>
+        <textarea name="notes" [(ngModel)]="form.notes" rows="2" maxlength="1000"
+          class="w-full px-3.5 py-2.5 border border-outline rounded-lg text-sm bg-light-surface focus:outline-none focus:border-primary"></textarea>
+      </div>
+    </div>
+
+    <div class="px-6 py-4 border-t border-outline flex items-center justify-end gap-3 bg-light-surface-variant/40">
+      <button type="button" (click)="closeFormModal()" [disabled]="submitting"
+        class="px-5 py-2.5 border border-outline hover:bg-light-surface-variant rounded-lg text-sm text-light-on-surface-variant font-medium">إلغاء</button>
+      <button type="submit" [disabled]="submitting"
+        class="inline-flex items-center gap-2 px-6 py-2.5 bg-primary text-on-primary font-bold rounded-lg hover:bg-primary/90 disabled:opacity-60 shadow text-sm">
+        <span *ngIf="submitting"
+          class="inline-block animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></span>
+        <span>{{ editing ? 'حفظ التعديلات' : 'حفظ الجهاز' }}</span>
+      </button>
+    </div>
+  </form>
+</div>
+
+<!-- ============ Sell modal ============ -->
+<div *ngIf="sellTarget" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" dir="rtl"
+  (click)="closeSell()">
+  <form (ngSubmit)="confirmSell()" (click)="$event.stopPropagation()"
+    class="bg-light-surface rounded-2xl border border-outline shadow-2xl w-full max-w-md overflow-hidden">
+    <div class="px-6 py-4 border-b border-outline flex items-center justify-between">
+      <h3 class="font-bold text-base text-light-on-surface">بيع جهاز</h3>
+      <button type="button" (click)="closeSell()" class="text-gray-400 hover:text-gray-600 p-1" aria-label="إغلاق">
+        <span class="material-symbols-outlined text-[20px]">close</span>
+      </button>
+    </div>
+
+    <div class="p-6 space-y-4 text-xs">
+      <div class="p-3 bg-light-surface-variant/60 rounded-xl">
+        <div class="font-bold text-sm">{{ sellTarget.brand }} {{ sellTarget.model }}</div>
+        <div class="text-gray-500 mt-0.5">
+          التكلفة <b>{{ sellTarget.purchasePrice | number:'1.2-2' }}</b> ج.م — {{ sellTarget.storeName }}
+        </div>
+      </div>
+
+      <div *ngIf="sellError" role="alert" class="p-3 bg-error/10 border border-error/20 text-error rounded-xl">{{ sellError }}</div>
+
+      <div>
+        <label class="block font-semibold text-light-on-surface mb-1">سعر البيع (ج.م) *</label>
+        <input type="number" name="salePrice" [(ngModel)]="sellForm.salePrice" min="0.01" step="0.01" placeholder="0.00" autofocus
+          class="w-full px-3.5 py-2.5 border border-outline rounded-lg text-sm font-bold bg-light-surface focus:outline-none focus:border-primary">
+        <div *ngIf="sellProfit !== null" class="mt-1 font-semibold" [ngClass]="sellProfit < 0 ? 'text-error' : 'text-green-700'">
+          {{ sellProfit < 0 ? 'خسارة' : 'ربح' }}: {{ sellProfit < 0 ? -sellProfit : sellProfit | number:'1.2-2' }} ج.م
+        </div>
+      </div>
+
+      <div *ngIf="isAdmin">
+        <label class="block font-semibold text-light-on-surface mb-1">البيع تم من</label>
+        <select name="soldStoreId" [(ngModel)]="sellForm.soldStoreId"
+          class="w-full px-3 py-2.5 border border-outline rounded-lg text-sm bg-light-surface focus:outline-none focus:border-primary">
+          <option [ngValue]="null">الإدارة العامة (HQ)</option>
+          <option *ngFor="let s of stores" [ngValue]="s.id">{{ s.name }}</option>
+        </select>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block font-semibold text-light-on-surface mb-1">اسم المشتري</label>
+          <input type="text" name="buyerName" [(ngModel)]="sellForm.buyerName" maxlength="200"
+            class="w-full px-3.5 py-2.5 border border-outline rounded-lg text-sm bg-light-surface focus:outline-none focus:border-primary">
+        </div>
+        <div>
+          <label class="block font-semibold text-light-on-surface mb-1">تليفون المشتري</label>
+          <input type="text" name="buyerPhone" [(ngModel)]="sellForm.buyerPhone" maxlength="30" dir="ltr"
+            class="w-full px-3.5 py-2.5 border border-outline rounded-lg text-sm bg-light-surface focus:outline-none focus:border-primary">
+        </div>
+      </div>
+
+      <div>
+        <label class="block font-semibold text-light-on-surface mb-1">ملاحظات</label>
+        <textarea name="sellNotes" [(ngModel)]="sellForm.notes" rows="2" maxlength="1000"
+          class="w-full px-3.5 py-2.5 border border-outline rounded-lg text-sm bg-light-surface focus:outline-none focus:border-primary"></textarea>
+      </div>
+    </div>
+
+    <div class="px-6 py-4 border-t border-outline flex items-center justify-end gap-3 bg-light-surface-variant/40">
+      <button type="button" (click)="closeSell()" [disabled]="submitting"
+        class="px-5 py-2.5 border border-outline hover:bg-light-surface-variant rounded-lg text-sm text-light-on-surface-variant font-medium">إلغاء</button>
+      <button type="submit" [disabled]="submitting"
+        class="inline-flex items-center gap-2 px-6 py-2.5 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 disabled:opacity-60 shadow text-sm">
+        <span *ngIf="submitting"
+          class="inline-block animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></span>
+        <span>تأكيد البيع</span>
+      </button>
+    </div>
+  </form>
+</div>
+
+<!-- ============ Confirm modal (cancel sale / delete) ============ -->
+<div *ngIf="confirmAction" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" dir="rtl"
+  (click)="closeConfirm()">
+  <div (click)="$event.stopPropagation()"
+    class="bg-light-surface rounded-2xl border border-outline shadow-2xl w-full max-w-sm overflow-hidden">
+    <div class="p-6 space-y-3 text-sm">
+      <h3 class="font-bold text-base text-light-on-surface">
+        {{ confirmAction.kind === 'delete' ? 'حذف الجهاز' : 'إلغاء بيع الجهاز' }}
+      </h3>
+      <p class="text-light-on-surface-variant">
+        <ng-container *ngIf="confirmAction.kind === 'delete'">
+          سيتم حذف <b>{{ confirmAction.device.brand }} {{ confirmAction.device.model }}</b> نهائياً ولا يمكن التراجع.
+        </ng-container>
+        <ng-container *ngIf="confirmAction.kind === 'cancel-sale'">
+          سيرجع <b>{{ confirmAction.device.brand }} {{ confirmAction.device.model }}</b> لحالة "متاح" ويتم مسح بيانات البيع (السعر والمشتري).
+        </ng-container>
+      </p>
+      <div *ngIf="confirmError" role="alert" class="p-3 bg-error/10 border border-error/20 text-error rounded-xl text-xs">{{ confirmError }}</div>
+    </div>
+    <div class="px-6 py-4 border-t border-outline flex items-center justify-end gap-3 bg-light-surface-variant/40">
+      <button type="button" (click)="closeConfirm()" [disabled]="submitting"
+        class="px-5 py-2.5 border border-outline hover:bg-light-surface-variant rounded-lg text-sm text-light-on-surface-variant font-medium">رجوع</button>
+      <button type="button" (click)="runConfirm()" [disabled]="submitting"
+        class="inline-flex items-center gap-2 px-6 py-2.5 bg-error text-white font-bold rounded-lg hover:bg-error/90 disabled:opacity-60 shadow text-sm">
+        <span *ngIf="submitting"
+          class="inline-block animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></span>
+        <span>{{ confirmAction.kind === 'delete' ? 'حذف' : 'إلغاء البيع' }}</span>
+      </button>
+    </div>
+  </div>
+</div>

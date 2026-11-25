@@ -22,6 +22,24 @@ namespace ShopEx.Application.DTOs.Dashboard
         public ConsignmentDuesDto Consignments { get; set; } = new();
 
         public List<BranchDailyDto> Branches { get; set; } = new();
+
+        /// <summary>جدول الإيرادات والتكلفة والأرباح والمصروفات والصافي: فرع لكل صف + الصيانة والأجهزة والرصيد والبنزيمات.</summary>
+        public List<PnlRowDto> Pnl { get; set; } = new();
+        public PnlRowDto PnlTotal { get; set; } = new();
+    }
+
+    public class PnlRowDto
+    {
+        /// <summary>branch | hq | maintenance | devices | balance | consignments | total</summary>
+        public string Kind { get; set; } = string.Empty;
+        public int? StoreId { get; set; }
+        public string Label { get; set; } = string.Empty;
+        public decimal Revenue { get; set; }
+        public decimal Cost { get; set; }
+        public decimal Profit { get; set; }
+        /// <summary>مصروفات تشغيلية فقط (بدون شراء الأجهزة وشحن الرصيد لأنهما محسوبان كتكلفة في صفيهما).</summary>
+        public decimal Expenses { get; set; }
+        public decimal Net { get; set; }
     }
 
     public class SalesSummaryDto
@@ -74,13 +92,36 @@ namespace ShopEx.Application.DTOs.Dashboard
         public decimal Profit { get; set; }
         public int TransactionsCount { get; set; }
 
-        public int DevicesReceived { get; set; }
-        public int DevicesDelivered { get; set; }
+        // ----- الصيانة -----
+        /// <summary>تذاكر صيانة استلمها الفرع في اليوم.</summary>
+        public int TicketsReceived { get; set; }
+        /// <summary>تذاكر صيانة سلّمها الفرع في اليوم.</summary>
+        public int TicketsDelivered { get; set; }
+        /// <summary>المقبوض من العملاء على الصيانة في اليوم (حسب فرع التذكرة).</summary>
+        public decimal MaintenanceRevenue { get; set; }
+        /// <summary>ربح الصيانة (السعر - تكلفة القطع) للتذاكر التي سُلّمت في اليوم.</summary>
+        public decimal MaintenanceProfit { get; set; }
 
-        public decimal Expenses { get; set; }
+        // ----- الأجهزة (المشتراة بغرض البيع) -----
+        public int DevicesBoughtCount { get; set; }
+        public decimal DevicesBoughtAmount { get; set; }
+        public int DevicesSoldCount { get; set; }
+        public decimal DevicesSoldAmount { get; set; }
+        public decimal DevicesProfit { get; set; }
+        /// <summary>الأجهزة المتاحة الآن (لا تتأثر بتاريخ اللوحة).</summary>
+        public int DevicesInStockCount { get; set; }
+        public decimal DevicesInStockValue { get; set; }
+
+        // ----- الأرصدة -----
+        public decimal BalanceCharged { get; set; }
         public decimal BalanceClosed { get; set; }
         /// <summary>ربح تقفيل الأرصدة الذي سجله الفرع اليوم.</summary>
         public decimal BalanceProfit { get; set; }
+        /// <summary>الرصيد المتبقي (مشحون - مقفَّل) الآن لكل الشحنات (لا يتأثر بتاريخ اللوحة).</summary>
+        public decimal BalanceRemaining { get; set; }
+
+        /// <summary>كل المصروفات في اليوم (تشمل شحن الرصيد وشراء الأجهزة).</summary>
+        public decimal Expenses { get; set; }
     }
 
     public class InvoiceDuesDto
@@ -130,6 +171,11 @@ namespace ShopEx.Application.DTOs.Dashboard
 
         public int DueSoonCount { get; set; }
 
+        /// <summary>كل الأمانات المفتوحة (البنزيمات ليست مرتبطة بفرع: تظهر في صف الإدارة).</summary>
+        public int OpenCount { get; set; }
+        public decimal OpenMoney { get; set; }
+        public decimal OpenGoodsValue { get; set; }
+
         public List<DueConsignmentDto> Items { get; set; } = new();
     }
 
@@ -172,12 +218,27 @@ namespace ShopEx.Application.DTOs.Dashboard
         public List<StoreAmountRow> TicketsDelivered { get; set; } = new();
         public int TicketsRepaired { get; set; }
         public decimal MaintenanceRevenue { get; set; }
+        public List<StoreAmountRow> MaintenanceRevenueByStore { get; set; } = new();
+        /// <summary>Profit = السعر - تكلفة القطع للتذاكر المسلَّمة في الفترة.</summary>
+        public List<StoreAmountRow> MaintenanceProfitByStore { get; set; } = new();
         public int UnderRepairNow { get; set; }
         public int ReadyForDeliveryNow { get; set; }
 
         public List<StoreAmountRow> Expenses { get; set; } = new();
+        /// <summary>المصروفات التشغيلية فقط: بدون المصروفات التلقائية (شراء أجهزة / شحن رصيد).</summary>
+        public List<StoreAmountRow> OperatingExpenses { get; set; } = new();
+        public decimal ConsignmentRevenue { get; set; }
+        public decimal ConsignmentCost { get; set; }
         public List<StoreAmountRow> BalanceClosures { get; set; } = new();
         public decimal BalanceCharged { get; set; }
+        public List<StoreAmountRow> BalanceChargedByStore { get; set; } = new();
+        /// <summary>المتبقي الآن من الأرصدة لكل فرع (Amount).</summary>
+        public List<StoreAmountRow> BalanceRemainingByStore { get; set; } = new();
+
+        public List<StoreAmountRow> DevicesBought { get; set; } = new();
+        /// <summary>Amount = إجمالي سعر البيع، Profit = البيع - الشراء.</summary>
+        public List<StoreAmountRow> DevicesSold { get; set; } = new();
+        public List<StoreAmountRow> DevicesInStock { get; set; } = new();
     }
 
     public class UnpaidInvoiceRow

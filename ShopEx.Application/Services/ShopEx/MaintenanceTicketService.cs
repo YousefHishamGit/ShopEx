@@ -142,6 +142,7 @@ namespace ShopEx.Application.Services.ShopEx
             // الاستعلامات تتابعية لأنها تشترك في نفس الـ DbContext
             var counts = await _ticketRepository.GetStatusCountsAsync(storeId, ct);
             var (tickets, total) = await _ticketRepository.GetPagedAsync(status, search, storeId, (page - 1) * pageSize, pageSize, ct);
+            var (totalPrice, totalPartCost) = await _ticketRepository.GetCostTotalsAsync(status, search, storeId, ct);
 
             int Count(params MaintenanceStatus[] s) => s.Sum(x => counts.TryGetValue(x, out var c) ? c : 0);
 
@@ -163,7 +164,9 @@ namespace ShopEx.Application.Services.ShopEx
                 CountTotal = counts.Values.Sum(),
                 CountReceived = Count(MaintenanceStatus.Received, MaintenanceStatus.UnderRepair),
                 CountCompleted = Count(MaintenanceStatus.Completed),
-                CountDelivered = Count(MaintenanceStatus.Delivered)
+                CountDelivered = Count(MaintenanceStatus.Delivered),
+                TotalPartCost = totalPartCost,
+                TotalProfit = totalPrice - totalPartCost
             };
         }
 
@@ -177,7 +180,10 @@ namespace ShopEx.Application.Services.ShopEx
                 throw new ArgumentException("اسم أو وصف الإصلاح مطلوب.", nameof(request.OperationName));
 
             if (request.Cost < 0)
-                throw new ArgumentException("تكلفة العملية لا يمكن أن تكون سالبة.", nameof(request.Cost));
+                throw new ArgumentException("سعر العملية لا يمكن أن يكون سالباً.", nameof(request.Cost));
+
+            if (request.PartCost < 0)
+                throw new ArgumentException("تكلفة القطعة لا يمكن أن تكون سالبة.", nameof(request.PartCost));
 
             var ticket = await _ticketRepository.GetByIdAsync(ticketId, ct);
             if (ticket == null)
@@ -194,6 +200,7 @@ namespace ShopEx.Application.Services.ShopEx
                 MaintenanceTicketId = ticketId,
                 OperationName = request.OperationName.Trim(),
                 Cost = Math.Round(request.Cost, 2, MidpointRounding.AwayFromZero),
+                PartCost = Math.Round(request.PartCost, 2, MidpointRounding.AwayFromZero),
                 Notes = request.Notes?.Trim(),
                 CreatedAt = DateTime.Now
             };
@@ -256,6 +263,7 @@ namespace ShopEx.Application.Services.ShopEx
                         MaintenanceTicketId = ticketId,
                         OperationName = op.OperationName.Trim(),
                         Cost = Math.Round(op.Cost, 2, MidpointRounding.AwayFromZero),
+                        PartCost = Math.Round(Math.Max(0m, op.PartCost), 2, MidpointRounding.AwayFromZero),
                         Notes = op.Notes?.Trim(),
                         CreatedAt = DateTime.Now
                     });
@@ -292,6 +300,10 @@ namespace ShopEx.Application.Services.ShopEx
 
             if (ticket.Status == MaintenanceStatus.Cancelled)
                 throw new InvalidOperationException("لا يمكن إضافة دفعات لتذكرة صيانة ملغية.");
+
+            if (ticket.TotalCost > 0 && amount > ticket.RemainingAmount)
+                throw new InvalidOperationException(
+                    $"مبلغ الدفع ({amount:N2}) أكبر من المتبقي على التذكرة ({ticket.RemainingAmount:N2}).");
 
             ticket.Payments.Add(new MaintenancePayment
             {
@@ -332,6 +344,10 @@ namespace ShopEx.Application.Services.ShopEx
                 paymentAmount = ticket.RemainingAmount;
             }
 
+            if (ticket.TotalCost > 0 && paymentAmount > ticket.RemainingAmount)
+                throw new InvalidOperationException(
+                    $"المبلغ المحصَّل ({paymentAmount:N2}) أكبر من المتبقي على التذكرة ({ticket.RemainingAmount:N2}).");
+
             if (paymentAmount > 0)
             {
                 ticket.Payments.Add(new MaintenancePayment
@@ -349,6 +365,10 @@ namespace ShopEx.Application.Services.ShopEx
             {
                 ticket.DeliveryNotes = request.DeliveryNotes.Trim();
             }
+            if (!string.IsNullOrWhiteSpace(request?.WarrantyNote))
+            {
+                ticket.WarrantyNote = request.WarrantyNote.Trim();
+            }
 
             ticket.Status = MaintenanceStatus.Delivered;
 
@@ -364,15 +384,30 @@ namespace ShopEx.Application.Services.ShopEx
             if (ticket == null)
                 throw new KeyNotFoundException($"تذكرة الصيانة برقم {ticketId} غير موجودة.");
 
+            if (!Enum.IsDefined(typeof(MaintenanceStatus), newStatus))
+                throw new ArgumentException("حالة التذكرة غير صحيحة.");
+
+            if (newStatus == ticket.Status)
+                return await ToResponseAsync(ticket, ct);
+
+            if (ticket.Status == MaintenanceStatus.Delivered)
+                throw new InvalidOperationException("لا يمكن تغيير حالة جهاز تم تسليمه.");
+
+            if (ticket.Status == MaintenanceStatus.Cancelled)
+                throw new InvalidOperationException("لا يمكن تغيير حالة تذكرة ملغية.");
+
+            if (newStatus == MaintenanceStatus.Delivered)
+                throw new InvalidOperationException("التسليم يتم من زر \"تسليم الجهاز\" حتى يُسجَّل تحصيل المبلغ.");
+
+            if (newStatus == MaintenanceStatus.Cancelled && ticket.PaidAmount > 0)
+                throw new InvalidOperationException(
+                    $"لا يمكن إلغاء تذكرة عليها دفعات ({ticket.PaidAmount:N2}). ردّ المبلغ للعميل أولاً أو سلّم الجهاز.");
+
             ticket.Status = newStatus;
 
             if (newStatus == MaintenanceStatus.Completed && !ticket.RepairedAt.HasValue)
             {
                 ticket.RepairedAt = DateTime.Now;
-            }
-            else if (newStatus == MaintenanceStatus.Delivered && !ticket.DeliveredAt.HasValue)
-            {
-                ticket.DeliveredAt = DateTime.Now;
             }
 
             _ticketRepository.Update(ticket);
@@ -417,7 +452,10 @@ namespace ShopEx.Application.Services.ShopEx
                 RepairNotes = ticket.RepairNotes,
                 DeliveredAt = ticket.DeliveredAt,
                 DeliveryNotes = ticket.DeliveryNotes,
+                WarrantyNote = ticket.WarrantyNote,
                 TotalCost = ticket.TotalCost,
+                TotalPartCost = ticket.TotalPartCost,
+                Profit = ticket.TotalCost - ticket.TotalPartCost,
                 PaidAmount = ticket.PaidAmount,
                 RemainingAmount = ticket.RemainingAmount,
                 IsPaid = ticket.IsPaid,
@@ -427,6 +465,7 @@ namespace ShopEx.Application.Services.ShopEx
                     MaintenanceTicketId = o.MaintenanceTicketId,
                     OperationName = o.OperationName,
                     Cost = o.Cost,
+                    PartCost = o.PartCost,
                     Notes = o.Notes,
                     CreatedAt = o.CreatedAt
                 }).OrderBy(o => o.CreatedAt).ToList() ?? new List<MaintenanceTicketOperationResponse>(),

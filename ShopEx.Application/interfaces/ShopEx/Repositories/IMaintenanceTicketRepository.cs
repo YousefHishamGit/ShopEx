@@ -14,6 +14,9 @@ namespace ShopEx.Application.interfaces.ShopEx.Repositories
         /// <summary>صفحة من التذاكر مع فلترة الحالة والبحث النصي، والتقسيم يتم في قاعدة البيانات.</summary>
         Task<(List<MaintenanceTicket> Items, int TotalCount)> GetPagedAsync(MaintenanceStatus? status, string? search, int? storeId, int skip, int take, CancellationToken ct = default);
         /// <summary>عدد التذاكر لكل حالة ضمن نطاق الفرع.</summary>
+        /// <summary>إجمالي السعر على العميل وتكلفة القطع علينا لكل التذاكر المطابقة للفلاتر (تجميع داخل قاعدة البيانات)</summary>
+        Task<(decimal Price, decimal PartCost)> GetCostTotalsAsync(MaintenanceStatus? status, string? search, int? storeId, CancellationToken ct = default);
+
         Task<Dictionary<MaintenanceStatus, int>> GetStatusCountsAsync(int? storeId, CancellationToken ct = default);
         Task<List<MaintenanceTicket>> GetByStatusAsync(MaintenanceStatus status, int? storeId = null, CancellationToken ct = default);
         Task<List<MaintenanceTicket>> GetByCustomerPhoneAsync(string customerPhone, int? storeId = null, CancellationToken ct = default);

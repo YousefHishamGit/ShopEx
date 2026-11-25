@@ -35,8 +35,11 @@ export class MaintenanceService {
   }
 
   // صفحة من التذاكر (الفلترة والبحث والتقسيم في السيرفر) + إحصائيات الحالات
-  getTicketsPaged(page: number, pageSize: number, status?: MaintenanceStatus, search?: string): Observable<PagedMaintenanceTickets> {
+  getTicketsPaged(page: number, pageSize: number, status?: MaintenanceStatus, search?: string, storeId?: number | null): Observable<PagedMaintenanceTickets> {
     let params = new HttpParams().set('page', page.toString()).set('pageSize', pageSize.toString());
+    if (storeId !== undefined && storeId !== null) {
+      params = params.set('storeId', storeId.toString());
+    }
     if (status !== undefined && status !== null) {
       params = params.set('status', status.toString());
     }
@@ -82,6 +85,7 @@ export class MaintenanceService {
     const payload = {
       operationName: request.operationName.trim(),
       cost: Number(request.cost || 0),
+      partCost: Number(request.partCost || 0),
       notes: request.notes?.trim() || undefined
     };
     return this.http.post<MaintenanceTicket>(`${this.baseUrl}/${ticketId}/operations`, payload);
@@ -99,6 +103,7 @@ export class MaintenanceService {
       operations: request?.operations?.map(op => ({
         operationName: op.operationName.trim(),
         cost: Number(op.cost || 0),
+        partCost: Number(op.partCost || 0),
         notes: op.notes?.trim() || undefined
       }))
     };
@@ -121,7 +126,8 @@ export class MaintenanceService {
     const payload = {
       paymentAmount: request?.paymentAmount !== undefined ? Number(request.paymentAmount) : undefined,
       paymentMethod: request?.paymentMethod ? Number(request.paymentMethod) : 1,
-      deliveryNotes: request?.deliveryNotes?.trim() || undefined
+      deliveryNotes: request?.deliveryNotes?.trim() || undefined,
+      warrantyNote: request?.warrantyNote?.trim() || undefined
     };
     return this.http.post<MaintenanceTicket>(`${this.baseUrl}/${ticketId}/deliver`, payload);
   }

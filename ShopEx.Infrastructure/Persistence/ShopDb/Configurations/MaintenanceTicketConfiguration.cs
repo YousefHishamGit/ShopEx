@@ -73,6 +73,9 @@ namespace ShopEx.Infrastructure.Persistence.ShopDb.Configurations
             builder.Property(x => x.DeliveryNotes)
                    .HasMaxLength(1000);
 
+            builder.Property(x => x.WarrantyNote)
+                   .HasMaxLength(300);
+
             // الخصائص المحسوبة (Calculated Properties)
             builder.Ignore(x => x.TotalCost);
             builder.Ignore(x => x.PaidAmount);

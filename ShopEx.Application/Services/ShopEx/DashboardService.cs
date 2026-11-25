@@ -80,6 +80,8 @@ namespace ShopEx.Application.Services.ShopEx
                 Branches = BuildBranches(sales, activity, storeNames)
             };
 
+            (response.Pnl, response.PnlTotal) = BuildPnl(sales, activity, storeNames);
+
             // المستحقات تُحسب دائماً بالنسبة لليوم الفعلي، مهما كان اليوم المعروض.
             response.SupplierInvoices = await BuildInvoiceDuesAsync(now.Date, ct);
             response.Consignments = await BuildConsignmentDuesAsync(now.Date, ct);
@@ -119,49 +121,144 @@ namespace ShopEx.Application.Services.ShopEx
             var salesByStore = sales.ToDictionary(s => s.StoreId);
             var received = ByStore(activity.TicketsReceived);
             var delivered = ByStore(activity.TicketsDelivered);
+            var maintRevenue = ByStore(activity.MaintenanceRevenueByStore);
+            var maintProfit = ByStore(activity.MaintenanceProfitByStore);
             var expenses = ByStore(activity.Expenses);
             var closures = ByStore(activity.BalanceClosures);
+            var charged = ByStore(activity.BalanceChargedByStore);
+            var remaining = ByStore(activity.BalanceRemainingByStore);
+            var bought = ByStore(activity.DevicesBought);
+            var sold = ByStore(activity.DevicesSold);
+            var inStock = ByStore(activity.DevicesInStock);
 
             // كل فروع RMS (حتى التي لم تتحرك اليوم) + أي فرع له حركة وغير موجود في القائمة
             var storeIds = new HashSet<int>(storeNames.Keys);
             storeIds.UnionWith(salesByStore.Keys);
-            foreach (var lookup in new[] { received, delivered, expenses, closures })
+            foreach (var lookup in new[] { received, delivered, maintRevenue, maintProfit, expenses, closures, charged, remaining, bought, sold, inStock })
                 storeIds.UnionWith(lookup.Keys);
+
+            // صف الإدارة العامة يظهر دائماً (البنزيمات والمصروفات والأجهزة غير المرتبطة بفرع)
+            storeIds.Add(NoStore);
 
             var rows = new List<BranchDailyDto>();
             foreach (var id in storeIds)
             {
                 salesByStore.TryGetValue(id, out var s);
+                received.TryGetValue(id, out var r);
+                delivered.TryGetValue(id, out var d);
+                maintRevenue.TryGetValue(id, out var mr);
+                maintProfit.TryGetValue(id, out var mp);
+                expenses.TryGetValue(id, out var e);
+                closures.TryGetValue(id, out var c);
+                charged.TryGetValue(id, out var ch);
+                remaining.TryGetValue(id, out var rem);
+                bought.TryGetValue(id, out var b);
+                sold.TryGetValue(id, out var so);
+                inStock.TryGetValue(id, out var ins);
 
-                var row = new BranchDailyDto
+                rows.Add(new BranchDailyDto
                 {
                     StoreId = id == NoStore ? null : id,
                     StoreName = id == NoStore
-                        ? "غير مرتبط بفرع (الإدارة)"
+                        ? "الإدارة العامة (HQ)"
                         : (storeNames.TryGetValue(id, out var name) ? name : $"فرع #{id}"),
                     Sales = s?.Sales ?? 0m,
                     Profit = s == null ? 0m : s.Sales - s.Cost,
                     TransactionsCount = s?.TransactionsCount ?? 0,
-                    DevicesReceived = received.TryGetValue(id, out var r) ? r.Count : 0,
-                    DevicesDelivered = delivered.TryGetValue(id, out var d) ? d.Count : 0,
-                    Expenses = expenses.TryGetValue(id, out var e) ? e.Amount : 0m,
-                    BalanceClosed = closures.TryGetValue(id, out var c) ? c.Amount : 0m,
-                    BalanceProfit = c?.Profit ?? 0m
-                };
-
-                // الصف "غير المرتبط بفرع" يظهر فقط لو فيه حركة فعلية
-                if (id == NoStore && row.DevicesReceived == 0 && row.DevicesDelivered == 0
-                    && row.Expenses == 0 && row.BalanceClosed == 0)
-                    continue;
-
-                rows.Add(row);
+                    TicketsReceived = r?.Count ?? 0,
+                    TicketsDelivered = d?.Count ?? 0,
+                    MaintenanceRevenue = mr?.Amount ?? 0m,
+                    MaintenanceProfit = mp?.Profit ?? 0m,
+                    DevicesBoughtCount = b?.Count ?? 0,
+                    DevicesBoughtAmount = b?.Amount ?? 0m,
+                    DevicesSoldCount = so?.Count ?? 0,
+                    DevicesSoldAmount = so?.Amount ?? 0m,
+                    DevicesProfit = so?.Profit ?? 0m,
+                    DevicesInStockCount = ins?.Count ?? 0,
+                    DevicesInStockValue = ins?.Amount ?? 0m,
+                    BalanceCharged = ch?.Amount ?? 0m,
+                    BalanceClosed = c?.Amount ?? 0m,
+                    BalanceProfit = c?.Profit ?? 0m,
+                    BalanceRemaining = rem?.Amount ?? 0m,
+                    Expenses = e?.Amount ?? 0m
+                });
             }
 
+            // الفروع أولاً (بالمبيعات)، وصف الإدارة العامة في الآخر
             return rows
-                .OrderByDescending(r => r.Sales)
-                .ThenByDescending(r => r.DevicesReceived)
+                .OrderBy(r => r.StoreId == null ? 1 : 0)
+                .ThenByDescending(r => r.Sales)
                 .ThenBy(r => r.StoreName)
                 .ToList();
+        }
+
+        /// <summary>
+        /// جدول الإيرادات / التكلفة / الأرباح / المصروفات / الصافي:
+        /// صف لكل فرع (مبيعات RMS) ثم الصيانة والأجهزة والرصيد والبنزيمات. المصروفات هنا تشغيلية فقط
+        /// (شراء الأجهزة وشحن الرصيد يظهران كتكلفة في صفيهما حتى لا يُحسبا مرتين).
+        /// </summary>
+        private static (List<PnlRowDto> Rows, PnlRowDto Total) BuildPnl(
+            List<StoreSalesRow> sales,
+            DailyShopActivity activity,
+            Dictionary<int, string> storeNames)
+        {
+            var salesByStore = sales.ToDictionary(s => s.StoreId);
+            var opExpenses = ByStore(activity.OperatingExpenses);
+
+            var storeIds = new HashSet<int>(storeNames.Keys);
+            storeIds.UnionWith(salesByStore.Keys);
+            storeIds.UnionWith(opExpenses.Keys.Where(k => k != NoStore));
+
+            PnlRowDto Make(string kind, int? storeId, string label, decimal revenue, decimal cost, decimal expenses = 0m) => new()
+            {
+                Kind = kind,
+                StoreId = storeId,
+                Label = label,
+                Revenue = revenue,
+                Cost = cost,
+                Profit = revenue - cost,
+                Expenses = expenses,
+                Net = revenue - cost - expenses
+            };
+
+            var rows = new List<PnlRowDto>();
+
+            foreach (var id in storeIds
+                         .OrderByDescending(i => salesByStore.TryGetValue(i, out var s) ? s.Sales : 0m)
+                         .ThenBy(i => storeNames.TryGetValue(i, out var n) ? n : string.Empty))
+            {
+                salesByStore.TryGetValue(id, out var s);
+                opExpenses.TryGetValue(id, out var e);
+                rows.Add(Make("branch", id,
+                    storeNames.TryGetValue(id, out var name) ? name : $"فرع #{id}",
+                    s?.Sales ?? 0m, s?.Cost ?? 0m, e?.Amount ?? 0m));
+            }
+
+            // مصروفات الإدارة العامة (غير المرتبطة بفرع) تظهر فقط لو فيه مصروف
+            if (opExpenses.TryGetValue(NoStore, out var hq) && hq.Amount != 0m)
+                rows.Add(Make("hq", null, "الإدارة العامة", 0m, 0m, hq.Amount));
+
+            // الصيانة: تذاكر سُلّمت في اليوم (السعر على العميل - تكلفة القطع)
+            var maintBilled = activity.MaintenanceProfitByStore.Sum(r => r.Amount);
+            var maintProfit = activity.MaintenanceProfitByStore.Sum(r => r.Profit);
+            rows.Add(Make("maintenance", null, "الصيانة", maintBilled, maintBilled - maintProfit));
+
+            // الأجهزة: أجهزة بيعت في اليوم (سعر البيع - سعر الشراء)
+            var devSold = activity.DevicesSold.Sum(r => r.Amount);
+            var devProfit = activity.DevicesSold.Sum(r => r.Profit);
+            rows.Add(Make("devices", null, "الأجهزة", devSold, devSold - devProfit));
+
+            // الرصيد: المستهلك + ربح التقفيل = ما دفعه العملاء، والتكلفة = المستهلك
+            var balClosed = activity.BalanceClosures.Sum(r => r.Amount);
+            var balProfit = activity.BalanceClosures.Sum(r => r.Profit);
+            rows.Add(Make("balance", null, "الرصيد", balClosed + balProfit, balClosed));
+
+            // البنزيمات: بضاعة حُوسبت على التجار في اليوم
+            rows.Add(Make("consignments", null, "البنزيمات", activity.ConsignmentRevenue, activity.ConsignmentCost));
+
+            var total = Make("total", null, "الإجمالي",
+                rows.Sum(r => r.Revenue), rows.Sum(r => r.Cost), rows.Sum(r => r.Expenses));
+            return (rows, total);
         }
 
         private static Dictionary<int, StoreAmountRow> ByStore(List<StoreAmountRow> rows)
@@ -246,6 +343,10 @@ namespace ShopEx.Application.Services.ShopEx
                             && c.DueDate.Date <= today.AddDays(DueSoonDays)
                             && (c.OutstandingQuantity > 0 || c.RemainingAmount > 0))
                 .ToList();
+
+            dto.OpenCount = open.Count(c => c.OutstandingQuantity > 0 || c.RemainingAmount > 0);
+            dto.OpenMoney = open.Where(c => c.RemainingAmount > 0).Sum(c => c.RemainingAmount);
+            dto.OpenGoodsValue = open.Where(c => c.OutstandingValue > 0).Sum(c => c.OutstandingValue);
 
             dto.OverdueCount = overdue.Count;
             dto.OverdueMoney = overdue.Where(c => c.RemainingAmount > 0).Sum(c => c.RemainingAmount);

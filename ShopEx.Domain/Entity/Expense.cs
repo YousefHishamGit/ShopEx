@@ -60,6 +60,19 @@ namespace ShopEx.Domain.Entity
         /// </summary>
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
+        /// <summary>
+        /// إذا كان المصروف تلقائياً من شراء جهاز: معرف الجهاز (يتحدّث/يُحذف مع الجهاز ولا يُعدَّل يدوياً)
+        /// </summary>
+        public int? DeviceId { get; set; }
+
+        /// <summary>
+        /// إذا كان المصروف تلقائياً من شحن رصيد الفرع: معرف شحنة الرصيد (لا يُعدَّل يدوياً)
+        /// </summary>
+        public int? BalanceId { get; set; }
+
+        /// <summary>مصروف تلقائي مرتبط بعملية أخرى (جهاز / شحن رصيد)</summary>
+        public bool IsAutomatic => DeviceId.HasValue || BalanceId.HasValue;
+
         // Navigation
         public ExpenseCategory ExpenseCategory { get; set; } = null!;
     }

@@ -160,6 +160,25 @@ namespace ShopEx.Controllers
         }
 
         // ================================================================
+        // 1.1 شحن رصيد من الفرع لنفسه (يُسجَّل كمصروف على الفرع)
+        // ================================================================
+        /// <summary>
+        /// موظف الفرع يشحن رصيداً لفرعه (الفرع من الـ Token): تُضاف شحنة رصيد ويُسجَّل نفس المبلغ كمصروف على الفرع
+        /// </summary>
+        [HttpPost("charge-own")]
+        [Authorize(Roles = AppRoles.Employee)]
+        [ProducesResponseType(typeof(BalanceResponse), StatusCodes.Status201Created)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> ChargeOwn([FromBody] ChargeOwnBalanceRequest request, CancellationToken ct)
+        {
+            if (request == null) return BadRequest(new { message = "بيانات الشحن مطلوبة." });
+            if (User.StoreId() is not int ownStore) return Forbid();
+
+            var result = await _balanceService.ChargeOwnBranchAsync(ownStore, User.UserName(), request, ct);
+            return StatusCode(StatusCodes.Status201Created, result);
+        }
+
+        // ================================================================
         // 2. تقفيل الرصيد المستخدم من الفرع (Close / Record Daily Usage)
         // ================================================================
         /// <summary>

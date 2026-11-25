@@ -37,9 +37,14 @@ namespace ShopEx.Application.DTOs.Maintenance
         // المرحلة الثالثة: التسليم والدفع
         public DateTime? DeliveredAt { get; set; }
         public string? DeliveryNotes { get; set; }
+        public string? WarrantyNote { get; set; }
 
         // الحسابات المالية
         public decimal TotalCost { get; set; }
+        /// <summary>إجمالي تكلفة القطع علينا: null للموظف (للإدارة فقط)</summary>
+        public decimal? TotalPartCost { get; set; }
+        /// <summary>الربح = السعر - التكلفة: null للموظف (للإدارة فقط)</summary>
+        public decimal? Profit { get; set; }
         public decimal PaidAmount { get; set; }
         public decimal RemainingAmount { get; set; }
         public bool IsPaid { get; set; }

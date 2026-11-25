@@ -22,7 +22,7 @@ New-Item "$out\app\wwwroot" -ItemType Directory -Force | Out-Null
 Copy-Item "$dist\*" "$out\app\wwwroot" -Recurse -Force
 
 Write-Host '== SQL migration script ==' -ForegroundColor Cyan
-dotnet ef migrations script --idempotent --project (Join-Path $root 'ShopEx.Infrastructure') --startup-project (Join-Path $root 'ShopEx') --context ShopContext -o "$out\shopex.sql"
+dotnet ef migrations script --idempotent --configuration Release --project (Join-Path $root 'ShopEx.Infrastructure') --startup-project (Join-Path $root 'ShopEx') --context ShopContext -o "$out\shopex.sql"
 if ($LASTEXITCODE) { throw 'ef script failed' }
 
 Remove-Item "$out\app\appsettings.Development.json" -ErrorAction SilentlyContinue
@@ -37,3 +37,4 @@ Copy-Item (Join-Path $PSScriptRoot 'DEPLOY.md') $out
 $cert = Join-Path $PSScriptRoot 'cert'
 if (Test-Path $cert) { Copy-Item $cert $out -Recurse -Force } else { Write-Warning 'deploy\cert not found: add the HTTPS certificate manually' }
 Write-Host "Done -> $out" -ForegroundColor Green
+exit 0  # robocopy leaves LASTEXITCODE=1 ("files copied") on success

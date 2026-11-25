@@ -118,7 +118,7 @@ export class StockComponent implements OnInit, OnDestroy {
     this.selectedWarehouseId = warehouseId;
     this.selectedWarehouse = this.warehouses.find(w => w.id === warehouseId) || null;
     this.page = 1;
-    this.loadBalances();
+    this.loadBalances(true);
     if (this.activeTab === 'movements') {
       this.loadMovements();
     } else {
@@ -126,18 +126,21 @@ export class StockComponent implements OnInit, OnDestroy {
     }
   }
 
-  loadBalances(): void {
+  /** Warehouse-wide totals don't depend on the page or search, so they are only re-fetched when they can change. */
+  loadBalances(includeTotals: boolean = false): void {
     if (!this.selectedWarehouseId) return;
     this.loading = true;
     this.errorMessage = '';
-    this.stockService.getBalances(this.selectedWarehouseId, this.page, this.pageSize, this.searchQuery.trim()).subscribe({
+    this.stockService.getBalances(this.selectedWarehouseId, this.page, this.pageSize, this.searchQuery.trim(), includeTotals).subscribe({
       next: (res) => {
         this.balances = res.items || [];
         this.totalCount = res.totalCount;
         this.totalPages = res.totalPages;
-        this.totalQuantity = res.totalQuantity;
-        this.totalCost = res.totalCost;
-        this.totalPrice = res.totalPrice;
+        if (includeTotals) {
+          this.totalQuantity = res.totalQuantity;
+          this.totalCost = res.totalCost;
+          this.totalPrice = res.totalPrice;
+        }
         this.loading = false;
       },
       error: (err) => {
@@ -230,7 +233,7 @@ export class StockComponent implements OnInit, OnDestroy {
         this.showAdjustModal = false;
         this.successMessage = 'تمت التسوية المخزنية بنجاح!';
         this.toast.success(this.successMessage);
-        this.loadBalances();
+        this.loadBalances(true);
         if (this.activeTab === 'movements') {
           this.loadMovements();
         }

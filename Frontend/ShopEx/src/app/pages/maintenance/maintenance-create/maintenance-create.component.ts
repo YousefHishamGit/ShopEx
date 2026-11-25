@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { MaintenanceService } from '../../../services/maintenance.service';
 import { ToastService } from '../../../services/toast.service';
+import { ThermalReceiptService } from '../../../shared/print/thermal-receipt.service';
 import { CreateMaintenanceTicketRequest, MaintenancePaymentMethod } from '../../../models/models';
 
 @Component({
@@ -38,7 +39,8 @@ export class MaintenanceCreateComponent {
   constructor(
     private maintenanceService: MaintenanceService,
     private toast: ToastService,
-    private router: Router
+    private router: Router,
+    private thermal: ThermalReceiptService
   ) {}
 
   onSubmit(): void {
@@ -66,6 +68,8 @@ export class MaintenanceCreateComponent {
     this.maintenanceService.createTicket(this.request).subscribe({
       next: (ticket) => {
         this.submitting = false;
+        // إيصال الاستلام للعميل (يرجع به عند تسليمه الجهاز)
+        this.thermal.printMaintenanceIntake(ticket);
         this.toast.success(`تم استلام وتسجيل جهاز (${ticket.deviceName}) بنجاح برقم تذكرة #${ticket.id}`);
         this.router.navigate(['/maintenance', ticket.id]);
       },

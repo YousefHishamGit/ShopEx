@@ -9,6 +9,9 @@ namespace ShopEx.Application.interfaces.ShopEx.Repositories
     public interface IMaintenanceTicketRepository
     {
         Task<MaintenanceTicket?> GetByIdAsync(int id, CancellationToken ct = default);
+        /// <summary>Same as <see cref="GetByIdAsync"/> but not tracked: for read-only screens, so a later
+        /// locked update in the same request re-reads fresh values instead of reusing this instance.</summary>
+        Task<MaintenanceTicket?> GetByIdReadOnlyAsync(int id, CancellationToken ct = default);
         Task<MaintenanceTicket?> GetByTicketNumberAsync(string ticketNumber, CancellationToken ct = default);
         Task<List<MaintenanceTicket>> GetAllAsync(int? storeId = null, CancellationToken ct = default);
         /// <summary>صفحة من التذاكر مع فلترة الحالة والبحث النصي، والتقسيم يتم في قاعدة البيانات.</summary>
@@ -24,6 +27,7 @@ namespace ShopEx.Application.interfaces.ShopEx.Repositories
         Task AddAsync(MaintenanceTicket ticket, CancellationToken ct = default);
         void Update(MaintenanceTicket ticket);
         void Delete(MaintenanceTicket ticket);
+        /// <summary>Next MT-yyyyMMdd-NNNN number (last number of the day + 1). Call it under the numbering lock.</summary>
         Task<string> GetNextTicketNumberAsync(CancellationToken ct = default);
 
      

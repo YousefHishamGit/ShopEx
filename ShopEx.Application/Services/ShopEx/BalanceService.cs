@@ -16,23 +16,22 @@ namespace ShopEx.Application.Services.ShopEx
     public class BalanceService : IBalanceService
     {
         /// <summary>أقصى عدد حركات يعرضها سجل التحويلات</summary>
-        public const int LedgerLimit = 30;
+        public const int LedgerPageSize = 30;
+        /// <summary>Each page merges the first page×size rows of two tables, so very deep pages are refused (use date filters).</summary>
+        public const int MaxLedgerPage = 500;
 
         private const int MaxNotesLength = 500;
 
         private readonly IBalanceRepository _balanceRepo;
         private readonly IUnitOfWork _unitOfWork;
-        private readonly IExpenseService _expenseService;
         private readonly IStoreRepository _storeRepo;
 
         public BalanceService(
             IBalanceRepository balanceRepo,
             IUnitOfWork unitOfWork,
-            IExpenseService expenseService,
             IStoreRepository storeRepo)
         {
             _storeRepo = storeRepo ?? throw new ArgumentNullException(nameof(storeRepo));
-            _expenseService = expenseService ?? throw new ArgumentNullException(nameof(expenseService));
             _balanceRepo = balanceRepo ?? throw new ArgumentNullException(nameof(balanceRepo));
             _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
         }
@@ -68,7 +67,7 @@ namespace ShopEx.Application.Services.ShopEx
             return MapToResponse(balance);
         }
 
-        /// <summary>بند المصروفات الذي تُسجَّل عليه شحنات الفرع الذاتية (يُنشأ تلقائياً أول مرة)</summary>
+        /// <summary>بند قديم كانت تُسجَّل عليه شحنات الفرع الذاتية كمصروف؛ لم يعد يُستخدم (يُنظَّف عند التشغيل)</summary>
         public const string SelfChargeExpenseCategory = "شحن رصيد";
 
         public async Task<BalanceResponse> ChargeOwnBranchAsync(
@@ -79,34 +78,15 @@ namespace ShopEx.Application.Services.ShopEx
 
             var user = string.IsNullOrWhiteSpace(userName) ? null : userName.Trim();
             var note = request.Notes?.Trim();
-            var typeName = GetBalanceTypeName(request.BalanceType);
-            BalanceResponse? result = null;
 
-            // الشحنة والمصروف في معاملة واحدة: يتسجلان معاً أو لا يتسجل أي منهما
-            await _unitOfWork.ExecuteInTransactionAsync(async () =>
+            // شحن الرصيد شراء رصيد للبيع وليس مصروفاً: يُسجَّل كشحنة فقط (ويظهر ربحه عند التقفيل)
+            return await ChargeAsync(new ChargeBalanceRequest
             {
-                result = await ChargeAsync(new ChargeBalanceRequest
-                {
-                    StoreId = storeId,
-                    BalanceType = request.BalanceType,
-                    Amount = request.Amount,
-                    Notes = string.IsNullOrEmpty(note) ? $"شحن من الفرع [{user}]" : $"شحن من الفرع [{user}] {note}"
-                }, ct);
-
-                // مصروف تلقائي مرتبط بالشحنة: لا يتعطل بتعطيل البند ولا يُعدَّل/يُحذف يدوياً
-                await _expenseService.CreateLinkedExpenseAsync(new CreateExpenseRequest
-                {
-                    CategoryName = SelfChargeExpenseCategory,
-                    StoreId = storeId,
-                    Amount = result.Amount,
-                    PaymentMethod = ExpensePaymentMethod.Cash,
-                    Recipient = typeName,
-                    Notes = string.IsNullOrEmpty(note) ? $"شحن رصيد {typeName}" : $"شحن رصيد {typeName} - {note}",
-                    CreatedBy = user
-                }, deviceId: null, balanceId: result.Id, ct);
+                StoreId = storeId,
+                BalanceType = request.BalanceType,
+                Amount = request.Amount,
+                Notes = string.IsNullOrEmpty(note) ? $"شحن من الفرع [{user}]" : $"شحن من الفرع [{user}] {note}"
             }, ct);
-
-            return result!;
         }
 
         public async Task<BalanceClosureResponse> CloseAsync(int balanceId, CloseBalanceRequest request, CancellationToken ct = default)
@@ -221,39 +201,18 @@ namespace ShopEx.Application.Services.ShopEx
                 await _balanceRepo.AcquireStoreLockAsync(request.StoreId, request.BalanceType, ct);
 
                 var openCharges = await _balanceRepo.GetOpenChargesAsync(request.StoreId, request.BalanceType, ct);
-                var totalAvailable = openCharges.Sum(x => x.Remaining);
-
-                if (amount > totalAvailable)
+                foreach (var (balanceId, used, share) in AllocateFifo(openCharges, amount, profit))
                 {
-                    throw new InvalidOperationException(
-                        $"المبلغ المراد تقفيله ({amount:N2}) يتجاوز إجمالي الرصيد المتاح للفرع ({totalAvailable:N2}) في هذه الوسيلة.");
-                }
-
-                // توزيع المبلغ على الشحنات الأقدم أولاً (FIFO)
-                // الربح يُوزَّع على نفس الشحنات بنسبة المبلغ المستهلك من كل شحنة (والباقي على آخر شحنة)
-                var toAllocate = amount;
-                var profitLeft = profit;
-                foreach (var charge in openCharges)
-                {
-                    if (toAllocate <= 0) break;
-
-                    var allocate = Math.Min(toAllocate, charge.Remaining);
-                    var isLast = toAllocate - allocate <= 0;
-                    var share = isLast ? profitLeft : Math.Round(profit * allocate / amount, 2);
-
                     var closure = new BalanceClosure
                     {
-                        BalanceId = charge.Id,
-                        AmountUsed = allocate,
+                        BalanceId = balanceId,
+                        AmountUsed = used,
                         Profit = share,
                         ClosedAt = closedAt,
                         Notes = notes
                     };
-
                     await _balanceRepo.AddClosureAsync(closure, ct);
                     created.Add(closure);
-                    toAllocate -= allocate;
-                    profitLeft -= share;
                 }
 
                 await _unitOfWork.SaveChangesAsync(ct);
@@ -263,27 +222,66 @@ namespace ShopEx.Application.Services.ShopEx
         }
 
         /// <summary>
-        /// آخر <see cref="LedgerLimit"/> حركة فقط (شحن وتقفيل) مرتبة من الأحدث للأقدم.
+        /// صفحة من كشف الحركات (شحن وتقفيل) مرتبة من الأحدث للأقدم.
         /// </summary>
-        public async Task<List<BalanceTransactionItemDto>> GetLedgerAsync(
+        public async Task<BalanceLedgerPageDto> GetLedgerAsync(
             int? storeId = null,
             BalanceType? balanceType = null,
             DateTime? fromDate = null,
             DateTime? toDate = null,
+            int page = 1,
+            int pageSize = LedgerPageSize,
             CancellationToken ct = default)
         {
-            var items = await _balanceRepo.GetLatestTransactionsAsync(
-                storeId, balanceType, fromDate, toDate, LedgerLimit, ct);
+            page = Math.Clamp(page, 1, MaxLedgerPage);
+            pageSize = Math.Clamp(pageSize, 1, 100);
+
+            var (items, total) = await _balanceRepo.GetTransactionsPageAsync(
+                storeId, balanceType, fromDate, toDate, page, pageSize, ct);
 
             foreach (var t in items)
                 t.BalanceTypeName = GetBalanceTypeName(t.BalanceType);
 
-            return items;
+            return new BalanceLedgerPageDto { Items = items, Page = page, PageSize = pageSize, TotalCount = total };
         }
 
         // ================================================================
         // Helper Mappings
         // ================================================================
+
+        /// <summary>
+        /// Splits a closing over the open charges, oldest first (FIFO). The profit is shared in proportion to the
+        /// amount taken from each charge; rounding leftovers go to the last charge so the shares add up exactly.
+        /// Throws <see cref="InvalidOperationException"/> when the amount exceeds what is available.
+        /// </summary>
+        public static List<(int BalanceId, decimal Amount, decimal Profit)> AllocateFifo(
+            IReadOnlyList<OpenChargeRow> openCharges, decimal amount, decimal profit)
+        {
+            var totalAvailable = openCharges.Sum(x => x.Remaining);
+            if (amount > totalAvailable)
+            {
+                throw new InvalidOperationException(
+                    $"المبلغ المراد تقفيله ({amount:N2}) يتجاوز إجمالي الرصيد المتاح للفرع ({totalAvailable:N2}) في هذه الوسيلة.");
+            }
+
+            var result = new List<(int, decimal, decimal)>();
+            var toAllocate = amount;
+            var profitLeft = profit;
+            foreach (var charge in openCharges)
+            {
+                if (toAllocate <= 0) break;
+                if (charge.Remaining <= 0) continue;
+
+                var allocate = Math.Min(toAllocate, charge.Remaining);
+                var isLast = toAllocate - allocate <= 0;
+                var share = isLast ? profitLeft : Math.Round(profit * allocate / amount, 2);
+
+                result.Add((charge.Id, allocate, share));
+                toAllocate -= allocate;
+                profitLeft -= share;
+            }
+            return result;
+        }
 
         private static void ValidateBalanceType(BalanceType type)
         {

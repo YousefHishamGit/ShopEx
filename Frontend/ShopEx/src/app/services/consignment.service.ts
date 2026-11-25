@@ -8,6 +8,7 @@ import {
   UpdateDealerRequest,
   Consignment,
   ConsignmentSummary,
+  ConsignmentsPage,
   CreateConsignmentRequest,
   CreateConsignmentSettlementRequest,
   AddConsignmentPaymentRequest
@@ -75,6 +76,23 @@ export class ConsignmentService {
     if (toDate) params = params.set('toDate', toDate);
 
     return this.http.get<ConsignmentSummary[]>(`${this.baseUrl}/Consignments`, { params });
+  }
+
+  /** One page + dealer-wide stats. status: Open / Closed / Cancelled / OVERDUE / ALL. */
+  getConsignmentsPaged(
+    dealerId?: number,
+    status: string = 'ALL',
+    search: string = '',
+    page: number = 1,
+    pageSize: number = 25
+  ): Observable<ConsignmentsPage> {
+    let params = new HttpParams()
+      .set('status', status || 'ALL')
+      .set('page', page.toString())
+      .set('pageSize', pageSize.toString());
+    if (dealerId) params = params.set('dealerId', dealerId.toString());
+    if (search) params = params.set('search', search);
+    return this.http.get<ConsignmentsPage>(`${this.baseUrl}/Consignments/paged`, { params });
   }
 
   getConsignment(id: number): Observable<Consignment> {

@@ -163,27 +163,64 @@ namespace ShopEx.Application.Services.ShopEx
         private const int RecentMovementsCount = 30;
 
         public async Task<PagedStockBalanceResponse> GetBalancesAsync(
-            int warehouseId, string? search = null, int page = 1, int pageSize = 20, CancellationToken ct = default)
+            int warehouseId, string? search = null, int page = 1, int pageSize = 20, bool includeTotals = true, CancellationToken ct = default)
         {
             page = Math.Max(page, 1);
             pageSize = Math.Clamp(pageSize, 1, MaxPageSize);
 
-            // Item names live in the RMS database, so a text search is resolved to item ids first.
-            List<int>? itemIds = null;
+            // Needed for the warehouse value and for searching: one narrow row per in-stock item.
+            List<(int RMSItemID, decimal Quantity)>? quantities = null;
+
+            List<StockBalance> balances;
+            int total;
             if (!string.IsNullOrWhiteSpace(search))
             {
-                itemIds = await _itemRepository.SearchIdsAsync(search);
-                if (itemIds.Count == 0)
-                {
-                    return new PagedStockBalanceResponse { Page = page, PageSize = pageSize };
-                }
+                // Item names live in RMS: search only among this warehouse's in-stock items, so the
+                // result is never cut off by an RMS-wide match limit, then page the matching ids here.
+                quantities = await _stockRepository.GetInStockQuantitiesAsync(warehouseId, ct);
+                var matched = await _itemRepository.FilterIdsAsync(search, quantities.Select(q => q.RMSItemID), ct);
+                matched.Sort();
+                total = matched.Count;
+                var pageIds = matched.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+                balances = pageIds.Count == 0
+                    ? new List<StockBalance>()
+                    : (await _stockRepository.GetInStockBalancesPagedAsync(warehouseId, pageIds, 1, pageIds.Count, ct)).Items;
+            }
+            else
+            {
+                (balances, total) = await _stockRepository.GetInStockBalancesPagedAsync(warehouseId, null, page, pageSize, ct);
             }
 
-            var (balances, total) = await _stockRepository.GetInStockBalancesPagedAsync(warehouseId, itemIds, page, pageSize, ct);
+            var rows = await MapWithItemInfoAsync(balances);
+            var result = new PagedStockBalanceResponse
+            {
+                Items = rows, Page = page, PageSize = pageSize, TotalCount = total
+            };
 
-            // One batched RMS query for the page instead of one query per row.
+            if (includeTotals)
+            {
+                var (totalQty, totalCost) = await _stockRepository.GetInStockTotalsAsync(warehouseId, ct);
+                // Prices live in RMS: value the whole warehouse (not just this page) at retail price.
+                quantities ??= await _stockRepository.GetInStockQuantitiesAsync(warehouseId, ct);
+                var prices = await _itemRepository.GetPricesByIdsAsync(quantities.Select(q => q.RMSItemID));
+                result.TotalQuantity = totalQty;
+                result.TotalCost = totalCost;
+                result.TotalPrice = quantities.Sum(q => prices.TryGetValue(q.RMSItemID, out var p) ? q.Quantity * p : 0m);
+            }
+
+            return result;
+        }
+
+        public async Task<List<StockBalanceResponse>> GetAllInStockAsync(int warehouseId, CancellationToken ct = default)
+        {
+            var balances = await _stockRepository.GetInStockBalancesAsync(warehouseId, ct);
+            return await MapWithItemInfoAsync(balances);
+        }
+
+        /// <summary>Maps balances and adds RMS item info with one batched (chunked) RMS lookup.</summary>
+        private async Task<List<StockBalanceResponse>> MapWithItemInfoAsync(List<StockBalance> balances)
+        {
             var items = await _itemRepository.GetByIdsAsync(balances.Select(b => b.RMSItemID));
-
             var rows = new List<StockBalanceResponse>(balances.Count);
             foreach (var balance in balances)
             {
@@ -202,19 +239,7 @@ namespace ShopEx.Application.Services.ShopEx
                 }
                 rows.Add(row);
             }
-
-            var (totalQty, totalCost) = await _stockRepository.GetInStockTotalsAsync(warehouseId, ct);
-
-            // Prices live in RMS: value the whole warehouse (not just this page) at retail price.
-            var quantities = await _stockRepository.GetInStockQuantitiesAsync(warehouseId, ct);
-            var prices = await _itemRepository.GetPricesByIdsAsync(quantities.Select(q => q.RMSItemID));
-            var totalPrice = quantities.Sum(q => prices.TryGetValue(q.RMSItemID, out var p) ? q.Quantity * p : 0m);
-
-            return new PagedStockBalanceResponse
-            {
-                Items = rows, Page = page, PageSize = pageSize, TotalCount = total,
-                TotalQuantity = totalQty, TotalCost = totalCost, TotalPrice = totalPrice
-            };
+            return rows;
         }
 
         public async Task<StockBalanceResponse?> GetItemBalanceAsync(int warehouseId, int rmsItemId, CancellationToken ct = default)
@@ -281,6 +306,12 @@ namespace ShopEx.Application.Services.ShopEx
                 if (request.Quantity < 0)
                 {
                     throw new InvalidOperationException("لا يمكن تسوية صنف بالخصم ليس له رصيد مسجل بالمخزن.");
+                }
+
+                // A new stock row is only allowed for a real RMS item
+                if (await _itemRepository.GetByIdAsync(request.RMSItemID) == null)
+                {
+                    throw new ArgumentException($"الصنف رقم {request.RMSItemID} غير موجود في RMS.", nameof(request.RMSItemID));
                 }
 
                 balance = new StockBalance

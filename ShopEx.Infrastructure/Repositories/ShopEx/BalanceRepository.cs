@@ -3,6 +3,7 @@ using ShopEx.Application.DTOs.Balance;
 using ShopEx.Application.interfaces.ShopEx.Repositories;
 using ShopEx.Domain.Entity;
 using ShopEx.Domain.Enum;
+using ShopEx.Infrastructure.Persistence;
 using ShopEx.Infrastructure.Persistence.ShopDb;
 
 namespace ShopEx.Infrastructure.Repositories.ShopEx
@@ -32,7 +33,11 @@ namespace ShopEx.Infrastructure.Repositories.ShopEx
             if (fromDate.HasValue)
                 query = query.Where(b => b.ChargedAt >= fromDate.Value);
             if (toDate.HasValue)
-                query = query.Where(b => b.ChargedAt <= toDate.Value);
+            {
+                // شامل يوم "إلى" كاملاً
+                var toExclusive = toDate.Value.Date.AddDays(1);
+                query = query.Where(b => b.ChargedAt < toExclusive);
+            }
 
             return query;
         }
@@ -169,15 +174,23 @@ namespace ShopEx.Infrastructure.Repositories.ShopEx
                 .ToList();
         }
 
-        public Task<List<BalanceTransactionItemDto>> GetLatestTransactionsAsync(
+        public async Task<(List<BalanceTransactionItemDto> Items, int TotalCount)> GetTransactionsPageAsync(
             int? storeId,
             BalanceType? balanceType,
             DateTime? fromDate,
             DateTime? toDate,
-            int take,
+            int page,
+            int pageSize,
             CancellationToken ct = default)
         {
-            var charges = FilteredCharges(storeId, balanceType, fromDate, toDate)
+            // الصفحة رقم N من القائمة المدموجة لا تحتاج أكثر من أول (N × الحجم) من كل جدول؛
+            // نجلبها من كل جدول على حدة ثم ندمجها في الذاكرة (Concat بين جدولين مختلفين لا يُترجم لـ SQL).
+            var take = page * pageSize;
+            var chargeQuery = FilteredCharges(storeId, balanceType, fromDate, toDate);
+            var charges = await chargeQuery
+                .OrderByDescending(b => b.ChargedAt)
+                .ThenByDescending(b => b.Id)
+                .Take(take)
                 .Select(b => new BalanceTransactionItemDto
                 {
                     Id = b.Id,
@@ -188,7 +201,8 @@ namespace ShopEx.Infrastructure.Repositories.ShopEx
                     TransactionDate = b.ChargedAt,
                     Notes = b.Notes,
                     BalanceId = b.Id
-                });
+                })
+                .ToListAsync(ct);
 
             var closureQuery = _db.BalanceClosures.AsNoTracking().AsQueryable();
             if (storeId.HasValue)
@@ -198,9 +212,15 @@ namespace ShopEx.Infrastructure.Repositories.ShopEx
             if (fromDate.HasValue)
                 closureQuery = closureQuery.Where(c => c.ClosedAt >= fromDate.Value);
             if (toDate.HasValue)
-                closureQuery = closureQuery.Where(c => c.ClosedAt <= toDate.Value);
+            {
+                var toExclusive = toDate.Value.Date.AddDays(1);
+                closureQuery = closureQuery.Where(c => c.ClosedAt < toExclusive);
+            }
 
-            var closures = closureQuery
+            var closures = await closureQuery
+                .OrderByDescending(c => c.ClosedAt)
+                .ThenByDescending(c => c.Id)
+                .Take(take)
                 .Select(c => new BalanceTransactionItemDto
                 {
                     Id = c.Id,
@@ -212,14 +232,20 @@ namespace ShopEx.Infrastructure.Repositories.ShopEx
                     TransactionDate = c.ClosedAt,
                     Notes = c.Notes,
                     BalanceId = c.BalanceId
-                });
+                })
+                .ToListAsync(ct);
 
-            return charges
+            var total = await chargeQuery.CountAsync(ct) + await closureQuery.CountAsync(ct);
+
+            var items = charges
                 .Concat(closures)
                 .OrderByDescending(t => t.TransactionDate)
+                .ThenByDescending(t => t.TransactionType == "Closure") // same time: closure after its charge
                 .ThenByDescending(t => t.Id)
-                .Take(take)
-                .ToListAsync(ct);
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToList();
+            return (items, total);
         }
 
         // ================================================================
@@ -240,13 +266,10 @@ namespace ShopEx.Infrastructure.Repositories.ShopEx
             await _db.BalanceClosures.AddAsync(closure, ct);
         }
 
-        public async Task AcquireStoreLockAsync(int storeId, BalanceType balanceType, CancellationToken ct = default)
+        public Task AcquireStoreLockAsync(int storeId, BalanceType balanceType, CancellationToken ct = default)
         {
-            // Transaction-scoped application lock: released automatically on commit/rollback.
-            var resource = $"Balance:{storeId}:{(int)balanceType}";
-            await _db.Database.ExecuteSqlInterpolatedAsync(
-                $"EXEC sp_getapplock @Resource = {resource}, @LockMode = 'Exclusive', @LockOwner = 'Transaction', @LockTimeout = 10000",
-                ct);
+            // Transaction-scoped application lock; throws if it could not be granted (timeout / deadlock).
+            return SqlAppLock.AcquireAsync(_db, $"Balance:{storeId}:{(int)balanceType}", ct);
         }
     }
 }

@@ -11,7 +11,7 @@ import {
   CloseBalanceRequest,
   CloseStoreBalanceRequest,
   StoreBalanceGroup,
-  BalanceTransactionItem,
+  BalanceLedgerPage,
   StoreOption
 } from '../models/models';
 
@@ -72,7 +72,7 @@ export class BalanceService {
   }
 
   /**
-   * موظف الفرع يشحن رصيداً لفرعه (يُسجَّل كمصروف على الفرع)
+   * موظف الفرع يشحن رصيداً لفرعه
    */
   chargeOwn(request: ChargeOwnBalanceRequest): Observable<BalanceResponse> {
     return this.http.post<BalanceResponse>(`${this.baseUrl}/charge-own`, request);
@@ -120,8 +120,10 @@ export class BalanceService {
     storeId?: number,
     balanceType?: number,
     fromDate?: string,
-    toDate?: string
-  ): Observable<BalanceTransactionItem[]> {
+    toDate?: string,
+    page: number = 1,
+    pageSize: number = 30
+  ): Observable<BalanceLedgerPage> {
     let params = new HttpParams();
     if (storeId !== undefined && storeId !== null && storeId > 0) {
       params = params.set('storeId', storeId.toString());
@@ -135,6 +137,7 @@ export class BalanceService {
     if (toDate) {
       params = params.set('toDate', toDate);
     }
-    return this.http.get<BalanceTransactionItem[]>(`${this.baseUrl}/ledger`, { params });
+    params = params.set('page', page.toString()).set('pageSize', pageSize.toString());
+    return this.http.get<BalanceLedgerPage>(`${this.baseUrl}/ledger`, { params });
   }
 }

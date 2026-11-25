@@ -73,6 +73,15 @@ namespace ShopEx.Infrastructure.Repositories.ShopEx
             return rows.Select(r => (r.RMSItemID, r.QuantityOnHand)).ToList();
         }
 
+        public Task<List<StockBalance>> GetInStockBalancesAsync(int warehouseId, CancellationToken ct = default)
+        {
+            return _db.StockBalances
+                      .AsNoTracking()
+                      .Where(b => b.WarehouseID == warehouseId && b.QuantityOnHand > 0)
+                      .OrderBy(b => b.RMSItemID)
+                      .ToListAsync(ct);
+        }
+
         public Task<List<StockBalance>> GetBalancesByItemAsync(int rmsItemId, CancellationToken ct = default)
         {
             return _db.StockBalances

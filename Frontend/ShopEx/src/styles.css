@@ -102,15 +102,10 @@
 }
 
 .print-sheet .ps-logo {
-  width: 44px;
-  height: 44px;
-  border: 2px solid #000;
-  display: none;
-  align-items: center;
-  justify-content: center;
-  font-weight: 900;
-  font-size: 18px;
-  letter-spacing: 1px;
+  height: 60px;
+  width: auto;
+  display: block;
+  object-fit: contain;
 }
 
 .print-sheet .ps-co {

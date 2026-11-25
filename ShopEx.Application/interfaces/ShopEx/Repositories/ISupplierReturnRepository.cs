@@ -14,6 +14,8 @@ namespace ShopEx.Application.interfaces.ShopEx.Repositories
         Task<List<SupplierReturn>> GetAllAsync(int? rmsSupplierId = null, SupplierReturnStatus? status = null, int? warehouseId = null, CancellationToken ct = default);
         Task<bool> ExistsAsync(string returnNumber, CancellationToken ct = default);
         Task<string> GetNextReturnNumberAsync(CancellationToken ct = default);
+        /// <summary>Quantity already returned per item against an invoice (cancelled returns excluded).</summary>
+        Task<Dictionary<int, decimal>> GetReturnedQuantitiesForInvoiceAsync(int supplierInvoiceId, CancellationToken ct = default);
         Task AddAsync(SupplierReturn supplierReturn, CancellationToken ct = default);
         void Update(SupplierReturn supplierReturn);
         Task AddRefundAsync(SupplierRefund refund, CancellationToken ct = default);

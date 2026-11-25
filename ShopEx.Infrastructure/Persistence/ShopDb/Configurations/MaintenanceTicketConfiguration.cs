@@ -101,6 +101,8 @@ namespace ShopEx.Infrastructure.Persistence.ShopDb.Configurations
             builder.HasIndex(x => x.Status);
             builder.HasIndex(x => x.StoreId);
             builder.HasIndex(x => x.ReceivedAt);
+            builder.HasIndex(x => x.DeliveredAt);   // dashboard date ranges
+            builder.HasIndex(x => x.RepairedAt);
         }
     }
 }

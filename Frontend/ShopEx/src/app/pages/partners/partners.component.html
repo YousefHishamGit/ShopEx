@@ -1,0 +1,332 @@
+<div class="space-y-5" dir="rtl">
+
+  <!-- ============ Header + date filter ============ -->
+  <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
+    <div class="flex items-center gap-3">
+      <div class="w-12 h-12 rounded-2xl bg-primary text-white flex items-center justify-center shadow-sm">
+        <span class="material-symbols-outlined text-[26px]">groups</span>
+      </div>
+      <div>
+        <h1 class="text-xl sm:text-2xl font-bold text-light-on-surface leading-tight">الشركاء وتوزيع الأرباح</h1>
+        <p class="text-xs sm:text-sm text-light-on-surface-variant mt-0.5">
+          شركاء كل فرع ونسبهم من صافي الربح بعد الزكاة، وجدول الإيرادات والأرباح للفترة
+        </p>
+      </div>
+    </div>
+
+    <div class="flex flex-wrap items-center gap-2">
+      <div class="flex items-center gap-1 p-1 bg-slate-100 rounded-xl">
+        <button *ngFor="let p of presets" type="button" (click)="applyPreset(p.value)"
+          class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors"
+          [ngClass]="preset === p.value ? 'bg-white text-primary shadow-sm' : 'text-slate-600 hover:text-primary'">
+          {{ p.label }}
+        </button>
+      </div>
+
+      <label class="flex items-center gap-1.5 text-xs text-slate-600">
+        من
+        <input type="date" [(ngModel)]="fromDate" [max]="toDate" (change)="onDatesChange()"
+          class="px-3 py-2 border border-outline rounded-xl bg-light-surface text-sm text-light-on-surface focus:outline-none focus:ring-2 focus:ring-primary/30" />
+      </label>
+      <label class="flex items-center gap-1.5 text-xs text-slate-600">
+        إلى
+        <input type="date" [(ngModel)]="toDate" [min]="fromDate" (change)="onDatesChange()"
+          class="px-3 py-2 border border-outline rounded-xl bg-light-surface text-sm text-light-on-surface focus:outline-none focus:ring-2 focus:ring-primary/30" />
+      </label>
+
+      <button type="button" (click)="load()" [disabled]="loading" title="تحديث البيانات" aria-label="تحديث البيانات"
+        class="p-2.5 border border-outline rounded-xl bg-light-surface hover:bg-light-surface-variant text-light-on-surface transition-colors disabled:opacity-50">
+        <span class="material-symbols-outlined text-[20px]" [class.animate-spin]="loading">refresh</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ============ Error ============ -->
+  <div *ngIf="errorMessage" role="alert"
+    class="flex items-start gap-3 p-4 rounded-2xl border border-red-200 bg-red-50 text-red-700 text-sm">
+    <span class="material-symbols-outlined text-[22px]">error</span>
+    <div class="flex-1">{{ errorMessage }}</div>
+    <button type="button" (click)="load()" class="font-bold underline">إعادة المحاولة</button>
+  </div>
+
+  <!-- ============ Loading (first load only) ============ -->
+  <div *ngIf="loading && !data" class="grid grid-cols-1 xl:grid-cols-2 gap-5" aria-busy="true">
+    <div *ngFor="let _ of [1,2]" class="h-80 rounded-2xl bg-slate-200/60 animate-pulse"></div>
+  </div>
+
+  <ng-container *ngIf="data as d">
+
+    <!-- ============ One card per branch ============ -->
+    <div class="grid grid-cols-1 xl:grid-cols-2 gap-5" [class.opacity-60]="loading">
+      <section *ngFor="let b of d.branches; trackBy: trackBranch"
+        class="bg-light-surface rounded-2xl border border-outline shadow-sm overflow-hidden flex flex-col">
+
+        <div class="px-4 sm:px-5 py-3.5 border-b border-outline flex items-center justify-between gap-3">
+          <h2 class="font-bold text-lg text-light-on-surface flex items-center gap-2">
+            <span class="material-symbols-outlined text-primary text-[22px]">storefront</span>
+            {{ b.storeName }}
+          </h2>
+          <div class="flex items-center gap-3">
+            <!-- الإدارة العامة: مفتاح فتح/إغلاق -->
+            <button *ngIf="b.isHq" type="button" role="switch" [attr.aria-checked]="b.isEnabled"
+              [attr.aria-label]="b.isEnabled ? 'إغلاق الإدارة العامة' : 'تفعيل الإدارة العامة'"
+              (click)="toggleHq(!b.isEnabled)" [disabled]="togglingHq"
+              class="flex items-center gap-2 text-xs font-semibold text-slate-600 disabled:opacity-60">
+              <span>{{ b.isEnabled ? 'مفعّلة' : 'مغلقة' }}</span>
+              <span class="relative inline-block w-10 h-6 rounded-full transition-colors"
+                [ngClass]="b.isEnabled ? 'bg-primary' : 'bg-slate-300'">
+                <span class="absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all"
+                  [ngClass]="b.isEnabled ? 'right-[18px]' : 'right-0.5'"></span>
+              </span>
+            </button>
+
+            <button *ngIf="b.isEnabled" type="button" (click)="openEdit(b)"
+              class="px-3 py-1.5 border border-primary/30 text-primary rounded-xl text-xs font-semibold hover:bg-primary/5 transition-colors inline-flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-[18px]">edit</span>
+              {{ b.partners.length ? 'تعديل الشركاء' : 'إضافة شركاء' }}
+            </button>
+          </div>
+        </div>
+
+        <div *ngIf="!b.isEnabled" class="px-4 py-6 text-center text-sm text-slate-500">
+          الإدارة العامة مغلقة ولا تظهر في التوزيع. فعّلها من المفتاح أعلاه عند الحاجة.
+        </div>
+
+        <ng-container *ngIf="b.isEnabled">
+
+        <!-- الأرباح والزكاة -->
+        <table class="w-full text-sm border-b border-outline">
+          <tbody>
+            <tr class="border-b border-slate-100">
+              <th scope="row" class="px-4 py-3 text-right font-semibold text-light-on-surface w-40 whitespace-nowrap">مجموع الأرباح</th>
+              <td class="px-4 py-3 text-lg font-bold tabular-nums text-center"
+                [ngClass]="b.totalProfit < 0 ? 'text-red-600' : (b.totalProfit > 0 ? 'text-emerald-700' : 'text-slate-400')">
+                {{ b.totalProfit | number:'1.0-2' }}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <table class="w-full text-sm border-b border-outline text-center">
+          <thead class="bg-slate-50 text-slate-600 text-xs">
+            <tr>
+              <th scope="col" class="px-3 py-2 font-semibold">النسبة</th>
+              <th scope="col" class="px-3 py-2 font-semibold">نسبة الزكاة</th>
+              <th scope="col" class="px-3 py-2 font-semibold">المبلغ</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="bg-emerald-50/60 tabular-nums">
+              <td class="px-3 py-2.5">100%</td>
+              <td class="px-3 py-2.5">{{ b.zakatPercent | number:'1.0-2' }}%</td>
+              <td class="px-3 py-2.5">{{ b.zakatAmount | number:'1.0-2' }}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <table class="w-full text-sm border-b border-outline">
+          <tbody>
+            <tr>
+              <th scope="row" class="px-4 py-3 text-right font-semibold text-light-on-surface w-40 whitespace-nowrap">الصافي بعد الزكاة</th>
+              <td class="px-4 py-3 text-lg font-bold tabular-nums text-center"
+                [ngClass]="b.netAfterZakat < 0 ? 'text-red-600' : (b.netAfterZakat > 0 ? 'text-emerald-700' : 'text-slate-400')">
+                {{ b.netAfterZakat | number:'1.0-2' }}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- الشركاء -->
+        <div *ngIf="b.partners.length; else noPartners" class="flex-1">
+          <table class="w-full text-sm">
+            <thead class="bg-slate-50 text-slate-600 text-xs">
+              <tr>
+                <th scope="col" class="px-4 py-2 text-right font-semibold">الاسم</th>
+                <th scope="col" class="px-3 py-2 text-center font-semibold">النسبة %</th>
+                <th scope="col" class="px-4 py-2 text-left font-semibold">المبلغ</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              <tr *ngFor="let p of b.partners" class="hover:bg-slate-50/70">
+                <th scope="row" class="px-4 py-2.5 text-right font-semibold text-light-on-surface">{{ p.name }}</th>
+                <td class="px-3 py-2.5 text-center tabular-nums">{{ p.percent | number:'1.0-2' }}%</td>
+                <td class="px-4 py-2.5 text-left tabular-nums font-semibold"
+                  [ngClass]="p.amount < 0 ? 'text-red-600' : 'text-light-on-surface'">{{ p.amount | number:'1.0-2' }}</td>
+              </tr>
+              <tr *ngIf="b.totalPercent < 100" class="text-slate-500 bg-amber-50/50">
+                <th scope="row" class="px-4 py-2.5 text-right font-medium">غير موزَّع</th>
+                <td class="px-3 py-2.5 text-center tabular-nums">{{ 100 - b.totalPercent | number:'1.0-2' }}%</td>
+                <td class="px-4 py-2.5 text-left tabular-nums">{{ b.unallocatedAmount | number:'1.0-2' }}</td>
+              </tr>
+            </tbody>
+            <tfoot class="bg-slate-50 font-bold text-light-on-surface">
+              <tr>
+                <th scope="row" class="px-4 py-2.5 text-right">الإجمالي الموزَّع</th>
+                <td class="px-3 py-2.5 text-center tabular-nums">{{ b.totalPercent | number:'1.0-2' }}%</td>
+                <td class="px-4 py-2.5 text-left tabular-nums">{{ distributedAmount(b) | number:'1.0-2' }}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+        <ng-template #noPartners>
+          <div class="flex-1 px-4 py-8 text-center text-sm text-slate-500">
+            <span class="material-symbols-outlined text-[32px] text-slate-300 block mb-1">group_off</span>
+            لم يتم تحديد شركاء لهذا الفرع بعد.
+          </div>
+        </ng-template>
+
+        <!-- تفاصيل مكونات الربح -->
+        <details class="border-t border-outline text-xs text-slate-600">
+          <summary class="px-4 py-2.5 cursor-pointer select-none font-semibold hover:text-primary">من أين جاء الربح؟</summary>
+          <dl class="px-4 pb-3 grid grid-cols-2 gap-x-6 gap-y-1.5 tabular-nums">
+            <ng-container *ngIf="!b.isHq">
+              <dt>ربح المبيعات</dt><dd class="text-left">{{ b.salesProfit | number:'1.0-2' }}</dd>
+            </ng-container>
+            <dt>ربح الصيانة</dt><dd class="text-left">{{ b.maintenanceProfit | number:'1.0-2' }}</dd>
+            <dt>ربح الأجهزة</dt><dd class="text-left">{{ b.devicesProfit | number:'1.0-2' }}</dd>
+            <ng-container *ngIf="!b.isHq">
+              <dt>ربح الرصيد</dt><dd class="text-left">{{ b.balanceProfit | number:'1.0-2' }}</dd>
+            </ng-container>
+            <ng-container *ngIf="b.isHq">
+              <dt>ربح البنزيمات</dt><dd class="text-left">{{ b.consignmentProfit | number:'1.0-2' }}</dd>
+            </ng-container>
+            <dt>المصروفات التشغيلية</dt><dd class="text-left text-orange-700">− {{ b.expenses | number:'1.0-2' }}</dd>
+          </dl>
+        </details>
+        </ng-container>
+      </section>
+    </div>
+
+    <p *ngIf="d.branches.length === 0" class="text-center text-sm text-slate-500 py-6">لا توجد فروع.</p>
+
+    <!-- ============ Big table: الفروع + الرصيد + الصيانة + الأجهزة + البنزيمات ============ -->
+    <section class="bg-light-surface rounded-2xl border border-outline shadow-sm overflow-hidden" aria-labelledby="pnl-title"
+      [class.opacity-60]="loading">
+      <div class="px-4 sm:px-5 py-3.5 border-b border-outline flex items-center justify-between gap-3">
+        <h2 id="pnl-title" class="font-bold text-light-on-surface flex items-center gap-2">
+          <span class="material-symbols-outlined text-primary text-[22px]">table_chart</span>
+          التاريخ من الفترة إلى الفترة
+        </h2>
+        <span class="text-xs text-slate-500 tabular-nums">{{ d.from | date:'yyyy-MM-dd' }} ← {{ d.to | date:'yyyy-MM-dd' }}</span>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead class="bg-slate-50 text-slate-600 text-xs">
+            <tr>
+              <th scope="col" class="px-3 py-2.5 text-right font-semibold">الفرع</th>
+              <th scope="col" class="px-3 py-2.5 text-right font-semibold">البيع</th>
+              <th scope="col" class="px-3 py-2.5 text-right font-semibold">التكلفة</th>
+              <th scope="col" class="px-3 py-2.5 text-right font-semibold">الصافي</th>
+              <th scope="col" class="px-3 py-2.5 text-right font-semibold">المصاريف</th>
+              <th scope="col" class="px-3 py-2.5 text-right font-semibold">الإجمالي</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            <tr *ngFor="let r of d.pnl; trackBy: trackPnl" class="hover:bg-slate-50/70"
+              [ngClass]="{ 'border-t-2 border-slate-200': isFirstOfOtherKind(d.pnl, r) }">
+              <th scope="row" class="px-3 py-3 text-right font-semibold text-light-on-surface whitespace-nowrap">{{ r.label }}</th>
+              <td class="px-3 py-3 tabular-nums" [ngClass]="r.revenue === 0 ? 'text-slate-400' : ''">{{ r.revenue | number:'1.0-2' }}</td>
+              <td class="px-3 py-3 tabular-nums" [ngClass]="r.cost === 0 ? 'text-slate-400' : ''">{{ r.cost | number:'1.0-2' }}</td>
+              <td class="px-3 py-3 tabular-nums font-semibold" [ngClass]="r.profit < 0 ? 'text-red-600' : (r.profit > 0 ? 'text-emerald-700' : 'text-slate-400')">{{ r.profit | number:'1.0-2' }}</td>
+              <td class="px-3 py-3 tabular-nums" [ngClass]="r.expenses > 0 ? 'text-orange-700' : 'text-slate-400'">{{ r.expenses | number:'1.0-2' }}</td>
+              <td class="px-3 py-3 tabular-nums font-bold" [ngClass]="r.net < 0 ? 'text-red-600' : (r.net > 0 ? 'text-emerald-700' : 'text-slate-400')">{{ r.net | number:'1.0-2' }}</td>
+            </tr>
+          </tbody>
+          <tfoot class="bg-amber-100/70 font-bold text-light-on-surface">
+            <tr>
+              <th scope="row" class="px-3 py-3 text-right">{{ d.pnlTotal.label }}</th>
+              <td class="px-3 py-3 tabular-nums">{{ d.pnlTotal.revenue | number:'1.0-2' }}</td>
+              <td class="px-3 py-3 tabular-nums">{{ d.pnlTotal.cost | number:'1.0-2' }}</td>
+              <td class="px-3 py-3 tabular-nums" [ngClass]="d.pnlTotal.profit < 0 ? 'text-red-600' : 'text-emerald-700'">{{ d.pnlTotal.profit | number:'1.0-2' }}</td>
+              <td class="px-3 py-3 tabular-nums text-orange-700">{{ d.pnlTotal.expenses | number:'1.0-2' }}</td>
+              <td class="px-3 py-3 tabular-nums text-base" [ngClass]="d.pnlTotal.net < 0 ? 'text-red-600' : 'text-emerald-700'">{{ d.pnlTotal.net | number:'1.0-2' }}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+      <p class="px-4 sm:px-5 py-2.5 text-[11px] text-slate-500 border-t border-outline">
+        الفروع: مبيعات RMS. الصيانة: تذاكر سُلّمت في الفترة (السعر − تكلفة القطع). الأجهزة: أجهزة بيعت في الفترة (البيع − الشراء). الرصيد: المستهلك + ربح التقفيل. البنزيمات: بضاعة حُوسبت على التجار في الفترة.
+        المصاريف تشغيلية فقط؛ شراء الأجهزة وشحن الرصيد محسوبان كتكلفة في صفيهما حتى لا يُحسبا مرتين.
+      </p>
+    </section>
+  </ng-container>
+</div>
+
+<!-- ========================================================== -->
+<!-- EDIT PARTNERS MODAL -->
+<!-- ========================================================== -->
+<div *ngIf="editing" class="fixed inset-0 z-50 flex items-center justify-center p-4" dir="rtl">
+  <div class="absolute inset-0 bg-black/50 backdrop-blur-xs" (click)="closeEdit()"></div>
+  <div class="relative bg-light-surface rounded-2xl border border-outline shadow-2xl w-full max-w-lg z-10 max-h-[90vh] flex flex-col">
+    <div class="px-6 py-4 border-b border-outline flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+          <span class="material-symbols-outlined text-[22px]">groups</span>
+        </div>
+        <h2 class="text-base font-bold text-light-on-surface">شركاء {{ editing.storeName }}</h2>
+      </div>
+      <button type="button" (click)="closeEdit()" aria-label="إغلاق" class="p-1 text-gray-400 hover:text-gray-600">
+        <span class="material-symbols-outlined text-[20px]">close</span>
+      </button>
+    </div>
+
+    <div class="p-6 space-y-4 text-xs overflow-y-auto">
+      <div *ngIf="formError" role="alert" class="flex items-center gap-2 p-3 bg-error/10 text-error rounded-xl">
+        <span class="material-symbols-outlined text-[18px]">error</span> {{ formError }}
+      </div>
+
+      <div>
+        <label class="block font-semibold text-light-on-surface mb-1" for="zakat">نسبة الزكاة % (تُخصم من الأرباح قبل التوزيع)</label>
+        <input id="zakat" type="number" [(ngModel)]="zakatPercent" min="0" max="100" step="0.01"
+          class="w-full px-3 py-2.5 text-xs border border-outline rounded-xl bg-light-surface text-light-on-surface focus:outline-none focus:border-primary" />
+      </div>
+
+      <div>
+        <div class="flex items-center justify-between mb-2">
+          <span class="font-semibold text-light-on-surface">الشركاء ونسبهم</span>
+          <button type="button" (click)="addRow()"
+            class="px-3 py-1.5 border border-primary/30 text-primary rounded-lg font-semibold hover:bg-primary/5 inline-flex items-center gap-1">
+            <span class="material-symbols-outlined text-[16px]">add</span> شريك
+          </button>
+        </div>
+
+        <div class="space-y-2">
+          <div *ngFor="let r of rows; let i = index" class="flex items-center gap-2">
+            <input type="text" [(ngModel)]="r.name" maxlength="150" placeholder="اسم الشريك" [attr.aria-label]="'اسم الشريك ' + (i + 1)"
+              class="flex-1 min-w-0 px-3 py-2.5 text-xs border border-outline rounded-xl bg-light-surface text-light-on-surface focus:outline-none focus:border-primary" />
+            <div class="relative w-28 shrink-0">
+              <input type="number" [(ngModel)]="r.percent" min="0" max="100" step="0.01" placeholder="النسبة" [attr.aria-label]="'نسبة الشريك ' + (i + 1)"
+                class="w-full ps-3 pe-7 py-2.5 text-xs border border-outline rounded-xl bg-light-surface text-light-on-surface focus:outline-none focus:border-primary" />
+              <span class="absolute end-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">%</span>
+            </div>
+            <button type="button" (click)="removeRow(i)" title="حذف الشريك" aria-label="حذف الشريك"
+              class="p-2 text-slate-400 hover:text-error hover:bg-error/10 rounded-lg">
+              <span class="material-symbols-outlined text-[18px]">delete</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="mt-3 flex items-center justify-between p-3 rounded-xl text-xs font-semibold tabular-nums"
+          [ngClass]="formOver ? 'bg-red-50 text-red-700' : (formRemaining === 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-50 text-slate-600')">
+          <span>المجموع: {{ formTotal | number:'1.0-2' }}%</span>
+          <span *ngIf="formOver">زيادة {{ -formRemaining | number:'1.0-2' }}%</span>
+          <span *ngIf="!formOver && formRemaining > 0">متبقي غير موزَّع {{ formRemaining | number:'1.0-2' }}%</span>
+          <span *ngIf="!formOver && formRemaining === 0">موزَّع بالكامل</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="px-6 py-3 border-t border-outline bg-light-surface-variant/30 flex items-center justify-end gap-2 rounded-b-2xl">
+      <button type="button" (click)="closeEdit()" [disabled]="saving"
+        class="px-4 py-2 rounded-xl border border-outline bg-light-surface text-light-on-surface hover:bg-light-surface-variant transition-colors text-xs font-semibold">
+        إلغاء
+      </button>
+      <button type="button" (click)="save()" [disabled]="saving"
+        class="px-5 py-2 rounded-xl bg-primary text-white hover:bg-primary/90 transition-colors text-xs font-semibold inline-flex items-center gap-1.5 disabled:opacity-60">
+        <span *ngIf="saving" class="inline-block animate-spin w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full"></span>
+        حفظ
+      </button>
+    </div>
+  </div>
+</div>

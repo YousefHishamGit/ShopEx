@@ -23,7 +23,7 @@ namespace ShopEx.Controllers
         [HttpGet("search")]
         public async Task<IActionResult> Search([FromQuery] string? query, [FromQuery] int limit = 50)
         {
-            var items = await _itemRepository.SearchItemsAsync(query, limit);
+            var items = await _itemRepository.SearchItemsAsync(query, Math.Clamp(limit, 1, 200));
             var result = items.Select(i => new ItemResponse
             {
                 ID = i.ID,

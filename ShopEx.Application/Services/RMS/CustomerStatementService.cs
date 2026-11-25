@@ -19,6 +19,8 @@ namespace ShopEx.Application.Services.RMS
             _orderRepository = orderRepository ?? throw new ArgumentNullException(nameof(orderRepository));
         }
 
+        private const int MaxPageSize = 100;
+
         public async Task<PagedResponse<CustomerSummaryDto>> GetPagedCustomersAsync(
             string? search = null,
             int? minDaysOld = null,
@@ -26,6 +28,8 @@ namespace ShopEx.Application.Services.RMS
             int pageSize = 20,
             CancellationToken ct = default)
         {
+            page = Math.Max(page, 1);
+            pageSize = Math.Clamp(pageSize, 1, MaxPageSize);
             var (customers, totalCount, stats) = await _orderRepository.GetPagedCustomersAsync(
                 search, minDaysOld, page, pageSize, ct);
 
@@ -64,6 +68,8 @@ namespace ShopEx.Application.Services.RMS
             int pageSize = 20,
             CancellationToken ct = default)
         {
+            page = Math.Max(page, 1);
+            pageSize = Math.Clamp(pageSize, 1, MaxPageSize);
             var (orders, totalCount) = await _orderRepository.GetPagedOpenOrdersAsync(
                 customerId, storeId, minDaysOld, search, page, pageSize, ct);
 

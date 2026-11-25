@@ -143,7 +143,7 @@
     </div>
   </form>
 </div>
-<!-- ============ Self-charge modal (يُسجَّل كمصروف على الفرع) ============ -->
+<!-- ============ Self-charge modal ============ -->
 <div *ngIf="showCharge" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" dir="rtl"
   (click)="closeCharge()">
   <form (ngSubmit)="submitCharge()" (click)="$event.stopPropagation()"

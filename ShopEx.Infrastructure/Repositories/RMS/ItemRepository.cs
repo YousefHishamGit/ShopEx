@@ -31,19 +31,47 @@ namespace ShopEx.Infrastructure.Repositories.RMS
             return await _context.Items.FindAsync(id);
         }
 
+        // RMS runs at compatibility level 120, so Contains() is sent as an inline IN list: keep each list small.
+        private const int ChunkSize = 1000;
+
         public async Task<Dictionary<int, Item>> GetByIdsAsync(IEnumerable<int> ids)
         {
-            var list = ids.Distinct().ToList();
-            if (list.Count == 0) return new Dictionary<int, Item>();
-            return await _context.Items.AsNoTracking()
-                .Where(i => list.Contains(i.ID))
-                .ToDictionaryAsync(i => i.ID);
+            var result = new Dictionary<int, Item>();
+            foreach (var chunk in ids.Distinct().Chunk(ChunkSize))
+            {
+                var part = chunk.ToList();
+                var rows = await _context.Items.AsNoTracking()
+                    .Where(i => part.Contains(i.ID))
+                    .ToListAsync();
+                foreach (var r in rows)
+                    result[r.ID] = r;
+            }
+            return result;
+        }
+
+        public async Task<List<int>> FilterIdsAsync(string term, IEnumerable<int> candidateIds, CancellationToken ct = default)
+        {
+            term = (term ?? string.Empty).Trim();
+            var result = new List<int>();
+            foreach (var chunk in candidateIds.Distinct().Chunk(ChunkSize))
+            {
+                var part = chunk.ToList();
+                var rows = await _context.Items.AsNoTracking()
+                    .Where(i => part.Contains(i.ID) &&
+                                ((i.Description != null && i.Description.Contains(term)) ||
+                                 (i.ItemLookupCode != null && i.ItemLookupCode.Contains(term)) ||
+                                 i.ID.ToString() == term))
+                    .Select(i => i.ID)
+                    .ToListAsync(ct);
+                result.AddRange(rows);
+            }
+            return result;
         }
 
         public async Task<Dictionary<int, decimal>> GetPricesByIdsAsync(IEnumerable<int> ids)
         {
             var result = new Dictionary<int, decimal>();
-            foreach (var chunk in ids.Distinct().Chunk(1000))
+            foreach (var chunk in ids.Distinct().Chunk(ChunkSize))
             {
                 var part = chunk.ToList();
                 var rows = await _context.Items.AsNoTracking()

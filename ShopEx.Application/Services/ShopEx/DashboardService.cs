@@ -111,7 +111,7 @@ namespace ShopEx.Application.Services.ShopEx
         }
 
         /// <summary>مفتاح الحركات غير المرتبطة بفرع (StoreId = null) لأن القاموس لا يقبل مفتاحاً null.</summary>
-        private const int NoStore = -1;
+        internal const int NoStore = -1;
 
         private static List<BranchDailyDto> BuildBranches(
             List<StoreSalesRow> sales,
@@ -197,7 +197,7 @@ namespace ShopEx.Application.Services.ShopEx
         /// صف لكل فرع (مبيعات RMS) ثم الصيانة والأجهزة والرصيد والبنزيمات. المصروفات هنا تشغيلية فقط
         /// (شراء الأجهزة وشحن الرصيد يظهران كتكلفة في صفيهما حتى لا يُحسبا مرتين).
         /// </summary>
-        private static (List<PnlRowDto> Rows, PnlRowDto Total) BuildPnl(
+        internal static (List<PnlRowDto> Rows, PnlRowDto Total) BuildPnl(
             List<StoreSalesRow> sales,
             DailyShopActivity activity,
             Dictionary<int, string> storeNames)
@@ -261,7 +261,7 @@ namespace ShopEx.Application.Services.ShopEx
             return (rows, total);
         }
 
-        private static Dictionary<int, StoreAmountRow> ByStore(List<StoreAmountRow> rows)
+        internal static Dictionary<int, StoreAmountRow> ByStore(List<StoreAmountRow> rows)
             => rows.GroupBy(r => r.StoreId ?? NoStore)
                    .ToDictionary(g => g.Key, g => new StoreAmountRow
                    {

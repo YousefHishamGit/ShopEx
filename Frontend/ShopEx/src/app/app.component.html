@@ -1,156 +1,164 @@
 <!-- Top App Header -->
 <app-toast-container></app-toast-container>
 <ng-container *ngIf="auth.currentUser() as user; else guestShell">
-<header class="h-16 bg-white border-b border-outline px-6 flex items-center justify-between sticky top-0 z-30 shadow-sm" dir="rtl">
-    <div class="flex items-center gap-4">
-        <button *ngIf="!auth.isDev()" (click)="toggleSidebar()" class="p-2 text-slate-600 hover:text-primary hover:bg-slate-100 rounded-lg transition-colors" aria-label="تبديل القائمة الجانبية">
+    <header class="h-16 bg-white border-b border-outline px-6 flex items-center justify-between sticky top-0 z-30 shadow-sm" dir="rtl">
+        <div class="flex items-center gap-4">
+            <button *ngIf="!auth.isDev()" (click)="toggleSidebar()" class="p-2 text-slate-600 hover:text-primary hover:bg-slate-100 rounded-lg transition-colors" aria-label="تبديل القائمة الجانبية">
             <span class="material-symbols-outlined text-[24px]">menu</span>
         </button>
-        <div class="flex items-center gap-3 cursor-pointer" [routerLink]="auth.homeRoute()">
-            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-primary to-blue-500 flex items-center justify-center text-white shadow-sm font-bold">
-                <span class="material-symbols-outlined text-[22px]">store</span>
-            </div>
-            <div class="flex flex-col">
-                <div class="flex items-center gap-2">
-                    <span class="font-headline text-headline-sm text-primary tracking-tight font-black text-xl">ShopEx</span>
-                    <span class="text-[11px] px-2 py-0.5 rounded-full bg-blue-50 text-primary border border-blue-200 font-bold">بوابة RMS</span>
+            <div class="flex items-center gap-3 cursor-pointer" [routerLink]="auth.homeRoute()">
+                <img src="eljoker-logo.png" alt="ELJOKER" class="h-10 w-auto object-contain">
+                <div class="flex flex-col">
+                    <div class="flex items-center gap-2">
+                        <span class="font-headline text-headline-sm text-primary tracking-tight font-black text-xl">ELJOKER</span>
+                        <span class="text-[11px] px-2 py-0.5 rounded-full bg-blue-50 text-primary border border-blue-200 font-bold">بوابة RMS</span>
+                    </div>
+                    <span class="text-[11px] text-slate-500 hidden sm:inline">نظام إدارة المشتريات والمخازن والصيانة</span>
                 </div>
-                <span class="text-[11px] text-slate-500 hidden sm:inline">نظام إدارة المشتريات والمخازن والصيانة</span>
             </div>
         </div>
-    </div>
 
-    <!-- Right Header Utilities -->
-    <div class="flex items-center gap-3">
-        <div class="flex items-center gap-3 pr-3 border-r border-outline">
-            <div class="w-9 h-9 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-primary font-bold text-sm">
-                {{ user.name.charAt(0) }}
-            </div>
-            <div class="hidden lg:flex flex-col text-right leading-tight">
-                <span class="text-sm font-bold text-slate-800">{{ user.name }}</span>
-                <span class="text-[11px] text-slate-500">{{ auth.isDev() ? 'المطوّر' : auth.isAdmin() ? 'مدير النظام (HQ)' : 'موظف — ' + (user.storeName || 'فرع #' + user.storeId) }}</span>
-            </div>
-            <button type="button" (click)="logout()" title="تسجيل الخروج" aria-label="تسجيل الخروج"
-                    class="p-2 text-slate-500 hover:text-error hover:bg-error-container rounded-lg transition-colors">
+        <!-- Right Header Utilities -->
+        <div class="flex items-center gap-3">
+            <div class="flex items-center gap-3 pr-3 border-r border-outline">
+                <div class="w-9 h-9 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-primary font-bold text-sm">
+                    {{ user.name.charAt(0) }}
+                </div>
+                <div class="hidden lg:flex flex-col text-right leading-tight">
+                    <span class="text-sm font-bold text-slate-800">{{ user.name }}</span>
+                    <span class="text-[11px] text-slate-500">{{ auth.isDev() ? 'المطوّر' : auth.isAdmin() ? 'مدير النظام (HQ)' : 'موظف — ' + (user.storeName || 'فرع #' + user.storeId) }}</span>
+                </div>
+                <button type="button" (click)="logout()" title="تسجيل الخروج" aria-label="تسجيل الخروج" class="p-2 text-slate-500 hover:text-error hover:bg-error-container rounded-lg transition-colors">
                 <span class="material-symbols-outlined text-[22px]">logout</span>
             </button>
-        </div>
-    </div>
-</header>
-
-<!-- Layout Body -->
-<div class="flex-1 flex overflow-hidden min-h-[calc(100vh-64px)]" dir="rtl">
-    <!-- Sidebar Navigation -->
-    <aside *ngIf="sidebarOpen && !auth.isDev()" class="w-64 bg-white border-l border-outline flex flex-col transition-all duration-surface-enter z-20 shrink-0 shadow-sm">
-        <nav *ngIf="auth.isAdmin()" class="p-3 space-y-1.5" aria-label="القائمة الرئيسية">
-            <!-- 0. الرئيسية (Dashboard) -->
-            <a routerLink="/dashboard" routerLinkActive="bg-primary/10 text-primary font-bold border-r-4 border-primary" class="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-600 hover:text-primary hover:bg-slate-50 text-sm transition-colors">
-                <span class="material-symbols-outlined text-[22px]">dashboard</span>
-                <span class="sidebar-label font-medium">الرئيسية (لوحة اليوم)</span>
-            </a>
-
-            <!-- 1. الموردين (Suppliers) -->
-            <a routerLink="/suppliers" routerLinkActive="bg-primary/10 text-primary font-bold border-r-4 border-primary" [routerLinkActiveOptions]="{exact: false}" class="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-600 hover:text-primary hover:bg-slate-50 text-sm transition-colors">
-                <span class="material-symbols-outlined text-[22px]">storefront</span>
-                <span class="sidebar-label font-medium">الموردين وكشوف الحساب</span>
-            </a>
-
-            <!-- 2. Worksheet -->
-            <a routerLink="/worksheets" routerLinkActive="bg-primary/10 text-primary font-bold border-r-4 border-primary" [routerLinkActiveOptions]="{exact: false}" class="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-600 hover:text-primary hover:bg-slate-50 text-sm transition-colors">
-                <span class="material-symbols-outlined text-[22px]">assignment</span>
-                <span class="sidebar-label font-medium">أوامر الشراء (Worksheet)</span>
-            </a>
-
-            <!-- 3. قسم الصيانة (Maintenance) -->
-            <a routerLink="/maintenance" routerLinkActive="bg-primary/10 text-primary font-bold border-r-4 border-primary" [routerLinkActiveOptions]="{exact: false}" class="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-600 hover:text-primary hover:bg-slate-50 text-sm transition-colors">
-                <span class="material-symbols-outlined text-[22px]">home_repair_service</span>
-                <span class="sidebar-label font-medium">قسم الصيانة والتذاكر</span>
-            </a>
-
-            <!-- 4. المخازن والأرصدة (Stock & Warehouses) -->
-            <a routerLink="/stock" routerLinkActive="bg-primary/10 text-primary font-bold border-r-4 border-primary" [routerLinkActiveOptions]="{exact: false}" class="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-600 hover:text-primary hover:bg-slate-50 text-sm transition-colors">
-                <span class="material-symbols-outlined text-[22px]">inventory_2</span>
-                <span class="sidebar-label font-medium">المخازن والأرصدة</span>
-            </a>
-
-
-
-            <!-- 6. بنزيمات (بضاعة أمانة - Consignments) -->
-            <a routerLink="/consignments" routerLinkActive="bg-primary/10 text-primary font-bold border-r-4 border-primary" [routerLinkActiveOptions]="{exact: false}" class="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-600 hover:text-primary hover:bg-slate-50 text-sm transition-colors">
-                <span class="material-symbols-outlined text-[22px]">local_gas_station</span>
-                <span class="sidebar-label font-medium">أمانات البنزيمات</span>
-            </a>
-
-            <!-- 7. كشف حساب العملاء (Customer Statements - RMS) -->
-            <a routerLink="/customer-statements" routerLinkActive="bg-primary/10 text-primary font-bold border-r-4 border-primary" [routerLinkActiveOptions]="{exact: false}" class="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-600 hover:text-primary hover:bg-slate-50 text-sm transition-colors">
-                <span class="material-symbols-outlined text-[22px]">account_balance_wallet</span>
-                <span class="sidebar-label font-medium">حسابات العملاء (RMS)</span>
-            </a>
-
-            <!-- 8. أرصدة الفروع (Balances & Daily Closures) -->
-            <a routerLink="/balances" routerLinkActive="bg-primary/10 text-primary font-bold border-r-4 border-primary" [routerLinkActiveOptions]="{exact: false}" class="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-600 hover:text-primary hover:bg-slate-50 text-sm transition-colors">
-                <span class="material-symbols-outlined text-[22px]">payments</span>
-                <span class="sidebar-label font-medium">أرصدة الفروع والتقفيل</span>
-            </a>
-
-            <!-- 9. المصروفات (Expenses) -->
-            <a routerLink="/expenses" routerLinkActive="bg-primary/10 text-primary font-bold border-r-4 border-primary" [routerLinkActiveOptions]="{exact: false}" class="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-600 hover:text-primary hover:bg-slate-50 text-sm transition-colors">
-                <span class="material-symbols-outlined text-[22px]">receipt_long</span>
-                <span class="sidebar-label font-medium">المصروفات اليومية</span>
-            </a>
-
-            <!-- 9.5 أجهزة للبيع (Devices) -->
-            <a routerLink="/devices" routerLinkActive="bg-primary/10 text-primary font-bold border-r-4 border-primary" [routerLinkActiveOptions]="{exact: false}" class="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-600 hover:text-primary hover:bg-slate-50 text-sm transition-colors">
-                <span class="material-symbols-outlined text-[22px]">smartphone</span>
-                <span class="sidebar-label font-medium">أجهزة للبيع (موبايلات)</span>
-            </a>
-
-            <!-- 10. المستخدمون (Users) -->
-            <a routerLink="/users" routerLinkActive="bg-primary/10 text-primary font-bold border-r-4 border-primary" [routerLinkActiveOptions]="{exact: false}" class="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-600 hover:text-primary hover:bg-slate-50 text-sm transition-colors">
-                <span class="material-symbols-outlined text-[22px]">manage_accounts</span>
-                <span class="sidebar-label font-medium">المستخدمون والصلاحيات</span>
-            </a>
-        </nav>
-
-        <!-- قائمة موظف الفرع: ثلاث صفحات فقط -->
-        <nav *ngIf="auth.isEmployee()" class="p-3 space-y-1.5" aria-label="قائمة الفرع">
-            <a routerLink="/branch/receive" routerLinkActive="bg-primary/10 text-primary font-bold border-r-4 border-primary" class="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-600 hover:text-primary hover:bg-slate-50 text-sm transition-colors">
-                <span class="material-symbols-outlined text-[22px]">move_to_inbox</span>
-                <span class="sidebar-label font-medium">استلام جهاز</span>
-            </a>
-            <a routerLink="/branch/deliver" routerLinkActive="bg-primary/10 text-primary font-bold border-r-4 border-primary" class="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-600 hover:text-primary hover:bg-slate-50 text-sm transition-colors">
-                <span class="material-symbols-outlined text-[22px]">local_shipping</span>
-                <span class="sidebar-label font-medium">تسليم جهاز</span>
-            </a>
-            <a routerLink="/branch/balance" routerLinkActive="bg-primary/10 text-primary font-bold border-r-4 border-primary" class="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-600 hover:text-primary hover:bg-slate-50 text-sm transition-colors">
-                <span class="material-symbols-outlined text-[22px]">done_all</span>
-                <span class="sidebar-label font-medium">تقفيل الرصيد</span>
-            </a>
-            <a routerLink="/branch/expenses" routerLinkActive="bg-primary/10 text-primary font-bold border-r-4 border-primary" class="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-600 hover:text-primary hover:bg-slate-50 text-sm transition-colors">
-                <span class="material-symbols-outlined text-[22px]">receipt_long</span>
-                <span class="sidebar-label font-medium">مصروفات الفرع</span>
-            </a>
-            <a routerLink="/branch/devices" routerLinkActive="bg-primary/10 text-primary font-bold border-r-4 border-primary" class="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-600 hover:text-primary hover:bg-slate-50 text-sm transition-colors">
-                <span class="material-symbols-outlined text-[22px]">smartphone</span>
-                <span class="sidebar-label font-medium">أجهزة للبيع (موبايلات)</span>
-            </a>
-        </nav>
-
-        <div class="mt-auto p-4 border-t border-outline">
-            <div class="bg-slate-50 rounded-xl p-3 text-xs text-slate-500 space-y-1 border border-slate-200">
-                <div class="font-bold text-slate-800">مزامنة RMS</div>
-                <div class="text-[11px] text-success flex items-center gap-1.5 font-semibold">
-                    <span class="w-2 h-2 rounded-full bg-success animate-pulse"></span> متصل بقاعدة بيانات HQ
-                </div>
             </div>
         </div>
-    </aside>
+    </header>
 
-    <!-- Main Content Area -->
-    <main class="flex-1 overflow-y-auto p-6 md:p-8 bg-slate-50">
-        <router-outlet></router-outlet>
-    </main>
-</div>
+    <!-- Layout Body -->
+    <div class="flex-1 flex overflow-hidden min-h-[calc(100vh-64px)]" dir="rtl">
+        <!-- Sidebar Navigation -->
+        <aside *ngIf="sidebarOpen && !auth.isDev()" class="w-64 bg-white border-l border-outline flex flex-col transition-all duration-surface-enter z-20 shrink-0 shadow-sm">
+            <nav *ngIf="auth.isAdmin()" class="p-3 space-y-1.5" aria-label="القائمة الرئيسية">
+                <!-- 0. الرئيسية (Dashboard) -->
+                <a routerLink="/dashboard" routerLinkActive="bg-primary/10 text-primary font-bold border-r-4 border-primary" class="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-600 hover:text-primary hover:bg-slate-50 text-sm transition-colors">
+                    <span class="material-symbols-outlined text-[22px]">dashboard</span>
+                    <span class="sidebar-label font-medium">الرئيسية (لوحة اليوم)</span>
+                </a>
+
+                <!-- 1. الموردين (Suppliers) -->
+                <a routerLink="/suppliers" routerLinkActive="bg-primary/10 text-primary font-bold border-r-4 border-primary" [routerLinkActiveOptions]="{exact: false}" class="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-600 hover:text-primary hover:bg-slate-50 text-sm transition-colors">
+                    <span class="material-symbols-outlined text-[22px]">storefront</span>
+                    <span class="sidebar-label font-medium">الموردين وكشوف الحساب</span>
+                </a>
+                <!-- 7. كشف حساب العملاء (Customer Statements - RMS) -->
+                <a routerLink="/customer-statements" routerLinkActive="bg-primary/10 text-primary font-bold border-r-4 border-primary" [routerLinkActiveOptions]="{exact: false}" class="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-600 hover:text-primary hover:bg-slate-50 text-sm transition-colors">
+                    <span class="material-symbols-outlined text-[22px]">account_balance_wallet</span>
+                    <span class="sidebar-label font-medium">حسابات العملاء (RMS)</span>
+                </a>
+                <!-- 4. المخازن والأرصدة (Stock & Warehouses) -->
+                <a routerLink="/stock" routerLinkActive="bg-primary/10 text-primary font-bold border-r-4 border-primary" [routerLinkActiveOptions]="{exact: false}" class="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-600 hover:text-primary hover:bg-slate-50 text-sm transition-colors">
+                    <span class="material-symbols-outlined text-[22px]">inventory_2</span>
+                    <span class="sidebar-label font-medium">المخازن والأرصدة</span>
+                </a>
+
+                <!-- 2. Worksheet -->
+                <a routerLink="/worksheets" routerLinkActive="bg-primary/10 text-primary font-bold border-r-4 border-primary" [routerLinkActiveOptions]="{exact: false}" class="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-600 hover:text-primary hover:bg-slate-50 text-sm transition-colors">
+                    <span class="material-symbols-outlined text-[22px]">assignment</span>
+                    <span class="sidebar-label font-medium">أوامر الشراء (Worksheet)</span>
+                </a>
+
+                <!-- 3. قسم الصيانة (Maintenance) -->
+                <a routerLink="/maintenance" routerLinkActive="bg-primary/10 text-primary font-bold border-r-4 border-primary" [routerLinkActiveOptions]="{exact: false}" class="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-600 hover:text-primary hover:bg-slate-50 text-sm transition-colors">
+                    <span class="material-symbols-outlined text-[22px]">home_repair_service</span>
+                    <span class="sidebar-label font-medium">قسم الصيانة والتذاكر</span>
+                </a>
+                <!-- 6. بنزيمات (بضاعة أمانة - Consignments) -->
+                <a routerLink="/consignments" routerLinkActive="bg-primary/10 text-primary font-bold border-r-4 border-primary" [routerLinkActiveOptions]="{exact: false}" class="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-600 hover:text-primary hover:bg-slate-50 text-sm transition-colors">
+                    <span class="material-symbols-outlined text-[22px]">local_gas_station</span>
+                    <span class="sidebar-label font-medium">أمانات البنزيمات</span>
+                </a>
+                <!-- 9.5 أجهزة للبيع (Devices) -->
+                <a routerLink="/devices" routerLinkActive="bg-primary/10 text-primary font-bold border-r-4 border-primary" [routerLinkActiveOptions]="{exact: false}" class="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-600 hover:text-primary hover:bg-slate-50 text-sm transition-colors">
+                    <span class="material-symbols-outlined text-[22px]">smartphone</span>
+                    <span class="sidebar-label font-medium">أجهزة للبيع (موبايلات)</span>
+                </a>
+
+
+
+
+
+
+
+
+
+                <!-- 8. أرصدة الفروع (Balances & Daily Closures) -->
+                <a routerLink="/balances" routerLinkActive="bg-primary/10 text-primary font-bold border-r-4 border-primary" [routerLinkActiveOptions]="{exact: false}" class="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-600 hover:text-primary hover:bg-slate-50 text-sm transition-colors">
+                    <span class="material-symbols-outlined text-[22px]">payments</span>
+                    <span class="sidebar-label font-medium">أرصدة الفروع والتقفيل</span>
+                </a>
+
+                <!-- 9. المصروفات (Expenses) -->
+                <a routerLink="/expenses" routerLinkActive="bg-primary/10 text-primary font-bold border-r-4 border-primary" [routerLinkActiveOptions]="{exact: false}" class="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-600 hover:text-primary hover:bg-slate-50 text-sm transition-colors">
+                    <span class="material-symbols-outlined text-[22px]">receipt_long</span>
+                    <span class="sidebar-label font-medium">المصروفات اليومية</span>
+                </a>
+
+
+
+                <!-- 9.7 الشركاء وتوزيع الأرباح (Partners) -->
+                <a routerLink="/partners" routerLinkActive="bg-primary/10 text-primary font-bold border-r-4 border-primary" [routerLinkActiveOptions]="{exact: false}" class="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-600 hover:text-primary hover:bg-slate-50 text-sm transition-colors">
+                    <span class="material-symbols-outlined text-[22px]">groups</span>
+                    <span class="sidebar-label font-medium">الشركاء وتوزيع الأرباح</span>
+                </a>
+
+                <!-- 10. المستخدمون (Users) -->
+                <a routerLink="/users" routerLinkActive="bg-primary/10 text-primary font-bold border-r-4 border-primary" [routerLinkActiveOptions]="{exact: false}" class="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-600 hover:text-primary hover:bg-slate-50 text-sm transition-colors">
+                    <span class="material-symbols-outlined text-[22px]">manage_accounts</span>
+                    <span class="sidebar-label font-medium">المستخدمون والصلاحيات</span>
+                </a>
+            </nav>
+
+            <!-- قائمة موظف الفرع: ثلاث صفحات فقط -->
+            <nav *ngIf="auth.isEmployee()" class="p-3 space-y-1.5" aria-label="قائمة الفرع">
+                <a routerLink="/branch/receive" routerLinkActive="bg-primary/10 text-primary font-bold border-r-4 border-primary" class="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-600 hover:text-primary hover:bg-slate-50 text-sm transition-colors">
+                    <span class="material-symbols-outlined text-[22px]">move_to_inbox</span>
+                    <span class="sidebar-label font-medium">استلام جهاز</span>
+                </a>
+                <a routerLink="/branch/deliver" routerLinkActive="bg-primary/10 text-primary font-bold border-r-4 border-primary" class="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-600 hover:text-primary hover:bg-slate-50 text-sm transition-colors">
+                    <span class="material-symbols-outlined text-[22px]">local_shipping</span>
+                    <span class="sidebar-label font-medium">تسليم جهاز</span>
+                </a>
+                <a routerLink="/branch/balance" routerLinkActive="bg-primary/10 text-primary font-bold border-r-4 border-primary" class="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-600 hover:text-primary hover:bg-slate-50 text-sm transition-colors">
+                    <span class="material-symbols-outlined text-[22px]">done_all</span>
+                    <span class="sidebar-label font-medium">تقفيل الرصيد</span>
+                </a>
+
+                <a routerLink="/branch/devices" routerLinkActive="bg-primary/10 text-primary font-bold border-r-4 border-primary" class="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-600 hover:text-primary hover:bg-slate-50 text-sm transition-colors">
+                    <span class="material-symbols-outlined text-[22px]">smartphone</span>
+                    <span class="sidebar-label font-medium">أجهزة للبيع (موبايلات)</span>
+                </a>
+                <a routerLink="/branch/expenses" routerLinkActive="bg-primary/10 text-primary font-bold border-r-4 border-primary" class="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-600 hover:text-primary hover:bg-slate-50 text-sm transition-colors">
+                    <span class="material-symbols-outlined text-[22px]">receipt_long</span>
+                    <span class="sidebar-label font-medium">مصروفات الفرع</span>
+                </a>
+            </nav>
+
+            <div class="mt-auto p-4 border-t border-outline">
+                <div class="bg-slate-50 rounded-xl p-3 text-xs text-slate-500 space-y-1 border border-slate-200">
+                    <div class="font-bold text-slate-800">مزامنة RMS</div>
+                    <div class="text-[11px] text-success flex items-center gap-1.5 font-semibold">
+                        <span class="w-2 h-2 rounded-full bg-success animate-pulse"></span> متصل بقاعدة بيانات HQ
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="flex-1 overflow-y-auto p-6 md:p-8 bg-slate-50">
+            <router-outlet></router-outlet>
+        </main>
+    </div>
 </ng-container>
 
 <!-- Guest (login page): no header or sidebar -->

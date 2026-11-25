@@ -14,9 +14,9 @@ import { CommonModule } from '@angular/common';
     <div class="print-sheet" dir="rtl">
       <div class="ps-head">
         <div class="ps-brand">
-          <div class="ps-logo">SX</div>
+          <img class="ps-logo" src="eljoker-logo.png" alt="ELJOKER">
           <div>
-            <div class="ps-co">ShopEx</div>
+            <div class="ps-co">ELJOKER</div>
             <div class="ps-sub">{{ subtitle }}</div>
           </div>
         </div>
@@ -36,7 +36,7 @@ import { CommonModule } from '@angular/common';
       </div>
 
       <div class="ps-foot">
-        <span>ShopEx — {{ title }}<ng-container *ngIf="docNumber"> رقم {{ docNumber }}</ng-container></span>
+        <span>ELJOKER — {{ title }}<ng-container *ngIf="docNumber"> رقم {{ docNumber }}</ng-container></span>
         <span>تاريخ الطباعة: {{ now | date:'yyyy/MM/dd hh:mm a' }}</span>
       </div>
     </div>

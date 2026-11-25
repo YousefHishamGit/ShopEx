@@ -95,11 +95,7 @@ namespace ShopEx.Application.Services.ShopEx
                 if (invoice.RMSSupplierID != request.RMSSupplierID)
                     throw new InvalidOperationException("الفاتورة المحددة لا تخص هذا المورد.");
 
-                var earlier = (await _returnRepository.GetAllAsync(request.RMSSupplierID, null, null, ct))
-                    .Where(r => r.SupplierInvoiceID == invoice.ID && r.Status != SupplierReturnStatus.Cancelled)
-                    .SelectMany(r => r.Items)
-                    .GroupBy(i => i.RMSItemID)
-                    .ToDictionary(g => g.Key, g => g.Sum(i => i.Quantity));
+                var earlier = await _returnRepository.GetReturnedQuantitiesForInvoiceAsync(invoice.ID, ct);
 
                 foreach (var line in lines)
                 {
@@ -122,11 +118,8 @@ namespace ShopEx.Application.Services.ShopEx
                 throw new InvalidOperationException("لا يمكن تحديد بند فاتورة بدون تحديد الفاتورة.");
             }
 
-            var returnNumber = await _returnRepository.GetNextReturnNumberAsync(ct);
-
             var supplierReturn = new SupplierReturn
             {
-                ReturnNumber = returnNumber,
                 RMSSupplierID = request.RMSSupplierID,
                 SupplierInvoiceID = request.SupplierInvoiceID,
                 WarehouseID = request.WarehouseID,
@@ -146,6 +139,9 @@ namespace ShopEx.Application.Services.ShopEx
 
             await _unitOfWork.ExecuteInTransactionAsync(async () =>
             {
+                // Serialized numbering: two returns created at the same moment get consecutive numbers
+                await _unitOfWork.AcquireLockAsync("SupplierReturn:Number", ct);
+                supplierReturn.ReturnNumber = await _returnRepository.GetNextReturnNumberAsync(ct);
                 await _returnRepository.AddAsync(supplierReturn, ct);
                 await _unitOfWork.SaveChangesAsync(ct);
 
@@ -193,41 +189,48 @@ namespace ShopEx.Application.Services.ShopEx
             }).ToList();
         }
 
+        private static string ReturnLock(int returnId) => $"SupplierReturn:{returnId}";
+
+        /// <summary>
+        /// Runs <paramref name="work"/> in a transaction holding the return lock, on a freshly read return,
+        /// so a double click (confirm twice, refund twice) runs one after the other and the second one fails its checks.
+        /// </summary>
+        private async Task<SupplierReturn> WithLockedReturnAsync(int returnId, Func<SupplierReturn, Task> work, CancellationToken ct)
+        {
+            SupplierReturn? entity = null;
+            await _unitOfWork.ExecuteInTransactionAsync(async () =>
+            {
+                await _unitOfWork.AcquireLockAsync(ReturnLock(returnId), ct);
+                entity = await _returnRepository.GetByIdAsync(returnId, ct)
+                         ?? throw new KeyNotFoundException($"مرتجع المورد برقم {returnId} غير موجود.");
+                await work(entity);
+            }, ct);
+            return entity!;
+        }
+
         public async Task<SupplierReturnResponse> ConfirmReturnAsync(int id, CancellationToken ct = default)
         {
-            var entity = await _returnRepository.GetByIdAsync(id, ct);
-            if (entity == null)
+            var entity = await WithLockedReturnAsync(id, async r =>
             {
-                throw new KeyNotFoundException($"مرتجع المورد برقم {id} غير موجود.");
-            }
+                if (r.Status != SupplierReturnStatus.Draft)
+                    throw new InvalidOperationException($"لا يمكن تأكيد المرتجع لأن حالته الحالية هي '{r.Status}'.");
 
-            if (entity.Status != SupplierReturnStatus.Draft)
-            {
-                throw new InvalidOperationException($"لا يمكن تأكيد المرتجع لأن حالته الحالية هي '{entity.Status}'.");
-            }
-
-            await _unitOfWork.ExecuteInTransactionAsync(() => ApplyConfirmAsync(entity, ct), ct);
+                await ApplyConfirmAsync(r, ct);
+            }, ct);
 
             return MapToResponse(entity);
         }
 
         public async Task<SupplierReturnResponse> CancelReturnAsync(int id, CancellationToken ct = default)
         {
-            var entity = await _returnRepository.GetByIdAsync(id, ct);
-            if (entity == null)
+            var entity = await WithLockedReturnAsync(id, async r =>
             {
-                throw new KeyNotFoundException($"مرتجع المورد برقم {id} غير موجود.");
-            }
+                if (r.Status != SupplierReturnStatus.Draft)
+                    throw new InvalidOperationException("لا يمكن إلغاء المرتجع إلا إذا كان في حالة مسودة (Draft).");
 
-            if (entity.Status != SupplierReturnStatus.Draft)
-            {
-                throw new InvalidOperationException("لا يمكن إلغاء المرتجع إلا إذا كان في حالة مسودة (Draft).");
-            }
-
-            entity.Status = SupplierReturnStatus.Cancelled;
-            _returnRepository.Update(entity);
-
-            await _unitOfWork.SaveChangesAsync(ct);
+                r.Status = SupplierReturnStatus.Cancelled;
+                await _unitOfWork.SaveChangesAsync(ct);
+            }, ct);
 
             return MapToResponse(entity);
         }
@@ -242,41 +245,32 @@ namespace ShopEx.Application.Services.ShopEx
                 throw new ArgumentException("مبلغ الاسترداد يجب أن يكون أكبر من صفر.", nameof(request.Amount));
             }
 
-            var entity = await _returnRepository.GetByIdAsync(returnId, ct);
-            if (entity == null)
+            var entity = await WithLockedReturnAsync(returnId, async r =>
             {
-                throw new KeyNotFoundException($"مرتجع المورد برقم {returnId} غير موجود.");
-            }
+                // A draft is confirmed first (stock goes out) in the same transaction as the refund
+                if (r.Status == SupplierReturnStatus.Draft)
+                    await ApplyConfirmAsync(r, ct);
+                else if (r.Status != SupplierReturnStatus.Confirmed)
+                    throw new InvalidOperationException("لا يمكن تسجيل استرداد مالي لمرتجع ملغي.");
 
-            if (entity.Status == SupplierReturnStatus.Draft)
-            {
-                await ConfirmReturnAsync(returnId, ct);
-                entity = await _returnRepository.GetByIdAsync(returnId, ct)
-                    ?? throw new KeyNotFoundException($"مرتجع المورد برقم {returnId} غير موجود.");
-            }
-            else if (entity.Status != SupplierReturnStatus.Confirmed)
-            {
-                throw new InvalidOperationException("لا يمكن تسجيل استرداد مالي لمرتجع ملغي.");
-            }
+                if (refundAmount > Math.Round(r.PendingRefund, 2, MidpointRounding.AwayFromZero))
+                {
+                    throw new InvalidOperationException($"مبلغ الاسترداد ({refundAmount:N2}) يتجاوز المبلغ المتبقي المستحق ({r.PendingRefund:N2}).");
+                }
 
-            if (refundAmount > Math.Round(entity.PendingRefund, 2, MidpointRounding.AwayFromZero))
-            {
-                throw new InvalidOperationException($"مبلغ الاسترداد ({refundAmount:N2}) يتجاوز المبلغ المتبقي المستحق ({entity.PendingRefund:N2}).");
-            }
+                var refund = new SupplierRefund
+                {
+                    SupplierReturnID = returnId,
+                    Amount = refundAmount,
+                    RefundDate = request.RefundDate ?? DateTime.Now,
+                    PaymentMethod = request.PaymentMethod?.Trim(),
+                    Notes = request.Notes?.Trim()
+                };
 
-            var refund = new SupplierRefund
-            {
-                SupplierReturnID = returnId,
-                Amount = refundAmount,
-                RefundDate = request.RefundDate ?? DateTime.Now,
-                PaymentMethod = request.PaymentMethod?.Trim(),
-                Notes = request.Notes?.Trim()
-            };
-
-            await _returnRepository.AddRefundAsync(refund, ct);
-            entity.Refunds.Add(refund);
-
-            await _unitOfWork.SaveChangesAsync(ct);
+                await _returnRepository.AddRefundAsync(refund, ct);
+                r.Refunds.Add(refund);
+                await _unitOfWork.SaveChangesAsync(ct);
+            }, ct);
 
             return MapToResponse(entity);
         }

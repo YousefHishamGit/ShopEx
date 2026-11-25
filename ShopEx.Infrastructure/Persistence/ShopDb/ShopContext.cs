@@ -52,6 +52,10 @@ namespace ShopEx.Infrastructure.Persistence.ShopDb
         // أجهزة (موبايلات) مشتراة بغرض البيع: HQ والفروع
         public DbSet<Device> Devices => Set<Device>();
 
+        // شركاء الفروع ونسب توزيع الأرباح
+        public DbSet<BranchPartner> BranchPartners => Set<BranchPartner>();
+        public DbSet<BranchPartnerSetting> BranchPartnerSettings => Set<BranchPartnerSetting>();
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);

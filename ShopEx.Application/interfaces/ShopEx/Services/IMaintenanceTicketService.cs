@@ -25,7 +25,12 @@ namespace ShopEx.Application.interfaces.ShopEx.Services
 
         // المرحلة الثالثة: الدفع والتسليم للعميل
         Task<MaintenanceTicketResponse> AddPaymentAsync(int ticketId, AddTicketPaymentRequest request, CancellationToken ct = default);
-        Task<MaintenanceTicketResponse> DeliverTicketAsync(int ticketId, DeliverTicketRequest? request = null, CancellationToken ct = default);
+        /// <param name="branchStoreId">
+        /// Set for a branch employee (their store from the token): the ticket must belong to that branch
+        /// (else <see cref="KeyNotFoundException"/>), be ready (Completed) and the whole remaining amount must be collected.
+        /// These rules are checked under the ticket lock together with the delivery. Null = HQ admin (no extra rules).
+        /// </param>
+        Task<MaintenanceTicketResponse> DeliverTicketAsync(int ticketId, DeliverTicketRequest? request = null, int? branchStoreId = null, CancellationToken ct = default);
 
         // تحديث الحالة يدوياً إن لزم
         Task<MaintenanceTicketResponse> UpdateStatusAsync(int ticketId, MaintenanceStatus newStatus, CancellationToken ct = default);

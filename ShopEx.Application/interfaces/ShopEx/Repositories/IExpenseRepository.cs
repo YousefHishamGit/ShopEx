@@ -48,9 +48,6 @@ namespace ShopEx.Application.interfaces.ShopEx.Repositories
         /// <summary>استرجاع مصروف بالـ ID للتعديل (tracked)</summary>
         Task<Expense?> GetExpenseByIdAsync(int id, CancellationToken ct = default);
 
-        /// <summary>المصروف التلقائي المرتبط بجهاز (tracked) إن وُجد</summary>
-        Task<Expense?> GetExpenseByDeviceIdAsync(int deviceId, CancellationToken ct = default);
-
         Task AddExpenseAsync(Expense expense, CancellationToken ct = default);
 
         void UpdateExpense(Expense expense);

@@ -35,6 +35,21 @@ namespace ShopEx.Controllers
             return Ok(list);
         }
 
+        // GET: api/Consignments/paged?dealerId=&status=Open|Closed|Cancelled|OVERDUE|ALL&search=&page=1&pageSize=25
+        [HttpGet("paged")]
+        [ProducesResponseType(typeof(ConsignmentsPageResponse), StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetPaged(
+            [FromQuery] int? dealerId,
+            [FromQuery] string? status,
+            [FromQuery] string? search,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 25,
+            CancellationToken ct = default)
+        {
+            var result = await _consignmentService.GetPagedAsync(dealerId, status, search, page, pageSize, ct);
+            return Ok(result);
+        }
+
         // GET: api/Consignments/{id}
         [HttpGet("{id:int}")]
         [ProducesResponseType(typeof(ConsignmentResponse), StatusCodes.Status200OK)]

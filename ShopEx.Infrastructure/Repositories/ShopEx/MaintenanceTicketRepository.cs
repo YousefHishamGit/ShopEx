@@ -29,6 +29,16 @@ namespace ShopEx.Infrastructure.Repositories.ShopEx
                       .FirstOrDefaultAsync(t => t.Id == id, ct);
         }
 
+        public Task<MaintenanceTicket?> GetByIdReadOnlyAsync(int id, CancellationToken ct = default)
+        {
+            return _db.MaintenanceTickets
+                      .AsNoTracking()
+                      .Include(t => t.Operations)
+                      .Include(t => t.Payments)
+                      .AsSplitQuery()
+                      .FirstOrDefaultAsync(t => t.Id == id, ct);
+        }
+
         public Task<MaintenanceTicket?> GetByTicketNumberAsync(string ticketNumber, CancellationToken ct = default)
         {
             return _db.MaintenanceTickets
@@ -155,11 +165,19 @@ namespace ShopEx.Infrastructure.Repositories.ShopEx
 
         public async Task<string> GetNextTicketNumberAsync(CancellationToken ct = default)
         {
+            // Last number of the day + 1 (a count would repeat a number if a ticket were ever removed)
             var todayPrefix = $"MT-{DateTime.Now:yyyyMMdd}-";
-            var countToday = await _db.MaintenanceTickets
-                                      .CountAsync(t => t.TicketNumber.StartsWith(todayPrefix), ct);
+            var last = await _db.MaintenanceTickets
+                                .Where(t => t.TicketNumber.StartsWith(todayPrefix))
+                                .OrderByDescending(t => t.TicketNumber)
+                                .Select(t => t.TicketNumber)
+                                .FirstOrDefaultAsync(ct);
 
-            return $"{todayPrefix}{(countToday + 1):D4}";
+            var next = 1;
+            if (last != null && int.TryParse(last[todayPrefix.Length..], out var seq))
+                next = seq + 1;
+
+            return $"{todayPrefix}{next:D4}";
         }
 
         public async Task AddOperationAsync(MaintenanceTicketOperation operation, CancellationToken ct = default)

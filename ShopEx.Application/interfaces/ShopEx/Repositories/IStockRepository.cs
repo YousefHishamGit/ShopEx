@@ -15,6 +15,8 @@ namespace ShopEx.Application.interfaces.ShopEx.Repositories
         Task<(decimal TotalQuantity, decimal TotalCost)> GetInStockTotalsAsync(int warehouseId, CancellationToken ct = default);
         /// <summary>Item id and quantity for every in-stock row of the warehouse (used to value stock at RMS prices).</summary>
         Task<List<(int RMSItemID, decimal Quantity)>> GetInStockQuantitiesAsync(int warehouseId, CancellationToken ct = default);
+        /// <summary>Every in-stock row of the warehouse (no tracking), ordered by item id. Used by item pickers.</summary>
+        Task<List<StockBalance>> GetInStockBalancesAsync(int warehouseId, CancellationToken ct = default);
         Task<List<StockBalance>> GetBalancesByItemAsync(int rmsItemId, CancellationToken ct = default);
         /// <summary>Latest movements, newest first, limited to <paramref name="take"/> rows.</summary>
         Task<List<StockMovement>> GetRecentMovementsAsync(int? warehouseId, int take, CancellationToken ct = default);

@@ -17,7 +17,7 @@ namespace ShopEx.Application.DTOs.Balance
     }
 
     /// <summary>
-    /// شحن رصيد من موظف الفرع لفرعه: الفرع والتاريخ يحددهما السيرفر، ويُسجَّل المبلغ كمصروف على الفرع.
+    /// شحن رصيد من موظف الفرع لفرعه: الفرع والتاريخ يحددهما السيرفر.
     /// </summary>
     public class ChargeOwnBalanceRequest
     {
@@ -119,6 +119,16 @@ namespace ShopEx.Application.DTOs.Balance
         public decimal Profit { get; set; }
         public DateTime? ClosedAt { get; set; }
         public string? Notes { get; set; }
+    }
+
+    /// <summary>صفحة من كشف الحركات</summary>
+    public class BalanceLedgerPageDto
+    {
+        public List<BalanceTransactionItemDto> Items { get; set; } = new();
+        public int Page { get; set; }
+        public int PageSize { get; set; }
+        public int TotalCount { get; set; }
+        public int TotalPages => PageSize > 0 ? Math.Max(1, (int)Math.Ceiling(TotalCount / (double)PageSize)) : 1;
     }
 
     /// <summary>

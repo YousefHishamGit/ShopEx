@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MaintenanceService } from '../../../services/maintenance.service';
 import { ToastService } from '../../../services/toast.service';
+import { ThermalReceiptService } from '../../../shared/print/thermal-receipt.service';
 import { CreateMaintenanceTicketRequest, MaintenancePaymentMethod, MaintenanceTicket } from '../../../models/models';
 
 @Component({
@@ -23,8 +24,13 @@ export class ReceiveDeviceComponent {
 
   constructor(
     private maintenanceService: MaintenanceService,
-    private toast: ToastService
+    private toast: ToastService,
+    private receipt: ThermalReceiptService
   ) {}
+
+  reprintIntake(): void {
+    if (this.lastTicket) this.receipt.printMaintenanceIntake(this.lastTicket);
+  }
 
   private emptyRequest(): CreateMaintenanceTicketRequest {
     return {
@@ -60,6 +66,8 @@ export class ReceiveDeviceComponent {
         this.submitting = false;
         this.lastTicket = ticket;
         this.request = this.emptyRequest();
+        // إيصال الاستلام للعميل (يرجع به عند تسليمه الجهاز)
+        this.receipt.printMaintenanceIntake(ticket);
         this.toast.success(`تم استلام الجهاز (${ticket.deviceName}) برقم تذكرة ${ticket.ticketNumber}`);
       },
       error: (err) => {

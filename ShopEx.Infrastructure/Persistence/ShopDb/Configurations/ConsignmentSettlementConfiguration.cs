@@ -15,6 +15,8 @@ namespace ShopEx.Infrastructure.Persistence.ShopDb.Configurations
             builder.Property(s => s.Notes).HasMaxLength(1000);
             builder.Property(s => s.CreatedBy).HasMaxLength(200);
 
+            builder.HasIndex(s => s.SettlementDate);   // dashboard date ranges
+
             // Computed property — not stored in DB
             builder.Ignore(s => s.AmountDue);
 

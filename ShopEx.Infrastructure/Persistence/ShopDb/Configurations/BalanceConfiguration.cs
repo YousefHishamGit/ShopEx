@@ -36,6 +36,7 @@ namespace ShopEx.Infrastructure.Persistence.ShopDb.Configurations
 
             // Index: بحث سريع بالفرع ونوع الوسيلة
             builder.HasIndex(x => new { x.StoreId, x.BalanceType });
+            builder.HasIndex(x => x.ChargedAt);   // dashboard / ledger date ranges
         }
     }
 }

@@ -107,6 +107,8 @@ namespace ShopEx.Application.Services.ShopEx
 
             await _unitOfWork.ExecuteInTransactionAsync(async () =>
             {
+                // Serialized numbering: two consignments created at the same moment get consecutive numbers
+                await _unitOfWork.AcquireLockAsync("Consignment:Number", ct);
                 var consignmentNumber = await _consignmentRepository.GetNextConsignmentNumberAsync(ct);
 
                 var consignment = new Consignment
@@ -125,7 +127,9 @@ namespace ShopEx.Application.Services.ShopEx
                         RMSItemID = i.RMSItemID,
                         QuantityIssued = i.QuantityIssued,
                         UnitPrice = i.UnitPrice,
-                        UnitCost = i.UnitCost
+                        // Cost comes from our own stock (average purchase cost), not from the client;
+                        // the request value is only a fallback for stock that has no cost recorded.
+                        UnitCost = balances[i.RMSItemID] is { AverageCost: > 0 } b ? b.AverageCost : i.UnitCost
                     }).ToList()
                 };
 
@@ -183,7 +187,27 @@ namespace ShopEx.Application.Services.ShopEx
             return await _consignmentRepository.GetSummariesAsync(dealerId, status, fromDate, toDate, ct);
         }
 
+        public Task<ConsignmentsPageResponse> GetPagedAsync(
+            int? dealerId, string? status, string? search, int page, int pageSize, CancellationToken ct = default)
+        {
+            page = Math.Max(page, 1);
+            pageSize = Math.Clamp(pageSize, 1, 100);
+            return _consignmentRepository.GetPagedSummariesAsync(dealerId, status, search, page, pageSize, ct);
+        }
+
         public async Task<ConsignmentResponse> AddSettlementAsync(int id, CreateConsignmentSettlementRequest request, CancellationToken ct = default)
+        {
+            // Locked + re-read inside one transaction: two requests on the same record run one after the other
+            ConsignmentResponse? result = null;
+            await _unitOfWork.ExecuteInTransactionAsync(async () =>
+            {
+                await _unitOfWork.AcquireLockAsync($"Consignment:{id}", ct);
+                result = await AddSettlementCoreAsync(id, request, ct);
+            }, ct);
+            return result!;
+        }
+
+        private async Task<ConsignmentResponse> AddSettlementCoreAsync(int id, CreateConsignmentSettlementRequest request, CancellationToken ct)
         {
             if (request == null)
                 throw new ArgumentNullException(nameof(request));
@@ -306,6 +330,18 @@ namespace ShopEx.Application.Services.ShopEx
 
         public async Task<ConsignmentResponse> AddPaymentAsync(int id, AddConsignmentPaymentRequest request, CancellationToken ct = default)
         {
+            // Locked + re-read inside one transaction: two requests on the same record run one after the other
+            ConsignmentResponse? result = null;
+            await _unitOfWork.ExecuteInTransactionAsync(async () =>
+            {
+                await _unitOfWork.AcquireLockAsync($"Consignment:{id}", ct);
+                result = await AddPaymentCoreAsync(id, request, ct);
+            }, ct);
+            return result!;
+        }
+
+        private async Task<ConsignmentResponse> AddPaymentCoreAsync(int id, AddConsignmentPaymentRequest request, CancellationToken ct)
+        {
             if (request == null)
                 throw new ArgumentNullException(nameof(request));
 
@@ -344,6 +380,18 @@ namespace ShopEx.Application.Services.ShopEx
         }
 
         public async Task<ConsignmentResponse> CancelConsignmentAsync(int id, CancellationToken ct = default)
+        {
+            // Locked + re-read inside one transaction: two requests on the same record run one after the other
+            ConsignmentResponse? result = null;
+            await _unitOfWork.ExecuteInTransactionAsync(async () =>
+            {
+                await _unitOfWork.AcquireLockAsync($"Consignment:{id}", ct);
+                result = await CancelConsignmentCoreAsync(id, ct);
+            }, ct);
+            return result!;
+        }
+
+        private async Task<ConsignmentResponse> CancelConsignmentCoreAsync(int id, CancellationToken ct)
         {
             var consignment = await _consignmentRepository.GetByIdAsync(id, ct);
             if (consignment == null)

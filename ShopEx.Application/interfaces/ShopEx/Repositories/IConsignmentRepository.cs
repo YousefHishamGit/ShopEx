@@ -26,6 +26,13 @@ namespace ShopEx.Application.interfaces.ShopEx.Repositories
             DateTime? toDate = null,
             CancellationToken ct = default);
 
+        /// <summary>
+        /// One page computed in SQL. <paramref name="statusFilter"/>: Open / Closed / Cancelled / OVERDUE / ALL.
+        /// Search matches the consignment number or the dealer name / phone.
+        /// </summary>
+        Task<ConsignmentsPageResponse> GetPagedSummariesAsync(
+            int? dealerId, string? statusFilter, string? search, int page, int pageSize, CancellationToken ct = default);
+
         Task<bool> ExistsAsync(string consignmentNumber, CancellationToken ct = default);
         Task<string> GetNextConsignmentNumberAsync(CancellationToken ct = default);
 

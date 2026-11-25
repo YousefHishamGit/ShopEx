@@ -38,6 +38,7 @@ namespace ShopEx.Infrastructure.Persistence.ShopDb.Configurations
             builder.HasIndex(x => x.SoldStoreId);
             builder.HasIndex(x => x.Status);
             builder.HasIndex(x => x.PurchaseDate);
+            builder.HasIndex(x => x.SoldAt);   // dashboard sales by date
             builder.HasIndex(x => x.Imei);
         }
     }

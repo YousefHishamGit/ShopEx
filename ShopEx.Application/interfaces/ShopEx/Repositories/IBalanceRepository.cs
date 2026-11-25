@@ -46,14 +46,15 @@ namespace ShopEx.Application.interfaces.ShopEx.Repositories
         Task<List<StoreBalanceGroupDto>> GetGroupedAsync(int? storeId, BalanceType? balanceType, CancellationToken ct = default);
 
         /// <summary>
-        /// آخر N حركة (شحن + تقفيل) مرتبة من الأحدث للأقدم
+        /// صفحة من الحركات (شحن + تقفيل) مرتبة من الأحدث للأقدم، مع إجمالي عدد الحركات المطابقة
         /// </summary>
-        Task<List<BalanceTransactionItemDto>> GetLatestTransactionsAsync(
+        Task<(List<BalanceTransactionItemDto> Items, int TotalCount)> GetTransactionsPageAsync(
             int? storeId,
             BalanceType? balanceType,
             DateTime? fromDate,
             DateTime? toDate,
-            int take,
+            int page,
+            int pageSize,
             CancellationToken ct = default);
 
         // ---- Closures (تقفيل نهاية اليوم) ----

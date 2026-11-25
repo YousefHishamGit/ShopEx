@@ -259,28 +259,9 @@ namespace ShopEx.Controllers
         {
             try
             {
-                if (!User.IsAdmin())
-                {
-                    // الموظف يسلّم فقط الأجهزة الجاهزة التي تخص فرعه
-                    var existing = await _ticketService.GetByIdAsync(id, ct);
-                    if (existing == null || !CanAccess(existing.StoreId))
-                    {
-                        return NotFound(new { message = $"تذكرة الصيانة برقم {id} غير موجودة." });
-                    }
-
-                    if (existing.Status != MaintenanceStatus.Completed)
-                    {
-                        return BadRequest(new { message = "لا يمكن تسليم الجهاز قبل أن يصبح جاهزاً." });
-                    }
-
-                    // الموظف لا يسلّم الجهاز قبل تحصيل كامل المتبقي (لو لم يُحدد مبلغ يُحصّل المتبقي كاملاً)
-                    if (request?.PaymentAmount is decimal paid && paid < existing.RemainingAmount)
-                    {
-                        return BadRequest(new { message = $"يجب تحصيل كامل المبلغ المتبقي ({existing.RemainingAmount:N2}) قبل التسليم." });
-                    }
-                }
-
-                var updatedTicket = await _ticketService.DeliverTicketAsync(id, request, ct);
+                // الموظف: تذكرة فرعه فقط، جاهزة، وبتحصيل كامل المتبقي (تُفحص داخل الخدمة تحت القفل مع التسليم)
+                int? branchStoreId = User.IsAdmin() ? null : (User.StoreId() ?? -1);
+                var updatedTicket = await _ticketService.DeliverTicketAsync(id, request, branchStoreId, ct);
                 return Ok(HideCosts(updatedTicket));
             }
             catch (KeyNotFoundException ex)

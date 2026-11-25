@@ -15,7 +15,7 @@ namespace ShopEx.Application.interfaces.ShopEx.Services
         Task<BalanceResponse> ChargeAsync(ChargeBalanceRequest request, CancellationToken ct = default);
 
         /// <summary>
-        /// شحن رصيد من الفرع لنفسه: يُنشئ شحنة رصيد للفرع ومصروفاً بنفس المبلغ على الفرع (في معاملة واحدة)
+        /// شحن رصيد من الفرع لنفسه: يُنشئ شحنة رصيد للفرع (بدون مصروف: الشحن شراء رصيد وليس مصروفاً)
         /// </summary>
         Task<BalanceResponse> ChargeOwnBranchAsync(int storeId, string userName, ChargeOwnBalanceRequest request, CancellationToken ct = default);
 
@@ -62,11 +62,13 @@ namespace ShopEx.Application.interfaces.ShopEx.Services
         /// <summary>
         /// استرجاع كشف الحركات والتحويلات التفصيلي (شحنات وتقفيلات بالترتيب الزمني)
         /// </summary>
-        Task<List<BalanceTransactionItemDto>> GetLedgerAsync(
+        Task<BalanceLedgerPageDto> GetLedgerAsync(
             int? storeId = null,
             BalanceType? balanceType = null,
             DateTime? fromDate = null,
             DateTime? toDate = null,
+            int page = 1,
+            int pageSize = 30,
             CancellationToken ct = default);
     }
 }

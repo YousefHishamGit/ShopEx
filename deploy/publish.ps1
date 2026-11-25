@@ -7,7 +7,7 @@ if (Test-Path $out) { Get-ChildItem $out -Force | Where-Object { $_.Name -ne 'ce
 
 Write-Host '== Angular build ==' -ForegroundColor Cyan
 Push-Location (Join-Path $root 'Frontend\ShopEx')
-npm ci
+if (-not (Test-Path 'node_modules')) { npm ci }
 npx ng build --configuration production
 if ($LASTEXITCODE) { throw 'ng build failed' }
 Pop-Location
@@ -33,4 +33,7 @@ Write-Host '== Update package (no config files) ==' -ForegroundColor Cyan
 robocopy "$out\app" "$out\update" /E /XF web.config appsettings.json appsettings.*.json /NFL /NDL /NJH /NJS | Out-Null
 if ($LASTEXITCODE -ge 8) { throw 'robocopy failed' }
 Copy-Item (Join-Path $PSScriptRoot 'DEPLOY.md') $out
+# HTTPS certificate (pfx for IIS, cer for the users' PCs); deploy\cert is git-ignored
+$cert = Join-Path $PSScriptRoot 'cert'
+if (Test-Path $cert) { Copy-Item $cert $out -Recurse -Force } else { Write-Warning 'deploy\cert not found: add the HTTPS certificate manually' }
 Write-Host "Done -> $out" -ForegroundColor Green

@@ -15,9 +15,16 @@
         <div *ngIf="lastTicket.storeName" class="text-xs mt-0.5">الفرع: {{ lastTicket.storeName }}</div>
       </div>
     </div>
-    <div class="text-center">
-      <div class="text-[11px]">رقم التذكرة</div>
-      <div class="text-lg font-extrabold tracking-wide" dir="ltr">{{ lastTicket.ticketNumber }}</div>
+    <div class="flex items-center gap-4">
+      <button type="button" (click)="reprintIntake()"
+              class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-light-surface border border-outline rounded-lg text-xs font-bold text-light-on-surface hover:bg-light-surface-variant transition-colors">
+        <span class="material-symbols-outlined text-[18px]">print</span>
+        <span>إعادة طباعة الإيصال</span>
+      </button>
+      <div class="text-center">
+        <div class="text-[11px]">رقم التذكرة</div>
+        <div class="text-lg font-extrabold tracking-wide" dir="ltr">{{ lastTicket.ticketNumber }}</div>
+      </div>
     </div>
   </div>
 

@@ -1,4 +1,5 @@
 ﻿using ShopEx.Application.interfaces.ShopEx.Repositories;
+using ShopEx.Infrastructure.Persistence;
 using ShopEx.Infrastructure.Persistence.ShopDb;
 using System;
 using System.Collections.Generic;
@@ -34,5 +35,8 @@ namespace ShopEx.Infrastructure.Repositories.ShopEx
             await work();
             await tx.CommitAsync(ct);
         }
+
+        public Task AcquireLockAsync(string resource, CancellationToken ct = default)
+            => SqlAppLock.AcquireAsync(_db, resource, ct);
     }
 }

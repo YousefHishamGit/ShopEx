@@ -1,8 +1,7 @@
 import { API_URL } from '../core/api-config';
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { EMPTY, Observable } from 'rxjs';
-import { expand, reduce } from 'rxjs/operators';
+import { Observable } from 'rxjs';
 import { Warehouse, StockBalance, PagedStockBalances, StockMovement, StockAdjustmentRequest } from '../models/models';
 
 @Injectable({
@@ -30,22 +29,21 @@ export class StockService {
     return this.http.put<Warehouse>(`${this.baseUrl}/Warehouses/${id}`, request);
   }
 
-  getBalances(warehouseId: number, page: number = 1, pageSize: number = 20, search: string = ''): Observable<PagedStockBalances> {
+  /** One page of in-stock rows. Warehouse-wide totals are only computed when includeTotals is true. */
+  getBalances(warehouseId: number, page: number = 1, pageSize: number = 20, search: string = '', includeTotals: boolean = true): Observable<PagedStockBalances> {
     let params = new HttpParams()
       .set('warehouseId', warehouseId.toString())
       .set('page', page.toString())
-      .set('pageSize', pageSize.toString());
+      .set('pageSize', pageSize.toString())
+      .set('includeTotals', includeTotals.toString());
     if (search) params = params.set('search', search);
     return this.http.get<PagedStockBalances>(`${this.baseUrl}/Stock/balances`, { params });
   }
 
-  /** All in-stock rows for pickers/lookups (fetches every page, 100 per request). */
+  /** All in-stock rows for pickers/lookups, in a single request. */
   getAllBalances(warehouseId: number): Observable<StockBalance[]> {
-    const pageSize = 100;
-    return this.getBalances(warehouseId, 1, pageSize).pipe(
-      expand(res => res.page < res.totalPages ? this.getBalances(warehouseId, res.page + 1, pageSize) : EMPTY),
-      reduce((all, res) => all.concat(res.items), [] as StockBalance[])
-    );
+    const params = new HttpParams().set('warehouseId', warehouseId.toString());
+    return this.http.get<StockBalance[]>(`${this.baseUrl}/Stock/balances/all`, { params });
   }
 
   getItemBalance(warehouseId: number, rmsItemId: number): Observable<StockBalance> {

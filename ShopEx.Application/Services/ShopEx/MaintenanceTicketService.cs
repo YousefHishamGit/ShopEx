@@ -43,11 +43,8 @@ namespace ShopEx.Application.Services.ShopEx
             if (string.IsNullOrWhiteSpace(request.DeviceName))
                 throw new ArgumentException("نوع أو اسم الجهاز مطلوب.", nameof(request.DeviceName));
 
-            var ticketNumber = await _ticketRepository.GetNextTicketNumberAsync(ct);
-
             var ticket = new MaintenanceTicket
             {
-                TicketNumber = ticketNumber,
                 ReceivedBy = request.ReceivedBy?.Trim() ?? string.Empty,
                 StoreId = request.StoreId,
                 CustomerName = request.CustomerName.Trim(),
@@ -77,15 +74,38 @@ namespace ShopEx.Application.Services.ShopEx
                 });
             }
 
-            await _ticketRepository.AddAsync(ticket, ct);
-            await _unitOfWork.SaveChangesAsync(ct);
+            // Numbering is serialized: two branches creating a ticket at the same moment get consecutive numbers
+            await _unitOfWork.ExecuteInTransactionAsync(async () =>
+            {
+                await _unitOfWork.AcquireLockAsync(TicketNumberLock, ct);
+                ticket.TicketNumber = await _ticketRepository.GetNextTicketNumberAsync(ct);
+                await _ticketRepository.AddAsync(ticket, ct);
+                await _unitOfWork.SaveChangesAsync(ct);
+            }, ct);
 
             return await ToResponseAsync(ticket, ct);
         }
 
+        private const string TicketNumberLock = "MaintenanceTicket:Number";
+        private static string TicketLock(int ticketId) => $"MaintenanceTicket:{ticketId}";
+
+        /// <summary>Runs <paramref name="work"/> in a transaction holding the ticket lock, on a freshly read ticket.</summary>
+        private async Task<MaintenanceTicket> WithLockedTicketAsync(int ticketId, Func<MaintenanceTicket, Task> work, CancellationToken ct)
+        {
+            MaintenanceTicket? ticket = null;
+            await _unitOfWork.ExecuteInTransactionAsync(async () =>
+            {
+                await _unitOfWork.AcquireLockAsync(TicketLock(ticketId), ct);
+                ticket = await _ticketRepository.GetByIdAsync(ticketId, ct)
+                         ?? throw new KeyNotFoundException($"تذكرة الصيانة برقم {ticketId} غير موجودة.");
+                await work(ticket);
+            }, ct);
+            return ticket!;
+        }
+
         public async Task<MaintenanceTicketResponse?> GetByIdAsync(int id, CancellationToken ct = default)
         {
-            var ticket = await _ticketRepository.GetByIdAsync(id, ct);
+            var ticket = await _ticketRepository.GetByIdReadOnlyAsync(id, ct);
             return ticket == null ? null : await ToResponseAsync(ticket, ct);
         }
 
@@ -221,19 +241,24 @@ namespace ShopEx.Application.Services.ShopEx
 
         public async Task<MaintenanceTicketResponse> DeleteOperationAsync(int ticketId, int operationId, CancellationToken ct = default)
         {
-            var ticket = await _ticketRepository.GetByIdAsync(ticketId, ct);
-            if (ticket == null)
-                throw new KeyNotFoundException($"تذكرة الصيانة برقم {ticketId} غير موجودة.");
+            var ticket = await WithLockedTicketAsync(ticketId, async t =>
+            {
+                if (t.Status == MaintenanceStatus.Delivered)
+                    throw new InvalidOperationException("لا يمكن حذف عمليات من جهاز تم تسليمه.");
 
-            if (ticket.Status == MaintenanceStatus.Delivered)
-                throw new InvalidOperationException("لا يمكن حذف عمليات من جهاز تم تسليمه.");
+                var operation = t.Operations.FirstOrDefault(o => o.Id == operationId)
+                                ?? throw new KeyNotFoundException($"العملية برقم {operationId} غير موجودة في هذه التذكرة.");
 
-            var operation = ticket.Operations.FirstOrDefault(o => o.Id == operationId);
-            if (operation == null)
-                throw new KeyNotFoundException($"العملية برقم {operationId} غير موجودة في هذه التذكرة.");
+                // The total can't fall below what the customer already paid (it would show a negative remaining)
+                var totalAfter = t.TotalCost - operation.Cost;
+                if (t.PaidAmount > totalAfter)
+                    throw new InvalidOperationException(
+                        $"لا يمكن حذف العملية: المدفوع ({t.PaidAmount:N2}) أكبر من إجمالي التذكرة بعد الحذف ({totalAfter:N2}).");
 
-            _ticketRepository.RemoveOperation(operation);
-            await _unitOfWork.SaveChangesAsync(ct);
+                _ticketRepository.RemoveOperation(operation);
+                t.Operations.Remove(operation);
+                await _unitOfWork.SaveChangesAsync(ct);
+            }, ct);
 
             return await ToResponseAsync(ticket, ct);
         }
@@ -251,6 +276,9 @@ namespace ShopEx.Application.Services.ShopEx
                 throw new InvalidOperationException("لا يمكن إنهاء إصلاح تذكرة ملغية.");
 
             // إضافة عمليات إضافية إن أُرسلت في الطلب
+            if (request?.Operations != null && request.Operations.Any(o => !string.IsNullOrWhiteSpace(o.OperationName) && (o.Cost < 0 || o.PartCost < 0)))
+                throw new ArgumentException("سعر العملية وتكلفة القطعة لا يمكن أن يكونا بالسالب.");
+
             if (request?.Operations != null && request.Operations.Any())
             {
                 foreach (var op in request.Operations)
@@ -263,7 +291,7 @@ namespace ShopEx.Application.Services.ShopEx
                         MaintenanceTicketId = ticketId,
                         OperationName = op.OperationName.Trim(),
                         Cost = Math.Round(op.Cost, 2, MidpointRounding.AwayFromZero),
-                        PartCost = Math.Round(Math.Max(0m, op.PartCost), 2, MidpointRounding.AwayFromZero),
+                        PartCost = Math.Round(op.PartCost, 2, MidpointRounding.AwayFromZero),
                         Notes = op.Notes?.Trim(),
                         CreatedAt = DateTime.Now
                     });
@@ -294,37 +322,61 @@ namespace ShopEx.Application.Services.ShopEx
             if (amount <= 0)
                 throw new ArgumentException("مبلغ الدفع يجب أن يكون أكبر من صفر.", nameof(request.Amount));
 
-            var ticket = await _ticketRepository.GetByIdAsync(ticketId, ct);
-            if (ticket == null)
-                throw new KeyNotFoundException($"تذكرة الصيانة برقم {ticketId} غير موجودة.");
-
-            if (ticket.Status == MaintenanceStatus.Cancelled)
-                throw new InvalidOperationException("لا يمكن إضافة دفعات لتذكرة صيانة ملغية.");
-
-            if (ticket.TotalCost > 0 && amount > ticket.RemainingAmount)
-                throw new InvalidOperationException(
-                    $"مبلغ الدفع ({amount:N2}) أكبر من المتبقي على التذكرة ({ticket.RemainingAmount:N2}).");
-
-            ticket.Payments.Add(new MaintenancePayment
+            // Locked + re-read: two payments at the same moment can't both pass the "remaining" check
+            var ticket = await WithLockedTicketAsync(ticketId, async t =>
             {
-                MaintenanceTicketId = ticketId,
-                Amount = amount,
-                PaidAt = request.PaidAt ?? DateTime.Now,
-                PaymentMethod = request.PaymentMethod,
-                Notes = request.Notes?.Trim()
-            });
+                if (t.Status == MaintenanceStatus.Cancelled)
+                    throw new InvalidOperationException("لا يمكن إضافة دفعات لتذكرة صيانة ملغية.");
 
-            _ticketRepository.Update(ticket);
-            await _unitOfWork.SaveChangesAsync(ct);
+                if (t.TotalCost > 0 && amount > t.RemainingAmount)
+                    throw new InvalidOperationException(
+                        $"مبلغ الدفع ({amount:N2}) أكبر من المتبقي على التذكرة ({t.RemainingAmount:N2}).");
+
+                t.Payments.Add(new MaintenancePayment
+                {
+                    MaintenanceTicketId = ticketId,
+                    Amount = amount,
+                    PaidAt = request.PaidAt ?? DateTime.Now,
+                    PaymentMethod = request.PaymentMethod,
+                    Notes = request.Notes?.Trim()
+                });
+
+                await _unitOfWork.SaveChangesAsync(ct);
+            }, ct);
 
             return await ToResponseAsync(ticket, ct);
         }
 
-        public async Task<MaintenanceTicketResponse> DeliverTicketAsync(int ticketId, DeliverTicketRequest? request = null, CancellationToken ct = default)
+        public async Task<MaintenanceTicketResponse> DeliverTicketAsync(int ticketId, DeliverTicketRequest? request = null, int? branchStoreId = null, CancellationToken ct = default)
         {
-            var ticket = await _ticketRepository.GetByIdAsync(ticketId, ct);
-            if (ticket == null)
-                throw new KeyNotFoundException($"تذكرة الصيانة برقم {ticketId} غير موجودة.");
+            var delivered = await WithLockedTicketAsync(ticketId, t =>
+            {
+                if (branchStoreId.HasValue)
+                    EnsureBranchCanDeliver(t, branchStoreId.Value, request);
+                return DeliverLockedAsync(t, request, ct);
+            }, ct);
+            return await ToResponseAsync(delivered, ct);
+        }
+
+        /// <summary>Branch employee rules for delivery, checked on the locked, freshly read ticket.</summary>
+        private static void EnsureBranchCanDeliver(MaintenanceTicket ticket, int branchStoreId, DeliverTicketRequest? request)
+        {
+            // Another branch's ticket is reported as "not found", like on every other employee endpoint
+            if (ticket.StoreId != branchStoreId)
+                throw new KeyNotFoundException($"تذكرة الصيانة برقم {ticket.Id} غير موجودة.");
+
+            if (ticket.Status != MaintenanceStatus.Completed)
+                throw new InvalidOperationException("لا يمكن تسليم الجهاز قبل أن يصبح جاهزاً.");
+
+            // No amount given = the whole remaining amount is collected (see DeliverLockedAsync)
+            if (request?.PaymentAmount is decimal paid
+                && Math.Round(paid, 2, MidpointRounding.AwayFromZero) < ticket.RemainingAmount)
+                throw new InvalidOperationException($"يجب تحصيل كامل المبلغ المتبقي ({ticket.RemainingAmount:N2}) قبل التسليم.");
+        }
+
+        private async Task DeliverLockedAsync(MaintenanceTicket ticket, DeliverTicketRequest? request, CancellationToken ct)
+        {
+            var ticketId = ticket.Id;
 
             if (ticket.Status == MaintenanceStatus.Delivered)
                 throw new InvalidOperationException("الجهاز مسلّم بالفعل للعميل.");
@@ -371,11 +423,7 @@ namespace ShopEx.Application.Services.ShopEx
             }
 
             ticket.Status = MaintenanceStatus.Delivered;
-
-            _ticketRepository.Update(ticket);
             await _unitOfWork.SaveChangesAsync(ct);
-
-            return await ToResponseAsync(ticket, ct);
         }
 
         public async Task<MaintenanceTicketResponse> UpdateStatusAsync(int ticketId, MaintenanceStatus newStatus, CancellationToken ct = default)

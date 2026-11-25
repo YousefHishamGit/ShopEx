@@ -27,50 +27,24 @@ namespace ShopEx.Infrastructure.Persistence.ShopDb
                 await context.SaveChangesAsync(ct);
             }
 
-            await BackfillDevicePurchaseExpensesAsync(context, ct);
+            await RemoveDevicePurchaseExpensesAsync(context, ct);
         }
 
         /// <summary>
-        /// أجهزة أُدخلت قبل ربط الشراء بالمصروفات: يُنشأ لها مصروف الشراء مرة واحدة (آمن للتكرار).
+        /// شراء الجهاز وشحن رصيد الفرع لم يعودا مصروفاً (مثل فواتير الموردين): يحذف المصروفات التلقائية
+        /// القديمة المرتبطة بهما، ثم بندَي "شراء أجهزة" و"شحن رصيد" لو أصبحا فارغين. آمن للتكرار.
         /// </summary>
-        private static async Task BackfillDevicePurchaseExpensesAsync(ShopContext context, CancellationToken ct)
+        private static async Task RemoveDevicePurchaseExpensesAsync(ShopContext context, CancellationToken ct)
         {
-            var missing = await context.Devices.AsNoTracking()
-                .Where(d => !context.Expenses.Any(e => e.DeviceId == d.Id))
-                .ToListAsync(ct);
-            if (missing.Count == 0) return;
+            await context.Expenses
+                .Where(e => e.DeviceId != null || e.BalanceId != null)
+                .ExecuteDeleteAsync(ct);
 
-            var category = await context.ExpenseCategories
-                .FirstOrDefaultAsync(c => c.Name == ExpenseService.DeviceExpenseCategory, ct);
-            if (category == null)
-            {
-                category = new ExpenseCategory
-                {
-                    Name = ExpenseService.DeviceExpenseCategory,
-                    IsActive = true,
-                    CreatedAt = DateTime.Now
-                };
-                context.ExpenseCategories.Add(category);
-            }
-
-            foreach (var d in missing)
-            {
-                context.Expenses.Add(new Expense
-                {
-                    ExpenseCategory = category,
-                    StoreId = d.StoreId,
-                    Amount = d.PurchasePrice,
-                    ExpenseDate = d.PurchaseDate,
-                    PaymentMethod = ExpensePaymentMethod.Cash,
-                    Recipient = d.SellerName,
-                    Notes = $"شراء جهاز {d.Brand} {d.Model}".Trim() + (string.IsNullOrEmpty(d.Imei) ? "" : $" (IMEI {d.Imei})"),
-                    CreatedBy = d.CreatedBy,
-                    CreatedAt = DateTime.Now,
-                    DeviceId = d.Id
-                });
-            }
-
-            await context.SaveChangesAsync(ct);
+            var legacyCategories = new[] { ExpenseService.DeviceExpenseCategory, BalanceService.SelfChargeExpenseCategory };
+            await context.ExpenseCategories
+                .Where(c => legacyCategories.Contains(c.Name)
+                            && !context.Expenses.Any(e => e.ExpenseCategoryId == c.Id))
+                .ExecuteDeleteAsync(ct);
         }
     }
 }

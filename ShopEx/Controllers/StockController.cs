@@ -28,10 +28,20 @@ namespace ShopEx.Controllers
             [FromQuery] string? search,
             CancellationToken ct,
             [FromQuery] int page = 1,
-            [FromQuery] int pageSize = 20)
+            [FromQuery] int pageSize = 20,
+            [FromQuery] bool includeTotals = true)
         {
-            var balances = await _stockService.GetBalancesAsync(warehouseId, search, page, pageSize, ct);
+            var balances = await _stockService.GetBalancesAsync(warehouseId, search, page, pageSize, includeTotals, ct);
             return Ok(balances);
+        }
+
+        // GET: api/Stock/balances/all?warehouseId=1  (every in-stock row in one response, for item pickers)
+        [HttpGet("balances/all")]
+        [ProducesResponseType(typeof(List<StockBalanceResponse>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetAllInStock([FromQuery] int warehouseId, CancellationToken ct)
+        {
+            var rows = await _stockService.GetAllInStockAsync(warehouseId, ct);
+            return Ok(rows);
         }
 
         // GET: api/Stock/balances/{warehouseId}/{rmsItemId}

@@ -27,7 +27,7 @@ export class CloseBalanceComponent implements OnInit {
   submitting = false;
   modalError = '';
 
-  // Self-charge modal (يُسجَّل كمصروف على الفرع)
+  // Self-charge modal
   readonly balanceTypes = [
     { value: BalanceType.VodafoneCash, label: 'فودافون كاش' },
     { value: BalanceType.OrangeCash, label: 'أورنج كاش' },
@@ -113,7 +113,7 @@ export class CloseBalanceComponent implements OnInit {
         next: (r) => {
           this.submitting = false;
           this.showCharge = false;
-          this.toast.success(`تم شحن ${amount} ج.م (${r.balanceTypeName}) وتسجيلها كمصروف على الفرع.`);
+          this.toast.success(`تم شحن ${amount} ج.م (${r.balanceTypeName}).`);
           this.load();
         },
         error: (err) => {

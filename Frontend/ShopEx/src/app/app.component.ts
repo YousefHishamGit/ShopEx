@@ -12,7 +12,7 @@ import { AuthService } from './services/auth.service';
   styleUrl: './app.component.css'
 })
 export class AppComponent {
-  title = 'ShopEx';
+  title = 'ELJOKER';
   sidebarOpen = true;
 
   constructor(public auth: AuthService) {}

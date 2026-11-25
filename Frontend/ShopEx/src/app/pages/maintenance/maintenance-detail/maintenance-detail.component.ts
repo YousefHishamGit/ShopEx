@@ -263,6 +263,11 @@ export class MaintenanceDetailComponent implements OnInit {
   }
 
   // طباعة الإيصال
+  /** إيصال استلام الجهاز (Thermal 80mm) الذي يرجع به العميل عند الاستلام */
+  printIntake(): void {
+    if (this.ticket) this.thermal.printMaintenanceIntake(this.ticket);
+  }
+
   /** فاتورة الحساب للعميل (Thermal Receipt 80mm): بنود الإصلاح والتكلفة وملاحظة الضمان */
   printThermal(): void {
     if (this.ticket) this.thermal.printMaintenance(this.ticket);

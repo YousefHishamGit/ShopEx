@@ -51,6 +51,8 @@ namespace ShopEx.Infrastructure.Persistence.ShopDb.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("ChargedAt");
+
                     b.HasIndex("StoreId", "BalanceType");
 
                     b.ToTable("Balances", (string)null);
@@ -93,6 +95,57 @@ namespace ShopEx.Infrastructure.Persistence.ShopDb.Migrations
                     b.HasIndex("ClosedAt");
 
                     b.ToTable("BalanceClosures", (string)null);
+                });
+
+            modelBuilder.Entity("ShopEx.Domain.Entity.BranchPartner", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETDATE()");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<decimal>("Percent")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<int>("StoreId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StoreId");
+
+                    b.ToTable("BranchPartners", (string)null);
+                });
+
+            modelBuilder.Entity("ShopEx.Domain.Entity.BranchPartnerSetting", b =>
+                {
+                    b.Property<int>("StoreId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsEnabled")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<decimal>("ZakatPercent")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("decimal(5,2)");
+
+                    b.HasKey("StoreId");
+
+                    b.ToTable("BranchPartnerSettings", (string)null);
                 });
 
             modelBuilder.Entity("ShopEx.Domain.Entity.Consignment", b =>
@@ -243,6 +296,8 @@ namespace ShopEx.Infrastructure.Persistence.ShopDb.Migrations
                     b.HasKey("ID");
 
                     b.HasIndex("ConsignmentID");
+
+                    b.HasIndex("SettlementDate");
 
                     b.ToTable("ConsignmentSettlements", (string)null);
                 });
@@ -471,6 +526,8 @@ namespace ShopEx.Infrastructure.Persistence.ShopDb.Migrations
                     b.HasIndex("Imei");
 
                     b.HasIndex("PurchaseDate");
+
+                    b.HasIndex("SoldAt");
 
                     b.HasIndex("SoldStoreId");
 
@@ -753,7 +810,11 @@ namespace ShopEx.Infrastructure.Persistence.ShopDb.Migrations
 
                     b.HasIndex("CustomerPhone");
 
+                    b.HasIndex("DeliveredAt");
+
                     b.HasIndex("ReceivedAt");
+
+                    b.HasIndex("RepairedAt");
 
                     b.HasIndex("Status");
 

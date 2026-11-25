@@ -58,6 +58,8 @@ namespace ShopEx.Application.Services.ShopEx
 
             foreach (var item in request.Items)
             {
+                if (item.RMSItemID <= 0)
+                    throw new ArgumentException("Item id is invalid.", nameof(request.Items));
                 if (item.Quantity <= 0)
                     throw new ArgumentException("Item quantity must be greater than zero.", nameof(request.Items));
                 if (item.UnitPrice < 0)
@@ -69,40 +71,22 @@ namespace ShopEx.Application.Services.ShopEx
             if (supplier == null)
                 throw new KeyNotFoundException($"Supplier with ID {request.RMSSupplierID} was not found in RMS.");
 
+            // Every line must be a real RMS item, otherwise stock would be created for an item that doesn't exist
+            var itemIds = request.Items.Select(i => i.RMSItemID).Distinct().ToList();
+            var knownItems = await _itemRepository.GetByIdsAsync(itemIds);
+            var missing = itemIds.Where(id => !knownItems.ContainsKey(id)).ToList();
+            if (missing.Count > 0)
+                throw new ArgumentException(
+                    $"الأصناف التالية غير موجودة في RMS: {string.Join(", ", missing)}.", nameof(request.Items));
+
            
 
             if (await _invoiceRepository.ExistsAsync(request.RMSSupplierID, invoiceNumber, ct))
                 throw new InvalidOperationException($"Invoice number '{invoiceNumber}' already exists for supplier with ID {request.RMSSupplierID}.");
 
             
-            var subTotal = Math.Round(
-                request.Items.Sum(i => i.Quantity * i.UnitPrice), 2, MidpointRounding.AwayFromZero);
-
-            // Invoice-level discount (percentage or fixed amount) -> resolved to an amount
-            var discountValue = Math.Round(request.DiscountValue ?? 0m, 2, MidpointRounding.AwayFromZero);
-            var discountType = discountValue > 0 ? request.DiscountType : SupplierDiscountType.None;
-            decimal discountAmount = 0m;
-
-            if (discountType == SupplierDiscountType.Percent)
-            {
-                if (discountValue > 100)
-                    throw new ArgumentException("Discount percentage cannot exceed 100.", nameof(request.DiscountValue));
-                discountAmount = Math.Round(subTotal * discountValue / 100m, 2, MidpointRounding.AwayFromZero);
-            }
-            else if (discountType == SupplierDiscountType.Amount)
-            {
-                discountAmount = discountValue;
-            }
-            else
-            {
-                discountValue = 0m;
-            }
-
-            if (discountAmount > subTotal)
-                throw new ArgumentException(
-                    $"Discount ({discountAmount:N2}) cannot exceed the invoice subtotal ({subTotal:N2}).", nameof(request.DiscountValue));
-
-            var totalAmount = subTotal - discountAmount;   // net payable
+            var (subTotal, discountType, discountValue, discountAmount, totalAmount) = CalculateTotals(
+                request.Items.Select(i => (i.Quantity, i.UnitPrice)), request.DiscountType, request.DiscountValue);
 
            
             var isCredit = request.PaymentType == SupplierPaymentType.Credit;
@@ -225,14 +209,8 @@ namespace ShopEx.Application.Services.ShopEx
                     }
                     else
                     {
-                        var newQty = balance.QuantityOnHand + line.Quantity;
-                        if (newQty > 0)
-                        {
-                            var currentTotalValue = Math.Max(balance.QuantityOnHand, 0) * balance.AverageCost;
-                            var addedValue = line.Quantity * line.UnitPrice;
-                            balance.AverageCost = Math.Round((currentTotalValue + addedValue) / newQty, 2);
-                        }
-                        balance.QuantityOnHand = newQty;
+                        balance.AverageCost = WeightedAverageCost(balance.QuantityOnHand, balance.AverageCost, line.Quantity, line.UnitPrice);
+                        balance.QuantityOnHand += line.Quantity;
                         balance.LastUpdatedAt = invoiceDate;
                         _stockRepository.UpdateBalance(balance);
                     }
@@ -259,6 +237,18 @@ namespace ShopEx.Application.Services.ShopEx
         }
 
         public async Task<SupplierInvoiceResponse> AddPaymentAsync(int invoiceId, AddPaymentRequest request, CancellationToken ct = default)
+        {
+            // Locked + re-read inside one transaction: two requests on the same record run one after the other
+            SupplierInvoiceResponse? result = null;
+            await _unitOfWork.ExecuteInTransactionAsync(async () =>
+            {
+                await _unitOfWork.AcquireLockAsync($"SupplierInvoice:{invoiceId}", ct);
+                result = await AddPaymentCoreAsync(invoiceId, request, ct);
+            }, ct);
+            return result!;
+        }
+
+        private async Task<SupplierInvoiceResponse> AddPaymentCoreAsync(int invoiceId, AddPaymentRequest request, CancellationToken ct)
         {
             if (request == null)
                 throw new ArgumentNullException(nameof(request));
@@ -345,6 +335,56 @@ namespace ShopEx.Application.Services.ShopEx
                 }
             }
             return response;
+        }
+
+        /// <summary>
+        /// Subtotal, invoice-level discount (percent or fixed amount, resolved to an amount) and net payable.
+        /// Throws <see cref="ArgumentException"/> for a percent above 100 or a discount above the subtotal.
+        /// </summary>
+        public static (decimal SubTotal, SupplierDiscountType DiscountType, decimal DiscountValue, decimal DiscountAmount, decimal Total)
+            CalculateTotals(IEnumerable<(decimal Quantity, decimal UnitPrice)> lines, SupplierDiscountType requestedType, decimal? requestedValue)
+        {
+            var subTotal = Math.Round(lines.Sum(l => l.Quantity * l.UnitPrice), 2, MidpointRounding.AwayFromZero);
+
+            var discountValue = Math.Round(requestedValue ?? 0m, 2, MidpointRounding.AwayFromZero);
+            var discountType = discountValue > 0 ? requestedType : SupplierDiscountType.None;
+            decimal discountAmount = 0m;
+
+            if (discountType == SupplierDiscountType.Percent)
+            {
+                if (discountValue > 100)
+                    throw new ArgumentException("Discount percentage cannot exceed 100.", "DiscountValue");
+                discountAmount = Math.Round(subTotal * discountValue / 100m, 2, MidpointRounding.AwayFromZero);
+            }
+            else if (discountType == SupplierDiscountType.Amount)
+            {
+                discountAmount = discountValue;
+            }
+            else
+            {
+                discountType = SupplierDiscountType.None;
+                discountValue = 0m;
+            }
+
+            if (discountAmount > subTotal)
+                throw new ArgumentException(
+                    $"Discount ({discountAmount:N2}) cannot exceed the invoice subtotal ({subTotal:N2}).", "DiscountValue");
+
+            return (subTotal, discountType, discountValue, discountAmount, subTotal - discountAmount);
+        }
+
+        /// <summary>
+        /// Moving average cost after receiving <paramref name="addedQty"/> at <paramref name="addedUnitCost"/>.
+        /// Negative stock (sold before it was received) carries no value, so it is not part of the average:
+        /// otherwise the cost would be divided by a smaller net quantity and inflated.
+        /// </summary>
+        public static decimal WeightedAverageCost(decimal currentQty, decimal currentAvgCost, decimal addedQty, decimal addedUnitCost)
+        {
+            var valuedQty = Math.Max(currentQty, 0m);
+            var totalQty = valuedQty + addedQty;
+            if (totalQty <= 0)
+                return currentAvgCost;
+            return Math.Round((valuedQty * currentAvgCost + addedQty * addedUnitCost) / totalQty, 2);
         }
 
         private static void RefreshStatus(SupplierInvoice invoice)

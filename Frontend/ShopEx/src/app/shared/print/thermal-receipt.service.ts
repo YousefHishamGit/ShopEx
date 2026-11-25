@@ -15,6 +15,11 @@ export class ThermalReceiptService {
     this.printHtml(this.buildMaintenanceHtml(ticket));
   }
 
+  /** إيصال استلام جهاز من العميل: يحتفظ به العميل ويرجع به عند استلام جهازه */
+  printMaintenanceIntake(ticket: MaintenanceTicket): void {
+    this.printHtml(this.buildIntakeHtml(ticket));
+  }
+
   /** فاتورة بيع جهاز للعميل (سعر البيع فقط: لا تظهر التكلفة ولا الربح) */
   printDeviceSale(d: DeviceResponse): void {
     this.printHtml(this.buildDeviceSaleHtml(d));
@@ -46,14 +51,34 @@ export class ThermalReceiptService {
     doc.write(html);
     doc.close();
 
-    // نمهل المتصفح لحظة لعرض المحتوى قبل فتح نافذة الطباعة
-    setTimeout(() => {
-      win.addEventListener('afterprint', cleanup);
-      win.focus();
-      win.print();
-      // احتياطاً لو لم يُطلق afterprint في بعض المتصفحات
-      setTimeout(cleanup, 60_000);
-    }, 250);
+    // نمهل المتصفح لحظة لعرض المحتوى (ولتحميل اللوجو) قبل فتح نافذة الطباعة
+    const imagesReady = Promise.all(
+      Array.from(doc.images).map((img) =>
+        img.complete
+          ? Promise.resolve()
+          : new Promise<void>((res) => {
+              img.addEventListener('load', () => res());
+              img.addEventListener('error', () => res());
+            })
+      )
+    );
+    const timeout = new Promise<void>((res) => setTimeout(res, 3000));
+    Promise.race([imagesReady, timeout]).then(() => {
+      setTimeout(() => {
+        win.addEventListener('afterprint', cleanup);
+        win.focus();
+        win.print();
+        // احتياطاً لو لم يُطلق afterprint في بعض المتصفحات
+        setTimeout(cleanup, 60_000);
+      }, 250);
+    });
+  }
+
+  /** ترويسة الفاتورة: لوجو ELJOKER + الاسم (الرابط مطلق لأن الـ iframe لا يرث الـ base بشكل موثوق) */
+  private brandHtml(): string {
+    const logoUrl = new URL('eljoker-logo.png', document.baseURI).href;
+    return `<img class="logo" src="${logoUrl}" alt="ELJOKER">
+    <div class="brand">ELJOKER</div>`;
   }
 
   private buildMaintenanceHtml(t: MaintenanceTicket): string {
@@ -96,7 +121,7 @@ export class ThermalReceiptService {
 </head>
 <body>
   <div class="c">
-    <div class="brand">ShopEx</div>
+    ${this.brandHtml()}
     ${t.storeName ? `<div class="sm">${esc(t.storeName)}</div>` : ''}
     <div class="title">فاتورة صيانة</div>
   </div>
@@ -151,6 +176,7 @@ export class ThermalReceiptService {
   }
   .c { text-align: center; }
   .brand { font-size: 20px; font-weight: 800; letter-spacing: .5px; }
+  .logo { display: block; margin: 0 auto 2px; width: 36mm; max-width: 100%; height: auto; }
   .title { font-size: 14px; font-weight: 700; margin-top: 2px; }
   .sm { font-size: 10px; color: #000; }
   .hr { border: 0; border-top: 1px dashed #000; margin: 6px 0; }
@@ -166,7 +192,82 @@ export class ThermalReceiptService {
   .grand { font-size: 15px; font-weight: 800; }
   .warranty { border: 1px solid #000; padding: 4px 6px; margin-top: 6px; text-align: center; font-weight: 700; }
   .foot { margin-top: 8px; text-align: center; font-size: 11px; }
+  .ticketno { border: 2px solid #000; padding: 4px 6px; margin: 6px 0; text-align: center; }
+  .ticketno .lbl { font-size: 10px; }
+  .ticketno .num { font-size: 20px; font-weight: 800; letter-spacing: 1px; direction: ltr; }
+  .block { margin: 2px 0; }
+  .block .lbl { font-weight: 700; }
+  .block .val { word-break: break-word; white-space: pre-wrap; }
+  .notice { border: 1px dashed #000; padding: 4px 6px; margin-top: 6px; text-align: center; font-weight: 700; font-size: 11px; }
 `;
+  }
+
+  private buildIntakeHtml(t: MaintenanceTicket): string {
+    const w = this.paperWidthMm;
+    const bodyWidth = w - 8;
+    const esc = (v: unknown) =>
+      String(v ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    const money = (n: number) =>
+      (Number(n) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    const fmtDate = (iso?: string | null) => {
+      const d = iso ? new Date(iso) : new Date();
+      return `${d.getFullYear()}/${pad(d.getMonth() + 1)}/${pad(d.getDate())}  ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    };
+
+    const device = [t.deviceName, t.brand, t.model].filter((x, i, a) => !!x && a.indexOf(x) === i).join(' ');
+    const deposit = Math.max(0, t.paidAmount ?? 0);
+    const expected = Math.max(0, t.expectedCost ?? 0);
+    const block = (label: string, value?: string | null) =>
+      value ? `<div class="block"><span class="lbl">${label}:</span> <span class="val">${esc(value)}</span></div>` : '';
+
+    return `<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>إيصال استلام جهاز ${esc(t.ticketNumber)}</title>
+<style>${this.css(w, bodyWidth)}</style>
+</head>
+<body>
+  <div class="c">
+    ${this.brandHtml()}
+    ${t.storeName ? `<div class="sm">${esc(t.storeName)}</div>` : ''}
+    <div class="title">إيصال استلام جهاز للصيانة</div>
+  </div>
+
+  <div class="ticketno">
+    <div class="lbl">رقم التذكرة</div>
+    <div class="num">${esc(t.ticketNumber)}</div>
+  </div>
+
+  <div class="row"><b>تاريخ الاستلام:</b><span dir="ltr">${fmtDate(t.receivedAt)}</span></div>
+  <div class="row"><b>العميل:</b><span>${esc(t.customerName)}</span></div>
+  ${t.customerPhone ? `<div class="row"><b>الهاتف:</b><span dir="ltr">${esc(t.customerPhone)}</span></div>` : ''}
+
+  <hr class="hr">
+
+  <div class="row"><b>الجهاز:</b><span>${esc(device)}</span></div>
+  ${t.color ? `<div class="row"><b>اللون:</b><span>${esc(t.color)}</span></div>` : ''}
+  ${t.serialNumber ? `<div class="row"><b>IMEI / Serial:</b><span dir="ltr">${esc(t.serialNumber)}</span></div>` : ''}
+  ${block('العطل', t.issueDescription)}
+  ${block('الملحقات المستلمة', t.accessories)}
+
+  ${expected > 0 || deposit > 0 ? `<hr class="hr">
+  <div class="totals">
+    ${expected > 0 ? `<div class="row"><b>التكلفة التقديرية</b><span dir="ltr">${money(expected)} ج.م</span></div>` : ''}
+    ${deposit > 0 ? `<div class="row grand"><b>العربون المدفوع</b><span dir="ltr">${money(deposit)} ج.م</span></div>` : ''}
+  </div>` : ''}
+
+  <div class="notice">يرجى إحضار هذا الإيصال عند استلام الجهاز</div>
+
+  <hr class="hr">
+  <div class="foot">شكراً لثقتكم بنا</div>
+</body>
+</html>`;
   }
 
   private buildDeviceSaleHtml(d: DeviceResponse): string {
@@ -197,7 +298,7 @@ export class ThermalReceiptService {
 </head>
 <body>
   <div class="c">
-    <div class="brand">ShopEx</div>
+    ${this.brandHtml()}
     ${d.soldStoreName ? `<div class="sm">${esc(d.soldStoreName)}</div>` : ''}
     <div class="title">فاتورة بيع جهاز</div>
   </div>

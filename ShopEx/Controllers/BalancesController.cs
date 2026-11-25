@@ -119,13 +119,15 @@ namespace ShopEx.Controllers
         /// </summary>
         [HttpGet("ledger")]
         [Authorize(Roles = AppRoles.AdminOrEmployee)]
-        [ProducesResponseType(typeof(List<BalanceTransactionItemDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(BalanceLedgerPageDto), StatusCodes.Status200OK)]
         public async Task<IActionResult> GetLedger(
             [FromQuery] int? storeId,
             [FromQuery] BalanceType? balanceType,
             [FromQuery] DateTime? fromDate,
             [FromQuery] DateTime? toDate,
-            CancellationToken ct)
+            CancellationToken ct,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 30)
         {
             if (!User.IsAdmin())
             {
@@ -133,8 +135,8 @@ namespace ShopEx.Controllers
                 storeId = ownStore;
             }
 
-            var list = await _balanceService.GetLedgerAsync(storeId, balanceType, fromDate, toDate, ct);
-            return Ok(list);
+            var result = await _balanceService.GetLedgerAsync(storeId, balanceType, fromDate, toDate, page, pageSize, ct);
+            return Ok(result);
         }
 
         // ================================================================
@@ -160,10 +162,10 @@ namespace ShopEx.Controllers
         }
 
         // ================================================================
-        // 1.1 شحن رصيد من الفرع لنفسه (يُسجَّل كمصروف على الفرع)
+        // 1.1 شحن رصيد من الفرع لنفسه
         // ================================================================
         /// <summary>
-        /// موظف الفرع يشحن رصيداً لفرعه (الفرع من الـ Token): تُضاف شحنة رصيد ويُسجَّل نفس المبلغ كمصروف على الفرع
+        /// موظف الفرع يشحن رصيداً لفرعه (الفرع من الـ Token): تُضاف شحنة رصيد (بدون مصروف)
         /// </summary>
         [HttpPost("charge-own")]
         [Authorize(Roles = AppRoles.Employee)]

@@ -105,4 +105,24 @@ namespace ShopEx.Application.DTOs.Consignment
         public bool IsFullyAccountedFor { get; set; }
         public bool IsOverdue { get; set; }
     }
+
+    /// <summary>One page of consignments + dealer-wide stats (the stats ignore the status tab and search).</summary>
+    public class ConsignmentsPageResponse
+    {
+        public List<ConsignmentSummaryResponse> Items { get; set; } = new();
+        public int Page { get; set; }
+        public int PageSize { get; set; }
+        public int TotalCount { get; set; }
+        public int TotalPages => PageSize > 0 ? Math.Max(1, (int)Math.Ceiling(TotalCount / (double)PageSize)) : 1;
+
+        public int CountTotal { get; set; }
+        public int CountOpen { get; set; }
+        public int CountOverdue { get; set; }
+        public int CountClosed { get; set; }
+        public int CountCancelled { get; set; }
+        /// <summary>Value (at dealer price) of goods still with dealers on open consignments.</summary>
+        public decimal TotalOutstandingValue { get; set; }
+        /// <summary>Sold value not yet collected on open consignments.</summary>
+        public decimal TotalRemainingUnpaid { get; set; }
+    }
 }

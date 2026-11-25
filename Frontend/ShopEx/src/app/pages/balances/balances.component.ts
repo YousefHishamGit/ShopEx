@@ -31,8 +31,11 @@ interface BalanceTypeMeta {
   templateUrl: './balances.component.html'
 })
 export class BalancesComponent implements OnInit, OnDestroy {
-  /** عدد الحركات التي يعرضها السجل (يطابق الحد في الـ API) */
-  readonly ledgerLimit = 30;
+  /** عدد الحركات في كل صفحة من السجل */
+  readonly ledgerPageSize = 30;
+  ledgerPage = 1;
+  ledgerTotalPages = 1;
+  ledgerTotalCount = 0;
 
   activeTab: 'summary' | 'ledger' = 'summary';
 
@@ -128,7 +131,9 @@ export class BalancesComponent implements OnInit, OnDestroy {
     });
   }
 
-  loadData(): void {
+  /** Any filter / tab change starts the ledger from its first page; only the pager keeps the page. */
+  loadData(resetPage: boolean = true): void {
+    if (resetPage) this.ledgerPage = 1;
     // Cancel any in-flight request so a slow older response can't overwrite a newer one
     this.loadSub?.unsubscribe();
     this.loading = true;
@@ -152,9 +157,11 @@ export class BalancesComponent implements OnInit, OnDestroy {
         }
       });
     } else {
-      this.loadSub = this.balanceService.getLedger(storeId, type).subscribe({
-        next: (data) => {
-          this.ledgerItems = data || [];
+      this.loadSub = this.balanceService.getLedger(storeId, type, undefined, undefined, this.ledgerPage, this.ledgerPageSize).subscribe({
+        next: (res) => {
+          this.ledgerItems = res?.items || [];
+          this.ledgerTotalCount = res?.totalCount || 0;
+          this.ledgerTotalPages = res?.totalPages || 1;
           this.applyFilters();
           this.loading = false;
         },
@@ -225,6 +232,12 @@ export class BalancesComponent implements OnInit, OnDestroy {
 
   trackGroup = (_: number, g: StoreBalanceGroup) => `${g.storeId}-${g.balanceType}`;
   trackTx = (_: number, t: BalanceTransactionItem) => `${t.transactionType}-${t.id}`;
+
+  goToLedgerPage(p: number): void {
+    if (p < 1 || p > this.ledgerTotalPages || p === this.ledgerPage || this.loading) return;
+    this.ledgerPage = p;
+    this.loadData(false);
+  }
 
   // ----------------------------------------------------------------
   // Modal 1: Charge Balance

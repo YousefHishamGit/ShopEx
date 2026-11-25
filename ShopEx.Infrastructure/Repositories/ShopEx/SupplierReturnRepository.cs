@@ -103,6 +103,17 @@ namespace ShopEx.Infrastructure.Repositories.ShopEx
             return $"{prefix}{nextSequence:D4}";
         }
 
+        public async Task<Dictionary<int, decimal>> GetReturnedQuantitiesForInvoiceAsync(int supplierInvoiceId, CancellationToken ct = default)
+        {
+            var rows = await _db.SupplierReturnItems.AsNoTracking()
+                .Where(i => i.SupplierReturn.SupplierInvoiceID == supplierInvoiceId
+                            && i.SupplierReturn.Status != SupplierReturnStatus.Cancelled)
+                .GroupBy(i => i.RMSItemID)
+                .Select(g => new { ItemId = g.Key, Qty = g.Sum(x => x.Quantity) })
+                .ToListAsync(ct);
+            return rows.ToDictionary(r => r.ItemId, r => r.Qty);
+        }
+
         public async Task AddAsync(SupplierReturn supplierReturn, CancellationToken ct = default)
         {
             await _db.SupplierReturns.AddAsync(supplierReturn, ct);

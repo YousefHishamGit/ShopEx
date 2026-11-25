@@ -15,7 +15,7 @@
     </div>
 
     <div class="flex items-center gap-2">
-      <button type="button" (click)="loadData()" [disabled]="loading"
+      <button type="button" (click)="loadData(false)" [disabled]="loading"
         class="p-2.5 border border-outline rounded-xl bg-light-surface hover:bg-light-surface-variant text-light-on-surface transition-colors disabled:opacity-50"
         title="تحديث البيانات">
         <span class="material-symbols-outlined text-[20px]" [class.animate-spin]="loading">refresh</span>
@@ -130,7 +130,7 @@
         [ngClass]="activeTab === 'ledger' ? 'bg-light-surface text-primary shadow-sm font-bold' : 'text-light-on-surface-variant hover:text-light-on-surface'"
         class="flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs sm:text-sm flex items-center justify-center gap-2 transition-all">
         <span class="material-symbols-outlined text-[18px]">history</span>
-        <span>سجل التحويلات (آخر {{ ledgerLimit }})</span>
+        <span>سجل التحويلات</span>
       </button>
     </div>
 
@@ -324,7 +324,7 @@
   </div>
 
   <!-- ======================================================== -->
-  <!-- TAB 2: سجل التحويلات (آخر 30 حركة) -->
+  <!-- TAB 2: سجل التحويلات (مقسّم صفحات) -->
   <!-- ======================================================== -->
   <div *ngIf="!loading && !errorMessage && activeTab === 'ledger'"
     class="bg-light-surface rounded-2xl border border-outline shadow-sm overflow-hidden">
@@ -332,10 +332,10 @@
       <div class="flex items-center gap-2">
         <h2 class="font-bold text-sm text-light-on-surface">سجل التحويلات</h2>
         <span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-blue-50 text-primary border border-blue-200">
-          {{ filteredLedgerItems.length }} حركة
+          {{ ledgerTotalCount }} حركة
         </span>
       </div>
-      <span class="text-[11px] text-gray-500">يعرض آخر {{ ledgerLimit }} حركة فقط</span>
+      <span class="text-[11px] text-gray-500">الأحدث أولاً · البحث يطبَّق على الصفحة المعروضة</span>
     </div>
 
     <ul class="divide-y divide-outline">
@@ -384,6 +384,23 @@
         <p class="font-bold text-sm">لا توجد حركات مطابقة</p>
       </li>
     </ul>
+
+    <!-- Pagination -->
+    <div *ngIf="ledgerTotalPages > 1"
+      class="p-3 border-t border-outline flex items-center justify-between text-xs text-light-on-surface-variant">
+      <span>{{ (ledgerPage - 1) * ledgerPageSize + 1 }} - {{ ledgerPage * ledgerPageSize < ledgerTotalCount ? ledgerPage * ledgerPageSize : ledgerTotalCount }} من {{ ledgerTotalCount }}</span>
+      <div class="flex items-center gap-2">
+        <button (click)="goToLedgerPage(ledgerPage - 1)" [disabled]="ledgerPage <= 1 || loading"
+          class="px-3.5 py-1.5 border border-slate-300 bg-white rounded-lg text-black font-extrabold hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+          السابق
+        </button>
+        <span class="text-slate-900 font-bold font-mono">صفحة {{ ledgerPage }} / {{ ledgerTotalPages }}</span>
+        <button (click)="goToLedgerPage(ledgerPage + 1)" [disabled]="ledgerPage >= ledgerTotalPages || loading"
+          class="px-3.5 py-1.5 border border-slate-300 bg-white rounded-lg text-black font-extrabold hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+          التالي
+        </button>
+      </div>
+    </div>
   </div>
 </div>
 

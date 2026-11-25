@@ -162,13 +162,6 @@ namespace ShopEx.Infrastructure.Repositories.ShopEx
                       .FirstOrDefaultAsync(e => e.Id == id, ct);
         }
 
-        public Task<Expense?> GetExpenseByDeviceIdAsync(int deviceId, CancellationToken ct = default)
-        {
-            return _db.Expenses
-                      .Include(e => e.ExpenseCategory)
-                      .FirstOrDefaultAsync(e => e.DeviceId == deviceId, ct);
-        }
-
         public async Task AddExpenseAsync(Expense expense, CancellationToken ct = default)
         {
             await _db.Expenses.AddAsync(expense, ct);

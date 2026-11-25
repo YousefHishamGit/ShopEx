@@ -20,12 +20,9 @@ namespace ShopEx.Application.Services.ShopEx
         private readonly IDeviceRepository _deviceRepo;
         private readonly IStoreRepository _storeRepo;
         private readonly IUnitOfWork _unitOfWork;
-        private readonly IExpenseService _expenseService;
 
-        public DeviceService(
-            IDeviceRepository deviceRepo, IStoreRepository storeRepo, IUnitOfWork unitOfWork, IExpenseService expenseService)
+        public DeviceService(IDeviceRepository deviceRepo, IStoreRepository storeRepo, IUnitOfWork unitOfWork)
         {
-            _expenseService = expenseService ?? throw new ArgumentNullException(nameof(expenseService));
             _deviceRepo = deviceRepo ?? throw new ArgumentNullException(nameof(deviceRepo));
             _storeRepo = storeRepo ?? throw new ArgumentNullException(nameof(storeRepo));
             _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
@@ -91,13 +88,9 @@ namespace ShopEx.Application.Services.ShopEx
                 CreatedAt = DateTime.Now
             };
 
-            // الجهاز ومصروف الشراء في معاملة واحدة: الدفع من الفرع = مصروف على الفرع
-            await _unitOfWork.ExecuteInTransactionAsync(async () =>
-            {
-                await _deviceRepo.AddAsync(device, ct);
-                await _unitOfWork.SaveChangesAsync(ct);
-                await SyncPurchaseExpenseAsync(device, ct);
-            }, ct);
+            // شراء الجهاز مشتريات (مخزون) وليس مصروفاً، مثل فواتير الموردين
+            await _deviceRepo.AddAsync(device, ct);
+            await _unitOfWork.SaveChangesAsync(ct);
 
             return Map(device, await _storeRepo.GetNamesAsync(ct));
         }
@@ -125,11 +118,7 @@ namespace ShopEx.Application.Services.ShopEx
             device.PurchaseDate = request.PurchaseDate ?? device.PurchaseDate;
             device.SellerName = Clean(request.SellerName, 200);
 
-            await _unitOfWork.ExecuteInTransactionAsync(async () =>
-            {
-                await _unitOfWork.SaveChangesAsync(ct);
-                await SyncPurchaseExpenseAsync(device, ct);
-            }, ct);
+            await _unitOfWork.SaveChangesAsync(ct);
             return Map(device, await _storeRepo.GetNamesAsync(ct));
         }
 
@@ -189,12 +178,8 @@ namespace ShopEx.Application.Services.ShopEx
             var device = await _deviceRepo.GetByIdAsync(id, ct);
             if (device == null) return false;
 
-            await _unitOfWork.ExecuteInTransactionAsync(async () =>
-            {
-                await _expenseService.DeleteDeviceExpenseAsync(id, ct);
-                _deviceRepo.Delete(device);
-                await _unitOfWork.SaveChangesAsync(ct);
-            }, ct);
+            _deviceRepo.Delete(device);
+            await _unitOfWork.SaveChangesAsync(ct);
             return true;
         }
 
@@ -207,17 +192,6 @@ namespace ShopEx.Application.Services.ShopEx
         // ================================================================
         // Helpers
         // ================================================================
-
-        private Task SyncPurchaseExpenseAsync(Device device, CancellationToken ct)
-            => _expenseService.SyncDeviceExpenseAsync(
-                device.Id,
-                device.StoreId,
-                device.PurchasePrice,
-                device.PurchaseDate,
-                device.SellerName,
-                $"شراء جهاز {device.Brand} {device.Model}".Trim() + (string.IsNullOrEmpty(device.Imei) ? "" : $" (IMEI {device.Imei})"),
-                device.CreatedBy,
-                ct);
 
         private static string Required(string? value, int maxLength, string label)
         {

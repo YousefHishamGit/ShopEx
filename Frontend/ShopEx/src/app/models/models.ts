@@ -698,6 +698,22 @@ export interface ConsignmentSummary {
   isOverdue: boolean;
 }
 
+/** One page of consignments + stats for the selected dealer (stats ignore the status tab and search). */
+export interface ConsignmentsPage {
+  items: ConsignmentSummary[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+  countTotal: number;
+  countOpen: number;
+  countOverdue: number;
+  countClosed: number;
+  countCancelled: number;
+  totalOutstandingValue: number;
+  totalRemainingUnpaid: number;
+}
+
 export interface CreateConsignmentItemRequest {
   rmsItemID: number;
   quantityIssued: number;
@@ -846,7 +862,7 @@ export interface RMSItem {
   supplierID?: number;
 }
 
-/** شحن رصيد من الفرع لنفسه (الفرع من السيرفر) - يُسجَّل كمصروف على الفرع */
+/** شحن رصيد من الفرع لنفسه (الفرع من السيرفر) */
 export interface ChargeOwnBalanceRequest {
   balanceType: BalanceType;
   amount: number;
@@ -941,6 +957,15 @@ export interface BalanceTransactionItem {
   transactionDate: string;
   notes?: string;
   balanceId?: number;
+}
+
+/** One page of the balance ledger (newest first). */
+export interface BalanceLedgerPage {
+  items: BalanceTransactionItem[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
 }
 
 
@@ -1334,4 +1359,57 @@ export interface SellDeviceRequest {
   buyerName?: string;
   buyerPhone?: string;
   notes?: string;
+}
+
+// ================================================================
+// Partners (شركاء الفروع وتوزيع الأرباح)
+// ================================================================
+
+export interface PartnerShare {
+  id: number;
+  name: string;
+  percent: number;
+  /** حصة الشريك من الصافي بعد الزكاة */
+  amount: number;
+}
+
+export interface BranchProfitShare {
+  storeId: number;
+  storeName: string;
+  /** الإدارة العامة (storeId = -1) */
+  isHq: boolean;
+  /** الفروع دائماً مفعَّلة؛ الإدارة يمكن إغلاقها */
+  isEnabled: boolean;
+  salesProfit: number;
+  maintenanceProfit: number;
+  devicesProfit: number;
+  balanceProfit: number;
+  consignmentProfit: number;
+  /** مصروفات تشغيلية (بدون شراء الأجهزة وشحن الرصيد) */
+  expenses: number;
+  totalProfit: number;
+  zakatPercent: number;
+  zakatAmount: number;
+  netAfterZakat: number;
+  partners: PartnerShare[];
+  totalPercent: number;
+  unallocatedAmount: number;
+}
+
+export interface PartnersReport {
+  from: string;
+  to: string;
+  branches: BranchProfitShare[];
+  pnl: DashboardPnlRow[];
+  pnlTotal: DashboardPnlRow;
+}
+
+export interface PartnerInput {
+  name: string;
+  percent: number;
+}
+
+export interface SaveBranchPartnersRequest {
+  zakatPercent: number;
+  partners: PartnerInput[];
 }

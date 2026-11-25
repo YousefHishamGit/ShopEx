@@ -21,6 +21,7 @@ const customerStatementsList = () => import('./pages/customer-statements/custome
 const customerStatementDetail = () => import('./pages/customer-statements/customer-statement-detail/customer-statement-detail.component').then(m => m.CustomerStatementDetailComponent);
 const balances = () => import('./pages/balances/balances.component').then(m => m.BalancesComponent);
 const expenses = () => import('./pages/expenses/expenses.component').then(m => m.ExpensesComponent);
+const partners = () => import('./pages/partners/partners.component').then(m => m.PartnersComponent);
 const users = () => import('./pages/users/users.component').then(m => m.UsersComponent);
 const login = () => import('./pages/login/login.component').then(m => m.LoginComponent);
 const devLicense = () => import('./pages/dev/license/license.component').then(m => m.LicenseComponent);
@@ -88,6 +89,7 @@ export const routes: Routes = [
       { path: 'balances', loadComponent: balances },
       { path: 'expenses', loadComponent: expenses },
       { path: 'devices', loadComponent: devices },
+      { path: 'partners', loadComponent: partners },
       { path: 'users', loadComponent: users }
     ]
   },

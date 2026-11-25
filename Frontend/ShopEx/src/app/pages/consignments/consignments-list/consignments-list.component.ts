@@ -1,4 +1,6 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Subject, Subscription } from 'rxjs';
+import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -17,8 +19,27 @@ import {
   imports: [CommonModule, FormsModule, RouterLink],
   templateUrl: './consignments-list.component.html'
 })
-export class ConsignmentsListComponent implements OnInit {
+export class ConsignmentsListComponent implements OnInit, OnDestroy {
+  /** The current page only: filtering, search and paging all happen on the server. */
   consignments: ConsignmentSummary[] = [];
+
+  // Paging
+  page = 1;
+  readonly pageSize = 25;
+  totalPages = 1;
+  totalCount = 0;
+
+  // Stats for the selected dealer (independent of the status tab and the search box)
+  countTotal = 0;
+  countOpen = 0;
+  countOverdue = 0;
+  countClosed = 0;
+  totalOutstandingValue = 0;
+  totalRemainingUnpaid = 0;
+
+  private search$ = new Subject<string>();
+  private searchSub?: Subscription;
+  private loadSub?: Subscription;
   dealers: Dealer[] = [];
   loading = false;
   errorMessage = '';
@@ -63,8 +84,37 @@ export class ConsignmentsListComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    this.searchSub = this.search$
+      .pipe(debounceTime(350), distinctUntilChanged())
+      .subscribe(() => {
+        this.page = 1;
+        this.loadConsignments();
+      });
     this.loadDealers();
     this.loadConsignments();
+  }
+
+  ngOnDestroy(): void {
+    this.searchSub?.unsubscribe();
+    this.loadSub?.unsubscribe();
+  }
+
+  onSearchChange(): void {
+    this.search$.next(this.searchQuery.trim());
+  }
+
+  goToPage(p: number): void {
+    if (p < 1 || p > this.totalPages || p === this.page || this.loading) return;
+    this.page = p;
+    this.loadConsignments();
+  }
+
+  get rangeStart(): number {
+    return this.totalCount === 0 ? 0 : (this.page - 1) * this.pageSize + 1;
+  }
+
+  get rangeEnd(): number {
+    return Math.min(this.page * this.pageSize, this.totalCount);
   }
 
   loadDealers(): void {
@@ -75,19 +125,27 @@ export class ConsignmentsListComponent implements OnInit {
   }
 
   loadConsignments(): void {
+    // Cancel any in-flight request so an older, slower response never overwrites a newer one
+    this.loadSub?.unsubscribe();
     this.loading = true;
     this.errorMessage = '';
 
-    // Only the dealer is filtered server-side: the status filters are applied locally so the
-    // summary cards always reflect every consignment of the selected dealer (and no extra requests are needed).
-    this.consignmentService
-      .getConsignments(this.selectedDealerId || undefined)
+    this.loadSub = this.consignmentService
+      .getConsignmentsPaged(this.selectedDealerId || undefined, this.selectedStatus, this.searchQuery.trim(), this.page, this.pageSize)
       .subscribe({
-        next: (data) => {
-          this.consignments = data || [];
+        next: (res) => {
+          this.consignments = res.items || [];
+          this.totalCount = res.totalCount;
+          this.totalPages = res.totalPages || 1;
+          this.countTotal = res.countTotal;
+          this.countOpen = res.countOpen;
+          this.countOverdue = res.countOverdue;
+          this.countClosed = res.countClosed;
+          this.totalOutstandingValue = res.totalOutstandingValue;
+          this.totalRemainingUnpaid = res.totalRemainingUnpaid;
           this.loading = false;
         },
-        error: (err) => {
+        error: () => {
           this.errorMessage = 'حدث خطأ أثناء تحميل أذونات البنزيمات.';
           this.loading = false;
         }
@@ -106,63 +164,16 @@ export class ConsignmentsListComponent implements OnInit {
     return status === 'Cancelled' || status === 3 || status === '3';
   }
 
+  /** Kept for the template: the server already applied the status tab and the search. */
   get filteredConsignments(): ConsignmentSummary[] {
-    let list = this.consignments;
-
-    if (this.selectedStatus === 'OVERDUE') {
-      list = list.filter((c) => c.isOverdue);
-    } else if (this.selectedStatus === 'Open') {
-      list = list.filter((c) => this.isOpen(c.status));
-    } else if (this.selectedStatus === 'Closed') {
-      list = list.filter((c) => this.isClosed(c.status));
-    } else if (this.selectedStatus === 'Cancelled') {
-      list = list.filter((c) => this.isCancelled(c.status));
-    }
-
-    if (this.searchQuery && this.searchQuery.trim()) {
-      const q = this.searchQuery.trim().toLowerCase();
-      list = list.filter(
-        (c) =>
-          c.consignmentNumber.toLowerCase().includes(q) ||
-          c.dealerName.toLowerCase().includes(q) ||
-          c.dealerPhone.includes(q)
-      );
-    }
-
-    return list;
-  }
-
-  // Statistics
-  get countTotal(): number {
-    return this.consignments.length;
-  }
-
-  get countOpen(): number {
-    return this.consignments.filter((c) => this.isOpen(c.status)).length;
-  }
-
-  get countOverdue(): number {
-    return this.consignments.filter((c) => c.isOverdue).length;
-  }
-
-  get countClosed(): number {
-    return this.consignments.filter((c) => this.isClosed(c.status)).length;
-  }
-
-  get totalOutstandingValue(): number {
-    return this.consignments
-      .filter((c) => this.isOpen(c.status))
-      .reduce((sum, c) => sum + (c.outstandingValue || 0), 0);
-  }
-
-  get totalRemainingUnpaid(): number {
-    return this.consignments
-      .filter((c) => this.isOpen(c.status))
-      .reduce((sum, c) => sum + (c.remainingAmount || 0), 0);
+    return this.consignments;
   }
 
   onFilterStatus(status: string): void {
+    if (this.selectedStatus === status) return;
     this.selectedStatus = status;
+    this.page = 1;
+    this.loadConsignments();
   }
 
   trackById(_: number, item: { id: number }): number {
@@ -170,6 +181,7 @@ export class ConsignmentsListComponent implements OnInit {
   }
 
   onFilterDealer(): void {
+    this.page = 1;
     this.loadConsignments();
   }
 
